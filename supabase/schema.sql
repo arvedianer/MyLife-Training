@@ -130,9 +130,46 @@ create policy "Users can manage own splits"
   using (auth.uid() = user_id);
 
 -- ─────────────────────────────────────────
+-- COMMUNITY EXERCISES
+-- ─────────────────────────────────────────
+create table public.community_exercises (
+  id               uuid primary key default uuid_generate_v4(),
+  name             text not null,
+  name_de          text not null,
+  primary_muscle   text not null,
+  secondary_muscles text[] not null default '{}',
+  equipment        text[] not null,
+  category         text not null,
+  default_sets     int not null default 3,
+  default_reps     int not null default 10,
+  default_weight   numeric not null default 0,
+  rep_range_min    int not null default 8,
+  rep_range_max    int not null default 12,
+  rest_seconds     int not null default 90,
+  science_note     text not null default '',
+  created_by       uuid references auth.users on delete cascade not null,
+  created_at       timestamptz not null default now()
+);
+
+alter table public.community_exercises enable row level security;
+
+create policy "Anyone can read community exercises"
+  on public.community_exercises for select
+  using (true);
+
+create policy "Users can insert own community exercises"
+  on public.community_exercises for insert
+  with check (auth.uid() = created_by);
+
+create policy "Users can delete own community exercises"
+  on public.community_exercises for delete
+  using (auth.uid() = created_by);
+
+-- ─────────────────────────────────────────
 -- INDEXES
 -- ─────────────────────────────────────────
 create index sessions_user_id_date on public.sessions (user_id, date desc);
 create index session_exercises_session_id on public.session_exercises (session_id);
 create index personal_records_user_exercise on public.personal_records (user_id, exercise_id);
 create index custom_splits_user_id on public.custom_splits (user_id);
+create index community_exercises_created_by on public.community_exercises (created_by);

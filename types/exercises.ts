@@ -8,8 +8,7 @@ export type MuscleGroup =
   | 'glutes'
   | 'core'
   | 'calves'
-  | 'forearms'
-  | 'cardio';
+  | 'forearms';
 
 export type Equipment =
   | 'barbell'

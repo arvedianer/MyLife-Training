@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, X, Search, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
@@ -8,12 +8,43 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { usePlanStore } from '@/store/planStore';
 import { exercises as allExercises, getExerciseById } from '@/constants/exercises';
-import type { TrainingSplit } from '@/types/splits';
+import type { TrainingSplit, RepScheme } from '@/types/splits';
+import type { MuscleGroup, Equipment } from '@/types/exercises';
 
 interface DayForm {
   name: string;
   exerciseIds: string[];
+  repScheme: RepScheme;
 }
+
+const muscleFilterOptions: { id: MuscleGroup; label: string }[] = [
+  { id: 'chest',     label: 'Brust'     },
+  { id: 'back',      label: 'Rücken'    },
+  { id: 'shoulders', label: 'Schultern' },
+  { id: 'biceps',    label: 'Bizeps'    },
+  { id: 'triceps',   label: 'Trizeps'   },
+  { id: 'legs',      label: 'Beine'     },
+  { id: 'glutes',    label: 'Gesäß'     },
+  { id: 'core',      label: 'Core'      },
+  { id: 'calves',    label: 'Waden'     },
+  { id: 'forearms',  label: 'Unterarme' },
+];
+
+const equipmentFilterOptions: { id: Equipment; label: string }[] = [
+  { id: 'barbell',    label: 'Langhantel'   },
+  { id: 'dumbbell',   label: 'Kurzhantel'   },
+  { id: 'cable',      label: 'Kabel'        },
+  { id: 'machine',    label: 'Maschine'     },
+  { id: 'bodyweight', label: 'Eigengewicht' },
+  { id: 'kettlebell', label: 'Kettlebell'   },
+  { id: 'band',       label: 'Band'         },
+];
+
+const repSchemeOptions: { id: RepScheme; label: string; color: string; bg: string }[] = [
+  { id: 'strength',    label: 'KRAFT',          color: '#FF9500', bg: '#1A1000' },
+  { id: 'hypertrophy', label: 'HYPERTROPHIE',   color: colors.accent, bg: colors.accentBg },
+  { id: 'endurance',   label: 'AUSDAUER',       color: colors.success, bg: colors.successBg },
+];
 
 export default function CreateSplitPage() {
   const router = useRouter();
@@ -22,19 +53,36 @@ export default function CreateSplitPage() {
   const [splitName, setSplitName] = useState('');
   const [daysPerWeek, setDaysPerWeek] = useState(3);
   const [days, setDays] = useState<DayForm[]>(() =>
-    Array.from({ length: 3 }, (_, i) => ({ name: defaultDayName(i, 3), exerciseIds: [] }))
+    Array.from({ length: 3 }, (_, i) => ({
+      name: defaultDayName(i, 3),
+      exerciseIds: [],
+      repScheme: 'hypertrophy' as RepScheme,
+    }))
   );
   const [expandedDay, setExpandedDay] = useState<number | null>(0);
   const [searchDayIndex, setSearchDayIndex] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchMuscle, setSearchMuscle] = useState<MuscleGroup | null>(null);
+  const [searchEquipment, setSearchEquipment] = useState<Equipment | null>(null);
 
-  const filteredExercises = searchQuery.length > 0
-    ? allExercises.filter((e) =>
+  const filteredExercises = useMemo(() => {
+    return allExercises.filter((e) => {
+      const matchesQuery =
+        searchQuery.length === 0 ||
         e.nameDE.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.primaryMuscle.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : allExercises;
+        e.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesMuscle =
+        !searchMuscle ||
+        e.primaryMuscle === searchMuscle ||
+        e.secondaryMuscles.includes(searchMuscle);
+
+      const matchesEquipment =
+        !searchEquipment || e.equipment.includes(searchEquipment);
+
+      return matchesQuery && matchesMuscle && matchesEquipment;
+    });
+  }, [searchQuery, searchMuscle, searchEquipment]);
 
   const handleDaysPerWeekChange = useCallback((n: number) => {
     setDaysPerWeek(n);
@@ -45,6 +93,7 @@ export default function CreateSplitPage() {
           ...Array.from({ length: n - prev.length }, (_, i) => ({
             name: defaultDayName(prev.length + i, n),
             exerciseIds: [] as string[],
+            repScheme: 'hypertrophy' as RepScheme,
           })),
         ];
       }
@@ -77,6 +126,19 @@ export default function CreateSplitPage() {
     );
   };
 
+  const handleRepScheme = (dayIndex: number, scheme: RepScheme) => {
+    setDays((prev) =>
+      prev.map((d, i) => (i === dayIndex ? { ...d, repScheme: scheme } : d))
+    );
+  };
+
+  const openPicker = (dayIdx: number) => {
+    setSearchDayIndex(dayIdx);
+    setSearchQuery('');
+    setSearchMuscle(null);
+    setSearchEquipment(null);
+  };
+
   const handleSave = () => {
     if (!splitName.trim()) return;
     const newSplit: TrainingSplit = {
@@ -95,7 +157,7 @@ export default function CreateSplitPage() {
         muscleGroups: [],
         exerciseIds: d.exerciseIds,
         restDay: false,
-        repScheme: 'hypertrophy' as const,
+        repScheme: d.repScheme,
       })),
     };
     addSplit(newSplit);
@@ -197,7 +259,7 @@ export default function CreateSplitPage() {
               transition: 'border-color 0.15s',
             }}
           >
-            {/* Day header — tap to expand */}
+            {/* Day header */}
             <button
               onClick={() => setExpandedDay(expandedDay === dayIdx ? null : dayIdx)}
               style={{
@@ -352,7 +414,7 @@ export default function CreateSplitPage() {
                         backgroundColor: colors.bgHighest,
                         borderRadius: radius.lg,
                         padding: `${spacing[2]} ${spacing[3]}`,
-                        marginBottom: spacing[3],
+                        marginBottom: spacing[2],
                         border: `1px solid ${colors.border}`,
                       }}
                     >
@@ -385,10 +447,52 @@ export default function CreateSplitPage() {
                       )}
                     </div>
 
+                    {/* Muscle filter chips */}
+                    <div style={{ overflowX: 'auto', paddingBottom: '2px', marginBottom: spacing[1] }}>
+                      <div style={{ display: 'flex', gap: spacing[1], width: 'max-content' }}>
+                        <button
+                          onClick={() => setSearchMuscle(null)}
+                          style={filterChipStyle(!searchMuscle)}
+                        >
+                          ALLE
+                        </button>
+                        {muscleFilterOptions.map((mg) => (
+                          <button
+                            key={mg.id}
+                            onClick={() => setSearchMuscle(searchMuscle === mg.id ? null : mg.id)}
+                            style={filterChipStyle(searchMuscle === mg.id)}
+                          >
+                            {mg.label.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Equipment filter chips */}
+                    <div style={{ overflowX: 'auto', paddingBottom: '2px', marginBottom: spacing[3] }}>
+                      <div style={{ display: 'flex', gap: spacing[1], width: 'max-content' }}>
+                        <button
+                          onClick={() => setSearchEquipment(null)}
+                          style={filterChipStyle(!searchEquipment)}
+                        >
+                          ALLE
+                        </button>
+                        {equipmentFilterOptions.map((eq) => (
+                          <button
+                            key={eq.id}
+                            onClick={() => setSearchEquipment(searchEquipment === eq.id ? null : eq.id)}
+                            style={filterChipStyle(searchEquipment === eq.id)}
+                          >
+                            {eq.label.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* Exercise list */}
                     <div
                       style={{
-                        maxHeight: '240px',
+                        maxHeight: '220px',
                         overflowY: 'auto',
                         display: 'flex',
                         flexDirection: 'column',
@@ -431,7 +535,7 @@ export default function CreateSplitPage() {
                                   color: colors.textMuted,
                                 }}
                               >
-                                {ex.primaryMuscle} · {ex.category}
+                                {ex.primaryMuscle} · {ex.category} · {ex.equipment[0]}
                               </span>
                             </div>
                             {selected && (
@@ -446,6 +550,8 @@ export default function CreateSplitPage() {
                       onClick={() => {
                         setSearchDayIndex(null);
                         setSearchQuery('');
+                        setSearchMuscle(null);
+                        setSearchEquipment(null);
                       }}
                       style={{
                         ...typography.bodySm,
@@ -460,12 +566,10 @@ export default function CreateSplitPage() {
                     </button>
                   </div>
                 ) : (
-                  <div style={{ padding: spacing[4] }}>
+                  <div style={{ padding: spacing[4], display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
+                    {/* Add exercises button */}
                     <button
-                      onClick={() => {
-                        setSearchDayIndex(dayIdx);
-                        setSearchQuery('');
-                      }}
+                      onClick={() => openPicker(dayIdx)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -485,6 +589,38 @@ export default function CreateSplitPage() {
                       <Plus size={14} />
                       Übungen auswählen
                     </button>
+
+                    {/* Rep scheme selector */}
+                    <div>
+                      <div style={{ ...typography.label, color: colors.textFaint, marginBottom: spacing[2] }}>
+                        TRAININGSFOKUS
+                      </div>
+                      <div style={{ display: 'flex', gap: spacing[2] }}>
+                        {repSchemeOptions.map((opt) => {
+                          const active = day.repScheme === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              onClick={() => handleRepScheme(dayIdx, opt.id)}
+                              style={{
+                                flex: 1,
+                                padding: `${spacing[2]} ${spacing[1]}`,
+                                borderRadius: radius.md,
+                                border: `1px solid ${active ? opt.color : colors.border}`,
+                                backgroundColor: active ? opt.bg : 'transparent',
+                                ...typography.label,
+                                color: active ? opt.color : colors.textMuted,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                                fontSize: '9px',
+                              }}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -514,6 +650,22 @@ export default function CreateSplitPage() {
       </div>
     </div>
   );
+}
+
+function filterChipStyle(active: boolean): React.CSSProperties {
+  return {
+    flexShrink: 0,
+    padding: '2px 8px',
+    borderRadius: '100px',
+    border: `1px solid ${active ? colors.accent : colors.border}`,
+    backgroundColor: active ? colors.accentBg : 'transparent',
+    fontSize: '10px',
+    fontWeight: '700',
+    color: active ? colors.accent : colors.textMuted,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.15s',
+  };
 }
 
 function defaultDayName(index: number, total: number): string {

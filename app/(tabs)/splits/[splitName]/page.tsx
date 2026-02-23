@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Edit2, Play, ChevronDown, ChevronUp, FlaskConical } from 'lucide-react';
+import { CheckCircle2, Edit2, Play, ChevronDown, ChevronUp, FlaskConical, Share2 } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge } from '@/components/ui/Badge';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { usePlanStore } from '@/store/planStore';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { getExerciseById } from '@/constants/exercises';
+import { encodePlan } from '@/utils/planShare';
 import type { RepScheme } from '@/types/splits';
 
 export default function SplitDetailPage({
@@ -34,6 +35,16 @@ export default function SplitDetailPage({
   }
 
   const isActive = split.id === activeSplitId;
+  const [shareToast, setShareToast] = useState(false);
+
+  const handleShare = () => {
+    const encoded = encodePlan(split);
+    const url = `${window.location.origin}/splits/import?data=${encoded}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setShareToast(true);
+      setTimeout(() => setShareToast(false), 2500);
+    });
+  };
 
   const difficultyLabel: Record<string, string> = {
     beginner:     'Anfänger',
@@ -46,8 +57,10 @@ export default function SplitDetailPage({
       <PageHeader
         title={split.name}
         rightElement={
-          <Link href="/splits/edit">
+          <div style={{ display: 'flex', gap: spacing[2] }}>
+            {/* Share button */}
             <button
+              onClick={handleShare}
               style={{
                 width: '36px',
                 height: '36px',
@@ -59,12 +72,58 @@ export default function SplitDetailPage({
                 justifyContent: 'center',
                 cursor: 'pointer',
               }}
+              title="Plan teilen"
             >
-              <Edit2 size={16} color={colors.textMuted} />
+              <Share2 size={16} color={colors.textMuted} />
             </button>
-          </Link>
+            {/* Edit button */}
+            <Link href="/splits/edit">
+              <button
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  backgroundColor: colors.bgCard,
+                  border: `1px solid ${colors.border}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <Edit2 size={16} color={colors.textMuted} />
+              </button>
+            </Link>
+          </div>
         }
       />
+
+      {/* Share toast */}
+      {shareToast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${colors.accent}40`,
+            borderRadius: radius.lg,
+            padding: `${spacing[3]} ${spacing[4]}`,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing[2],
+            boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <Share2 size={14} color={colors.accent} />
+          <span style={{ ...typography.bodySm, color: colors.accent }}>
+            Link kopiert!
+          </span>
+        </div>
+      )}
 
       <div style={{ padding: spacing[5], display: 'flex', flexDirection: 'column', gap: spacing[5] }}>
         {/* Beschreibung + Badges */}
