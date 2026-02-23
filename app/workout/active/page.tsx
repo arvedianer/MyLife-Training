@@ -38,6 +38,7 @@ export default function ActiveWorkoutPage() {
   const [showPR, setShowPR] = useState(false);
   const [prExerciseName, setPRExerciseName] = useState('');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isFinishing = useRef(false); // prevents the "no workout" redirect from firing during completion
 
   // Workout-Timer — clear before set to prevent accumulation
   useEffect(() => {
@@ -58,19 +59,22 @@ export default function ActiveWorkoutPage() {
     };
   }, [activeWorkout]);
 
-  // Redirect wenn kein aktives Workout
+  // Redirect wenn kein aktives Workout — aber nicht wenn wir gerade abschließen
   useEffect(() => {
-    if (!activeWorkout) {
+    if (!activeWorkout && !isFinishing.current) {
       router.replace('/start');
     }
   }, [activeWorkout, router]);
 
-  if (!activeWorkout) return null;
+  if (!activeWorkout && !isFinishing.current) return null;
 
   const handleFinish = () => {
+    isFinishing.current = true;
     const session = completeWorkout();
     if (session) {
       router.replace(`/workout/summary?session=${session.id}`);
+    } else {
+      isFinishing.current = false;
     }
   };
 
