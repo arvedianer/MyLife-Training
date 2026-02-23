@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { colors, typography, spacing } from '@/constants/tokens';
@@ -11,15 +12,18 @@ export default function AddExercisePage() {
   const router = useRouter();
   const { addExercise, activeWorkout } = useWorkoutStore();
 
+  useEffect(() => {
+    if (!activeWorkout) {
+      router.replace('/start');
+    }
+  }, [activeWorkout, router]);
+
   const handleSelect = (exercise: Exercise) => {
     addExercise(exercise);
     router.back();
   };
 
-  if (!activeWorkout) {
-    router.replace('/start');
-    return null;
-  }
+  if (!activeWorkout) return null;
 
   return (
     <div
