@@ -9,6 +9,7 @@ interface SetRowProps {
   set: SetEntry;
   setNumber: number;
   exerciseId: string;
+  repRange?: { min: number; max: number };
   onUpdateWeight: (weight: number) => void;
   onUpdateReps: (reps: number) => void;
   onToggleComplete: () => void;
@@ -17,15 +18,25 @@ interface SetRowProps {
   onStartTimer?: () => void;
 }
 
+function getRepsColor(reps: number, repRange?: { min: number; max: number }): string {
+  if (!repRange || reps === 0) return colors.textDisabled;
+  if (reps >= repRange.min && reps <= repRange.max) return colors.success;
+  return '#FF9500'; // orange — outside range
+}
+
 export function SetRow({
   set,
   setNumber,
+  repRange,
   onUpdateWeight,
   onUpdateReps,
   onToggleComplete,
   onRemove,
   onStartTimer,
 }: SetRowProps) {
+  const repsColor = getRepsColor(set.reps, repRange);
+  const repsInRange = repRange && set.reps > 0 && set.reps >= repRange.min && set.reps <= repRange.max;
+
   return (
     <div
       style={{
@@ -77,10 +88,17 @@ export function SetRow({
         />
       </div>
 
-      {/* Wiederholungen */}
+      {/* Wiederholungen — colored by in/out of rep range */}
       <div style={{ flex: 1 }}>
-        <div style={{ ...typography.label, color: colors.textFaint, marginBottom: '2px' }}>
-          WDH
+        <div
+          style={{
+            ...typography.label,
+            color: set.reps > 0 && repRange ? repsColor : colors.textFaint,
+            marginBottom: '2px',
+            transition: 'color 0.2s',
+          }}
+        >
+          WDH {repsInRange ? '✓' : set.reps > 0 && repRange ? '!' : ''}
         </div>
         <NumericInput
           value={set.reps}
@@ -89,6 +107,12 @@ export function SetRow({
           placeholder="0"
           style={{
             opacity: set.isCompleted ? 0.6 : 1,
+            borderColor:
+              set.reps > 0 && repRange
+                ? repsInRange
+                  ? `${colors.success}60`
+                  : '#FF950060'
+                : undefined,
           }}
         />
       </div>

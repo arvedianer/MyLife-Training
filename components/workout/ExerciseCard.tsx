@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Trash2, Info, Target, Timer } from 'lucide-react';
 import { useState } from 'react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { SetRow } from './SetRow';
@@ -29,8 +29,12 @@ export function ExerciseCard({
   onStartTimer,
 }: ExerciseCardProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [scienceExpanded, setScienceExpanded] = useState(false);
   const { exercise, sets } = workoutExercise;
   const completedSets = sets.filter((s) => s.isCompleted).length;
+
+  // Use exercise-specific rest time if available, fall back to default
+  const restSeconds = exercise.restSeconds ?? restTimerDefault;
 
   return (
     <div
@@ -66,17 +70,94 @@ export function ExerciseCard({
               {exercise.nameDE}
             </h3>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginTop: spacing[1] }}>
+
+          {/* Progress + Science badges */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginTop: spacing[2], flexWrap: 'wrap' }}>
             <Badge variant="muted">
               {completedSets}/{sets.length} Sätze
             </Badge>
-            <span style={{ ...typography.bodySm, color: colors.textDisabled }}>
-              {exercise.equipment[0]}
-            </span>
+
+            {/* Rep range target */}
+            {exercise.repRange && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  backgroundColor: `${colors.accent}15`,
+                  border: `1px solid ${colors.accent}30`,
+                  borderRadius: radius.sm,
+                  padding: '2px 8px',
+                }}
+              >
+                <Target size={10} color={colors.accent} />
+                <span style={{ ...typography.monoSm, color: colors.accent }}>
+                  {exercise.repRange.min}–{exercise.repRange.max} Wdh.
+                </span>
+              </div>
+            )}
+
+            {/* Rest time */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                backgroundColor: colors.bgHighest,
+                border: `1px solid ${colors.border}`,
+                borderRadius: radius.sm,
+                padding: '2px 8px',
+              }}
+            >
+              <Timer size={10} color={colors.textMuted} />
+              <span style={{ ...typography.monoSm, color: colors.textMuted }}>
+                {restSeconds}s
+              </span>
+            </div>
+
+            {/* Science note toggle */}
+            {exercise.scienceNote && (
+              <button
+                onClick={() => setScienceExpanded((v) => !v)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  backgroundColor: scienceExpanded ? `${colors.accent}20` : 'transparent',
+                  border: `1px solid ${scienceExpanded ? colors.accent + '50' : colors.borderLight}`,
+                  borderRadius: radius.sm,
+                  padding: '2px 8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <Info size={10} color={scienceExpanded ? colors.accent : colors.textFaint} />
+                <span style={{ ...typography.label, color: scienceExpanded ? colors.accent : colors.textFaint }}>
+                  Warum?
+                </span>
+              </button>
+            )}
           </div>
+
+          {/* Science note expanded */}
+          {scienceExpanded && exercise.scienceNote && (
+            <div
+              style={{
+                marginTop: spacing[2],
+                padding: spacing[3],
+                backgroundColor: `${colors.accent}08`,
+                border: `1px solid ${colors.accent}20`,
+                borderRadius: radius.md,
+              }}
+            >
+              <p style={{ ...typography.bodySm, color: colors.textMuted, lineHeight: '18px' }}>
+                {exercise.scienceNote}
+              </p>
+            </div>
+          )}
         </div>
 
-        <div style={{ display: 'flex', gap: spacing[2], flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: spacing[2], flexShrink: 0, marginLeft: spacing[2] }}>
           {/* Delete Exercise */}
           <button
             onClick={onRemoveExercise}
@@ -156,11 +237,12 @@ export function ExerciseCard({
               set={set}
               setNumber={index + 1}
               exerciseId={workoutExercise.id}
+              repRange={exercise.repRange}
               onUpdateWeight={(weight) => onUpdateSet(set.id, { weight })}
               onUpdateReps={(reps) => onUpdateSet(set.id, { reps })}
               onToggleComplete={() => onToggleSet(set.id)}
               onRemove={() => onRemoveSet(set.id)}
-              onStartTimer={() => onStartTimer(restTimerDefault)}
+              onStartTimer={() => onStartTimer(restSeconds)}
             />
           ))}
 

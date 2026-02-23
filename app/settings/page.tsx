@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, RotateCcw, Weight, Timer } from 'lucide-react';
+import { ChevronRight, RotateCcw, Weight, Timer, LogOut, User } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AppShell } from '@/components/layout/AppShell';
@@ -9,6 +10,32 @@ import { useUserStore } from '@/store/userStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { usePlanStore } from '@/store/planStore';
 import { useWorkoutStore } from '@/store/workoutStore';
+import { supabase } from '@/lib/supabase';
+
+interface SupabaseUser {
+  email?: string;
+  username?: string;
+  memberSince?: string;
+}
+
+function formatMemberSince(isoDate: string): string {
+  try {
+    const d = new Date(isoDate);
+    return d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
+function getInitials(name?: string, email?: string): string {
+  if (name && name.trim()) {
+    return name.trim().slice(0, 2).toUpperCase();
+  }
+  if (email) {
+    return email.slice(0, 2).toUpperCase();
+  }
+  return 'ML';
+}
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -16,6 +43,30 @@ export default function SettingsPage() {
     useUserStore();
   const { sessions } = useHistoryStore();
   const { splits } = usePlanStore();
+
+  const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl || supabaseUrl.includes('placeholder')) return;
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setSupabaseUser({
+          email: user.email,
+          username: user.user_metadata?.username as string | undefined,
+          memberSince: user.created_at,
+        });
+      }
+    });
+  }, []);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await supabase.auth.signOut();
+    router.replace('/auth/login');
+  };
 
   const handleReset = () => {
     if (confirm('Alle Daten löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
@@ -32,13 +83,98 @@ export default function SettingsPage() {
     }
   };
 
+  // Derived display name — Supabase username or profile name or fallback
+  const displayName = supabaseUser?.username || profile?.name || 'Sportler';
+  const displayEmail = supabaseUser?.email ?? '';
+  const initials = getInitials(displayName, displayEmail);
+
   return (
     <AppShell>
       <div style={{ backgroundColor: colors.bgPrimary, minHeight: '100dvh' }}>
         <PageHeader title="Einstellungen" />
 
         <div style={{ padding: spacing[5], display: 'flex', flexDirection: 'column', gap: spacing[6] }}>
-          {/* Profil */}
+
+          {/* ── KONTO ─────────────────────────────────────────────────── */}
+          <Section title="Konto">
+            {/* User identity card */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing[4],
+                padding: `${spacing[4]} 0`,
+                borderBottom: `1px solid ${colors.borderLight}`,
+              }}
+            >
+              {/* Avatar */}
+              <div
+                style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${colors.accent}40, ${colors.accent}15)`,
+                  border: `2px solid ${colors.accent}40`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <span style={{ ...typography.h3, color: colors.accent }}>{initials}</span>
+              </div>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ ...typography.bodyLg, color: colors.textPrimary, fontWeight: 700 }}>
+                  {displayName}
+                </div>
+                {displayEmail && (
+                  <div
+                    style={{
+                      ...typography.bodySm,
+                      color: colors.textMuted,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {displayEmail}
+                  </div>
+                )}
+                {supabaseUser?.memberSince && (
+                  <div style={{ ...typography.bodySm, color: colors.textFaint, marginTop: '2px' }}>
+                    Mitglied seit {formatMemberSince(supabaseUser.memberSince)}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Logout button */}
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing[3],
+                width: '100%',
+                padding: `${spacing[3]} 0`,
+                background: 'none',
+                border: 'none',
+                cursor: loggingOut ? 'not-allowed' : 'pointer',
+                opacity: loggingOut ? 0.5 : 1,
+                transition: 'opacity 0.15s',
+              }}
+            >
+              <LogOut size={18} color={colors.danger} />
+              <span style={{ ...typography.body, color: colors.danger }}>
+                {loggingOut ? 'Abmelden...' : 'Abmelden'}
+              </span>
+            </button>
+          </Section>
+
+          {/* ── PROFIL ────────────────────────────────────────────────── */}
           {profile && (
             <Section title="Profil">
               <InfoRow label="Ziel" value={profile.goal} />
@@ -48,7 +184,7 @@ export default function SettingsPage() {
             </Section>
           )}
 
-          {/* Einheiten */}
+          {/* ── EINHEITEN & TIMER ─────────────────────────────────────── */}
           <Section title="Einheiten & Timer">
             {/* Gewichtseinheit */}
             <div
@@ -126,13 +262,13 @@ export default function SettingsPage() {
             </div>
           </Section>
 
-          {/* Statistiken */}
+          {/* ── STATISTIKEN ───────────────────────────────────────────── */}
           <Section title="Daten">
             <InfoRow label="Trainingseinheiten" value={String(sessions.length)} />
             <InfoRow label="Aktive Pläne" value={String(splits.length)} />
           </Section>
 
-          {/* Danger Zone */}
+          {/* ── DANGER ZONE ───────────────────────────────────────────── */}
           <Section title="Gefährliche Zone">
             <button
               onClick={handleReset}
@@ -154,7 +290,7 @@ export default function SettingsPage() {
             </button>
           </Section>
 
-          {/* App Info */}
+          {/* ── APP INFO ──────────────────────────────────────────────── */}
           <div style={{ textAlign: 'center', paddingBottom: spacing[8] }}>
             <p style={{ ...typography.bodySm, color: colors.textFaint }}>
               MY LIFE Training · v0.1.0

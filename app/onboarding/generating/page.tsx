@@ -54,7 +54,9 @@ export default function GeneratingPage() {
 
     const split = generateSplitForUser(
       fullProfile.trainingDays,
-      fullProfile.level
+      fullProfile.level,
+      fullProfile.goal,
+      fullProfile.equipment
     );
 
     usePlanStore.getState().addSplit(split);

@@ -88,12 +88,14 @@ export default function CreateSplitPage() {
       difficulty: 'intermediate',
       isActive: splits.length === 0,
       createdAt: Date.now(),
+      scienceNote: '',
       days: days.map((d, i) => ({
         id: `custom-day-${Date.now()}-${i}`,
         name: d.name.trim() || `Tag ${i + 1}`,
         muscleGroups: [],
         exerciseIds: d.exerciseIds,
         restDay: false,
+        repScheme: 'hypertrophy' as const,
       })),
     };
     addSplit(newSplit);

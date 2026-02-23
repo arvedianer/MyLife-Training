@@ -9,12 +9,16 @@ export type SplitType =
   | 'phul'          // Power Hypertrophy Upper Lower
   | 'custom';       // User-defined
 
+export type RepScheme = 'strength' | 'hypertrophy' | 'endurance';
+
 export interface SplitDay {
   id: string;
-  name: string;         // z.B. "Push", "Beine", "Oberkörper"
+  name: string;
   muscleGroups: MuscleGroup[];
-  exerciseIds: string[]; // planned exercise IDs
+  exerciseIds: string[];
   restDay: boolean;
+  repScheme: RepScheme;       // Training focus for this day
+  scienceNote?: string;       // Why this day is structured this way
 }
 
 export interface TrainingSplit {
@@ -22,6 +26,7 @@ export interface TrainingSplit {
   name: string;
   type: SplitType;
   description: string;
+  scienceNote: string;        // Evidence-based rationale for this split
   days: SplitDay[];
   daysPerWeek: number;
   difficulty: 'beginner' | 'intermediate' | 'advanced';

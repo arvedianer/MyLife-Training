@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Edit2, Play } from 'lucide-react';
+import { CheckCircle2, Edit2, Play, ChevronDown, ChevronUp, FlaskConical } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge } from '@/components/ui/Badge';
@@ -10,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { usePlanStore } from '@/store/planStore';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { getExerciseById } from '@/constants/exercises';
+import type { RepScheme } from '@/types/splits';
 
 export default function SplitDetailPage({
   params,
@@ -21,6 +23,7 @@ export default function SplitDetailPage({
   const { getSplitById, activeSplitId, setActiveSplit } = usePlanStore();
   const { startWorkout, activeWorkout } = useWorkoutStore();
   const split = getSplitById(decodeURIComponent(splitName));
+  const [scienceOpen, setScienceOpen] = useState(false);
 
   if (!split) {
     return (
@@ -63,8 +66,8 @@ export default function SplitDetailPage({
         }
       />
 
-      <div style={{ padding: spacing[5], display: 'flex', flexDirection: 'column', gap: spacing[6] }}>
-        {/* Info */}
+      <div style={{ padding: spacing[5], display: 'flex', flexDirection: 'column', gap: spacing[5] }}>
+        {/* Beschreibung + Badges */}
         <div>
           <p style={{ ...typography.body, color: colors.textMuted, marginBottom: spacing[3] }}>
             {split.description}
@@ -76,13 +79,60 @@ export default function SplitDetailPage({
             <Badge variant="default">
               {difficultyLabel[split.difficulty] ?? split.difficulty}
             </Badge>
-            {isActive && (
-              <Badge variant="success">
-                Aktiv
-              </Badge>
-            )}
+            {isActive && <Badge variant="success">Aktiv</Badge>}
           </div>
         </div>
+
+        {/* Science Note — kollabierbar */}
+        {split.scienceNote && (
+          <div
+            style={{
+              backgroundColor: `${colors.accent}08`,
+              border: `1px solid ${colors.accent}25`,
+              borderRadius: radius.lg,
+              overflow: 'hidden',
+            }}
+          >
+            <button
+              onClick={() => setScienceOpen((v) => !v)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                padding: `${spacing[3]} ${spacing[4]}`,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
+                <FlaskConical size={14} color={colors.accent} />
+                <span style={{ ...typography.label, color: colors.accent }}>
+                  WARUM DIESER PLAN?
+                </span>
+              </div>
+              {scienceOpen ? (
+                <ChevronUp size={14} color={colors.accent} />
+              ) : (
+                <ChevronDown size={14} color={colors.accent} />
+              )}
+            </button>
+            {scienceOpen && (
+              <div
+                style={{
+                  padding: `0 ${spacing[4]} ${spacing[4]}`,
+                  borderTop: `1px solid ${colors.accent}20`,
+                  paddingTop: spacing[3],
+                }}
+              >
+                <p style={{ ...typography.body, color: colors.textMuted, lineHeight: '22px' }}>
+                  {split.scienceNote}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Activate */}
         {!isActive && (
@@ -96,7 +146,7 @@ export default function SplitDetailPage({
           </Button>
         )}
 
-        {/* Days */}
+        {/* Trainingstage */}
         <div>
           <h3 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>
             Trainingstage
@@ -130,12 +180,31 @@ export default function SplitDetailPage({
                       {day.name}
                     </h4>
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[1], justifyContent: 'flex-end' }}>
-                    {day.muscleGroups.slice(0, 3).map((mg) => (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[1], justifyContent: 'flex-end', alignItems: 'center' }}>
+                    {/* RepScheme Badge */}
+                    {day.repScheme && (
+                      <RepSchemeBadge scheme={day.repScheme} />
+                    )}
+                    {day.muscleGroups.slice(0, 2).map((mg) => (
                       <Badge key={mg} variant="muted">{mg}</Badge>
                     ))}
                   </div>
                 </div>
+
+                {/* Day Science Note */}
+                {day.scienceNote && (
+                  <div
+                    style={{
+                      padding: `${spacing[2]} ${spacing[4]}`,
+                      backgroundColor: `${colors.accent}05`,
+                      borderBottom: `1px solid ${colors.borderLight}`,
+                    }}
+                  >
+                    <p style={{ ...typography.bodySm, color: colors.textMuted }}>
+                      {day.scienceNote}
+                    </p>
+                  </div>
+                )}
 
                 {/* Exercises */}
                 <div style={{ padding: `${spacing[2]} ${spacing[4]}` }}>
@@ -162,11 +231,12 @@ export default function SplitDetailPage({
                             flexShrink: 0,
                           }}
                         />
-                        <span style={{ ...typography.body, color: colors.textSecondary }}>
+                        <span style={{ ...typography.body, color: colors.textSecondary, flex: 1 }}>
                           {ex.nameDE}
                         </span>
-                        <span style={{ ...typography.bodySm, color: colors.textDisabled, marginLeft: 'auto' }}>
-                          {ex.defaultSets}×{ex.defaultReps}
+                        {/* Show rep range instead of fixed reps */}
+                        <span style={{ ...typography.monoSm, color: colors.textDisabled }}>
+                          {ex.defaultSets}×{ex.repRange ? `${ex.repRange.min}–${ex.repRange.max}` : ex.defaultReps}
                         </span>
                       </div>
                     );
@@ -201,6 +271,27 @@ export default function SplitDetailPage({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function RepSchemeBadge({ scheme }: { scheme: RepScheme }) {
+  const config: Record<RepScheme, { label: string; color: string; bg: string }> = {
+    strength:    { label: 'KRAFT',        color: '#FF6B35', bg: '#FF6B3515' },
+    hypertrophy: { label: 'HYPERTROPHIE', color: colors.accent, bg: `${colors.accent}15` },
+    endurance:   { label: 'AUSDAUER',     color: colors.success, bg: `${colors.success}15` },
+  };
+  const c = config[scheme];
+  return (
+    <div
+      style={{
+        padding: '2px 8px',
+        borderRadius: radius.sm,
+        backgroundColor: c.bg,
+        border: `1px solid ${c.color}40`,
+      }}
+    >
+      <span style={{ ...typography.label, color: c.color }}>{c.label}</span>
     </div>
   );
 }

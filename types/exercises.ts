@@ -31,8 +31,11 @@ export interface Exercise {
   secondaryMuscles: MuscleGroup[];
   equipment: Equipment[];
   category: ExerciseCategory;
-  instructions?: string;
   defaultSets: number;
   defaultReps: number;
   defaultWeight: number; // kg, 0 = bodyweight
+  // Science-based training data
+  repRange: { min: number; max: number };  // Target rep range for this exercise
+  restSeconds: number;                      // Recommended rest between sets (seconds)
+  scienceNote: string;                      // Form cue + evidence-based rationale
 }
