@@ -66,7 +66,8 @@ export default function ActiveWorkoutPage() {
     }
   }, [activeWorkout, router]);
 
-  if (!activeWorkout && !isFinishing.current) return null;
+  // Finishing: blank screen while navigation happens (avoids redirect to /start)
+  if (!activeWorkout) return null;
 
   const handleFinish = () => {
     isFinishing.current = true;
