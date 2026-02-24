@@ -2,15 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ClipboardList, Plus, BarChart2, Layers } from 'lucide-react';
+import { Home, Dumbbell, Plus, BarChart2, Layers } from 'lucide-react';
 import { colors, typography, spacing } from '@/constants/tokens';
 
 const tabs = [
-  { href: '/dashboard', icon: Home,          label: 'Home'    },
-  { href: '/log',       icon: ClipboardList, label: 'Log'     },
+  { href: '/dashboard', icon: Home,     label: 'Home'    },
+  { href: '/splits',    icon: Layers,   label: 'Splits'  },
   // Mitte: Start-Button (separat gerendert)
-  { href: '/stats',     icon: BarChart2,     label: 'Stats'   },
-  { href: '/splits',    icon: Layers,        label: 'Splits'  },
+  { href: '/exercises', icon: Dumbbell, label: 'Übungen' },
+  { href: '/stats',     icon: BarChart2, label: 'Stats'  },
 ] as const;
 
 export function BottomNav() {

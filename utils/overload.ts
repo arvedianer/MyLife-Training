@@ -83,6 +83,17 @@ export function isPRSet(
   sessions: WorkoutSession[]
 ): boolean {
   const newVolume = weight * reps;
+  if (newVolume === 0) return false;
+
+  // Only counts as PR if there's previous history with completed sets for this exercise
+  const hasHistory = sessions.some((s) =>
+    s.exercises.some(
+      (e) =>
+        e.exercise.id === exerciseId &&
+        e.sets.some((set) => set.isCompleted && set.weight > 0)
+    )
+  );
+  if (!hasHistory) return false;
 
   for (const session of sessions) {
     for (const exercise of session.exercises) {
@@ -94,5 +105,5 @@ export function isPRSet(
     }
   }
 
-  return newVolume > 0;
+  return true;
 }

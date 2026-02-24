@@ -171,7 +171,7 @@ export default function CreateSplitPage() {
       style={{
         backgroundColor: colors.bgPrimary,
         minHeight: '100dvh',
-        paddingBottom: '80px',
+        paddingBottom: '160px',
       }}
     >
       <PageHeader title="Eigener Plan" />
@@ -633,7 +633,7 @@ export default function CreateSplitPage() {
       <div
         style={{
           position: 'fixed',
-          bottom: 0,
+          bottom: '64px',
           left: '50%',
           transform: 'translateX(-50%)',
           width: '100%',

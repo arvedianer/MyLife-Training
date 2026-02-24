@@ -124,7 +124,7 @@ export default function ImportSplitPage() {
       style={{
         backgroundColor: colors.bgPrimary,
         minHeight: '100dvh',
-        paddingBottom: '100px',
+        paddingBottom: '160px',
       }}
     >
       {/* Header */}
@@ -242,7 +242,7 @@ export default function ImportSplitPage() {
       <div
         style={{
           position: 'fixed',
-          bottom: 0,
+          bottom: '64px',
           left: '50%',
           transform: 'translateX(-50%)',
           width: '100%',

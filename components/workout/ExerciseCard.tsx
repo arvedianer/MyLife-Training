@@ -1,32 +1,42 @@
 'use client';
 
-import { Plus, ChevronDown, ChevronUp, Trash2, Info, Target, Timer } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Trash2, Info, Target, Timer, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { SetRow } from './SetRow';
 import { Badge } from '@/components/ui/Badge';
 import type { WorkoutExercise } from '@/types/workout';
 
+interface OverloadSuggestion {
+  weight: number;
+  reps: number;
+  reason: string;
+}
+
 interface ExerciseCardProps {
   workoutExercise: WorkoutExercise;
   restTimerDefault: number;
+  overloadSuggestion?: OverloadSuggestion | null;
   onAddSet: () => void;
   onUpdateSet: (setId: string, updates: { weight?: number; reps?: number }) => void;
   onToggleSet: (setId: string) => void;
   onRemoveSet: (setId: string) => void;
   onRemoveExercise: () => void;
   onStartTimer: (seconds: number) => void;
+  onApplySuggestion?: (weight: number, reps: number) => void;
 }
 
 export function ExerciseCard({
   workoutExercise,
   restTimerDefault,
+  overloadSuggestion,
   onAddSet,
   onUpdateSet,
   onToggleSet,
   onRemoveSet,
   onRemoveExercise,
   onStartTimer,
+  onApplySuggestion,
 }: ExerciseCardProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [scienceExpanded, setScienceExpanded] = useState(false);
@@ -213,6 +223,46 @@ export function ExerciseCard({
       {/* Sets */}
       {!collapsed && (
         <div style={{ padding: `0 ${spacing[4]}` }}>
+          {/* KI Overload Suggestion */}
+          {overloadSuggestion && (
+            <button
+              onClick={() => onApplySuggestion?.(overloadSuggestion.weight, overloadSuggestion.reps)}
+              title="Tippen um auf ersten offenen Satz anzuwenden"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                padding: `${spacing[2]} ${spacing[3]}`,
+                marginTop: spacing[2],
+                marginBottom: spacing[1],
+                backgroundColor: `${colors.accent}10`,
+                border: `1px solid ${colors.accent}30`,
+                borderRadius: radius.md,
+                cursor: onApplySuggestion ? 'pointer' : 'default',
+                transition: 'background-color 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                if (onApplySuggestion) {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = `${colors.accent}20`;
+                }
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = `${colors.accent}10`;
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
+                <TrendingUp size={12} color={colors.accent} />
+                <span style={{ ...typography.label, color: colors.accent }}>
+                  KI: {overloadSuggestion.weight} kg × {overloadSuggestion.reps} Wdh.
+                </span>
+              </div>
+              <span style={{ ...typography.label, color: colors.textFaint, fontSize: '9px' }}>
+                {overloadSuggestion.reason}
+              </span>
+            </button>
+          )}
+
           {/* Column Headers */}
           <div
             style={{

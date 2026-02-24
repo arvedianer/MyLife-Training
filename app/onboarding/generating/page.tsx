@@ -7,6 +7,7 @@ import { colors, typography, spacing } from '@/constants/tokens';
 import { useUserStore } from '@/store/userStore';
 import { usePlanStore } from '@/store/planStore';
 import { generateSplitForUser } from '@/constants/splits';
+import { supabase } from '@/lib/supabase';
 import type { UserProfile } from '@/types/user';
 
 const steps = [
@@ -61,6 +62,21 @@ export default function GeneratingPage() {
 
     usePlanStore.getState().addSplit(split);
     useUserStore.getState().completeOnboarding(fullProfile);
+
+    // Save onboarding data to Supabase profiles table (best-effort, fire-and-forget)
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        void supabase
+          .from('profiles')
+          .update({
+            goal: fullProfile.goal,
+            level: fullProfile.level,
+            training_days: fullProfile.trainingDays,
+            equipment: fullProfile.equipment,
+          })
+          .eq('id', user.id);
+      }
+    });
 
     const timeout = setTimeout(() => {
       router.replace('/dashboard');

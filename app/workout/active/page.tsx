@@ -12,6 +12,8 @@ import { PRMomentOverlay } from '@/components/overlays/PRMomentOverlay';
 import { useWorkout } from '@/hooks/useWorkout';
 import { useRestTimer } from '@/hooks/useTimer';
 import { useUserStore } from '@/store/userStore';
+import { useHistoryStore } from '@/store/historyStore';
+import { calculateOverloadSuggestion } from '@/utils/overload';
 import { formatDuration } from '@/utils/dates';
 
 export default function ActiveWorkoutPage() {
@@ -33,6 +35,7 @@ export default function ActiveWorkoutPage() {
   } = useWorkout();
 
   const restTimer = useRestTimer();
+  const { sessions } = useHistoryStore();
 
   const [elapsed, setElapsed] = useState(0);
   const [showPR, setShowPR] = useState(false);
@@ -81,8 +84,17 @@ export default function ActiveWorkoutPage() {
 
   const handleCancel = () => {
     if (confirm('Workout wirklich abbrechen? Alle Daten gehen verloren.')) {
+      isFinishing.current = true; // prevent useEffect double-redirect
       cancelWorkout();
       router.replace('/start');
+    }
+  };
+
+  const handleApplySuggestion = (exerciseId: string, weight: number, reps: number) => {
+    const workoutEx = activeWorkout.exercises.find((e) => e.id === exerciseId);
+    const firstUncompleted = workoutEx?.sets.find((s) => !s.isCompleted);
+    if (firstUncompleted) {
+      updateSet(exerciseId, firstUncompleted.id, { weight, reps });
     }
   };
 
@@ -233,19 +245,29 @@ export default function ActiveWorkoutPage() {
           </div>
         ) : (
           <>
-            {activeWorkout.exercises.map((workoutExercise) => (
-              <ExerciseCard
-                key={workoutExercise.id}
-                workoutExercise={workoutExercise}
-                restTimerDefault={restTimerDefault}
-                onAddSet={() => addSet(workoutExercise.id)}
-                onUpdateSet={(setId, updates) => updateSet(workoutExercise.id, setId, updates)}
-                onToggleSet={(setId) => handleToggleSet(workoutExercise.id, setId)}
-                onRemoveSet={(setId) => removeSet(workoutExercise.id, setId)}
-                onRemoveExercise={() => removeExercise(workoutExercise.id)}
-                onStartTimer={(seconds) => startRestTimer(seconds)}
-              />
-            ))}
+            {activeWorkout.exercises.map((workoutExercise) => {
+              const suggestion = calculateOverloadSuggestion(
+                workoutExercise.exercise.id,
+                sessions,
+                workoutExercise.exercise.repRange?.min,
+                workoutExercise.exercise.repRange?.max
+              );
+              return (
+                <ExerciseCard
+                  key={workoutExercise.id}
+                  workoutExercise={workoutExercise}
+                  restTimerDefault={restTimerDefault}
+                  overloadSuggestion={suggestion}
+                  onAddSet={() => addSet(workoutExercise.id)}
+                  onUpdateSet={(setId, updates) => updateSet(workoutExercise.id, setId, updates)}
+                  onToggleSet={(setId) => handleToggleSet(workoutExercise.id, setId)}
+                  onRemoveSet={(setId) => removeSet(workoutExercise.id, setId)}
+                  onRemoveExercise={() => removeExercise(workoutExercise.id)}
+                  onStartTimer={(seconds) => startRestTimer(seconds)}
+                  onApplySuggestion={(w, r) => handleApplySuggestion(workoutExercise.id, w, r)}
+                />
+              );
+            })}
           </>
         )}
       </div>

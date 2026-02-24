@@ -7,10 +7,10 @@ import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useUserStore } from '@/store/userStore';
 import { colors, spacing, radius, typography } from '@/constants/tokens';
+import type { WorkoutGoal, TrainingLevel, TrainingDays, EquipmentType } from '@/types/workout';
 
 export default function LoginPage() {
   const router = useRouter();
-  const onboardingCompleted = useUserStore((s) => s.onboardingCompleted);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,7 +22,7 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
+    const { error: authError, data } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -33,11 +33,32 @@ export default function LoginPage() {
       return;
     }
 
-    if (onboardingCompleted) {
-      router.replace('/dashboard');
-    } else {
-      router.replace('/onboarding/goal');
+    // Fetch profile from Supabase to check if onboarding was already completed
+    const userId = data.user?.id;
+    if (userId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('goal, level, training_days, equipment')
+        .eq('id', userId)
+        .single();
+
+      if (profile?.goal) {
+        // Onboarding was done — restore profile to local store and go to dashboard
+        useUserStore.getState().completeOnboarding({
+          goal: profile.goal as WorkoutGoal,
+          level: (profile.level ?? 'anfaenger') as TrainingLevel,
+          trainingDays: (profile.training_days ?? 3) as TrainingDays,
+          equipment: (profile.equipment ?? 'vollausgestattet') as EquipmentType,
+          weightUnit: 'kg',
+          createdAt: Date.now(),
+        });
+        router.replace('/dashboard');
+        return;
+      }
     }
+
+    // No onboarding data found → start onboarding
+    router.replace('/onboarding/goal');
   };
 
   return (
