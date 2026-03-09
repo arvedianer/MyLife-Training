@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Groq from 'groq-sdk';
+import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
+
+// xAI Grok — OpenAI-compatible API
+const xai = new OpenAI({
+  apiKey: process.env.XAI_API_KEY ?? '',
+  baseURL: 'https://api.x.ai/v1',
+});
 
 type TriggerType = 'device_busy' | 'pain' | 'time_crunch' | 'post_workout';
 
@@ -26,7 +32,6 @@ interface DeviceBusyResponse {
   alternative: string;
   reason: string;
   weightNote?: string;
-  exerciseId?: string;
 }
 
 interface PostWorkoutResponse {
@@ -35,8 +40,6 @@ interface PostWorkoutResponse {
 }
 
 type AiResponse = DeviceBusyResponse | PostWorkoutResponse;
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 function buildDeviceBusyPrompt(input: string, profile: AiCoachRequest['userProfile']): string {
   const equipment = profile?.equipment ?? 'Fitnessstudio';
@@ -49,12 +52,16 @@ Schlage EINE alternative Übung vor, die ähnliche Muskelgruppen trainiert. Antw
 {
   "alternative": "Name der Alternativübung",
   "reason": "Kurze Begründung (max. 15 Wörter)",
-  "weightNote": "Gewichtshinweis falls nötig (z.B. '30kg Hanteln statt 80kg Langhantel'), sonst leer"
+  "weightNote": "Gewichtshinweis falls nötig, sonst leerer String"
 }`;
 }
 
-function buildPostWorkoutPrompt(ctx: AiCoachRequest['workoutContext'], profile: AiCoachRequest['userProfile']): string {
-  const exerciseList = ctx?.exercises.map(e => `${e.name} (${e.sets} Sätze, ${e.totalVolume}kg)`).join(', ') ?? '';
+function buildPostWorkoutPrompt(
+  ctx: AiCoachRequest['workoutContext'],
+  profile: AiCoachRequest['userProfile'],
+): string {
+  const exerciseList =
+    ctx?.exercises.map((e) => `${e.name} (${e.sets} Sätze, ${e.totalVolume}kg)`).join(', ') ?? '';
   const duration = Math.round((ctx?.durationSeconds ?? 0) / 60);
   const prs = ctx?.newPRs.length ?? 0;
   return `Du bist ein motivierender Fitness-Coach. Analysiere dieses Workout und gib 3 kurze Highlights.
@@ -93,7 +100,7 @@ const OFFLINE_FALLBACKS: Record<TriggerType, AiResponse> = {
 };
 
 export async function POST(req: NextRequest) {
-  if (!process.env.GROQ_API_KEY) {
+  if (!process.env.XAI_API_KEY) {
     return NextResponse.json(OFFLINE_FALLBACKS.post_workout, { status: 200 });
   }
 
@@ -106,7 +113,7 @@ export async function POST(req: NextRequest) {
 
   const { triggerType, userInput, workoutContext, userProfile } = body;
 
-  // Optional: auth check (non-blocking — allow anonymous usage for now)
+  // Optional auth check (non-blocking)
   let userId: string | null = null;
   const authHeader = req.headers.get('authorization');
   if (authHeader && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -128,35 +135,39 @@ export async function POST(req: NextRequest) {
   let tokensUsed = 0;
 
   try {
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.1-70b-versatile',
+    const completion = await xai.chat.completions.create({
+      model: 'grok-3-mini',
       messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
       max_tokens: 300,
       temperature: 0.7,
     });
 
     const content = completion.choices[0]?.message?.content ?? '{}';
-    aiResponse = JSON.parse(content) as AiResponse;
+    // Extract JSON from response (model might wrap it in markdown)
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    aiResponse = jsonMatch ? (JSON.parse(jsonMatch[0]) as AiResponse) : (OFFLINE_FALLBACKS[triggerType] ?? OFFLINE_FALLBACKS.post_workout);
     tokensUsed = completion.usage?.total_tokens ?? 0;
   } catch {
     aiResponse = OFFLINE_FALLBACKS[triggerType] ?? OFFLINE_FALLBACKS.post_workout;
   }
 
-  // Log to Supabase (non-blocking, fire-and-forget)
+  // Log to Supabase (fire-and-forget)
   if (userId && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY,
     );
-    supabase.from('ai_interactions').insert({
-      user_id: userId,
-      trigger_type: triggerType,
-      user_input: userInput,
-      ai_response: aiResponse,
-      tokens_used: tokensUsed,
-      model: 'llama-3.1-70b-versatile',
-    }).then(() => {/* logged */}, () => {/* ignore errors */});
+    supabase
+      .from('ai_interactions')
+      .insert({
+        user_id: userId,
+        trigger_type: triggerType,
+        user_input: userInput,
+        ai_response: aiResponse,
+        tokens_used: tokensUsed,
+        model: 'grok-3-mini',
+      })
+      .then(() => {/* logged */}, () => {/* ignore errors */});
   }
 
   return NextResponse.json(aiResponse);
