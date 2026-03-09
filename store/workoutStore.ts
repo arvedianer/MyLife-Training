@@ -7,9 +7,20 @@ import type { Exercise } from '@/types/exercises';
 import { useHistoryStore } from './historyStore';
 import { calculateIntelligentWeight } from '@/utils/overload';
 
+interface UndoEntry {
+  exerciseId: string;
+  setId: string;
+}
+
 interface WorkoutState {
   // Aktives Workout (null = kein Workout läuft)
   activeWorkout: ActiveWorkout | null;
+
+  // Undo stack (non-persisted — lives for current workout only)
+  undoStack: UndoEntry[];
+
+  // Recently used exercise IDs (persisted, max 10)
+  recentlyUsedIds: string[];
 
   // Rest Timer
   restTimerActive: boolean;
@@ -24,6 +35,7 @@ interface WorkoutState {
   // Actions — Übungen
   addExercise: (exercise: Exercise) => void;
   removeExercise: (exerciseId: string) => void;
+  replaceExercise: (exerciseId: string, newExercise: Exercise) => void;
   reorderExercises: (exercises: WorkoutExercise[]) => void;
 
   // Actions — Sets
@@ -32,6 +44,7 @@ interface WorkoutState {
   removeSet: (exerciseId: string, setId: string) => void;
   toggleSetComplete: (exerciseId: string, setId: string) => void;
   markSetAsPR: (exerciseId: string, setId: string) => void;
+  undoLastSet: () => void;
 
   // Actions — Timer
   startRestTimer: (seconds: number) => void;
@@ -57,6 +70,8 @@ export const useWorkoutStore = create<WorkoutState>()(
   persist(
     (set, get) => ({
       activeWorkout: null,
+      undoStack: [],
+      recentlyUsedIds: [],
       restTimerActive: false,
       restTimerSeconds: 0,
       restTimerTotal: 0,
@@ -92,11 +107,12 @@ export const useWorkoutStore = create<WorkoutState>()(
         });
       },
 
-      finishWorkout: () => set({ activeWorkout: null }),
+      finishWorkout: () => set({ activeWorkout: null, undoStack: [] }),
 
       cancelWorkout: () =>
         set({
           activeWorkout: null,
+          undoStack: [],
           restTimerActive: false,
           restTimerSeconds: 0,
           restTimerTotal: 0,
@@ -117,11 +133,16 @@ export const useWorkoutStore = create<WorkoutState>()(
             // Always create exactly 2 sets as default
             sets: [createDefaultSet(w, r), createDefaultSet(w, r)],
           };
+
+          // Track recently used (prepend, deduplicate, max 10)
+          const updated = [exercise.id, ...state.recentlyUsedIds.filter((id) => id !== exercise.id)].slice(0, 10);
+
           return {
             activeWorkout: {
               ...state.activeWorkout,
               exercises: [...state.activeWorkout.exercises, newExercise],
             },
+            recentlyUsedIds: updated,
           };
         }),
 
@@ -134,6 +155,25 @@ export const useWorkoutStore = create<WorkoutState>()(
               exercises: state.activeWorkout.exercises.filter(
                 (e) => e.id !== exerciseId
               ),
+            },
+          };
+        }),
+
+      replaceExercise: (exerciseId, newExercise) =>
+        set((state) => {
+          if (!state.activeWorkout) return state;
+          return {
+            activeWorkout: {
+              ...state.activeWorkout,
+              exercises: state.activeWorkout.exercises.map((e) => {
+                if (e.id !== exerciseId) return e;
+                return {
+                  ...e,
+                  exercise: newExercise,
+                  // Reset sets but preserve count with empty values
+                  sets: e.sets.map((s) => ({ ...s, isCompleted: false, isPR: false })),
+                };
+              }),
             },
           };
         }),
@@ -213,6 +253,9 @@ export const useWorkoutStore = create<WorkoutState>()(
         const currentSet = exercise?.sets.find((s) => s.id === setId);
         if (!currentSet) return;
 
+        // Push to undo stack when completing (not un-completing)
+        const isCompleting = !currentSet.isCompleted;
+
         set((s) => {
           if (!s.activeWorkout) return s;
           return {
@@ -230,6 +273,33 @@ export const useWorkoutStore = create<WorkoutState>()(
                 };
               }),
             },
+            undoStack: isCompleting
+              ? [...s.undoStack, { exerciseId, setId }]
+              : s.undoStack,
+          };
+        });
+      },
+
+      undoLastSet: () => {
+        const state = get();
+        if (state.undoStack.length === 0 || !state.activeWorkout) return;
+        const last = state.undoStack[state.undoStack.length - 1];
+        set((s) => {
+          if (!s.activeWorkout) return s;
+          return {
+            activeWorkout: {
+              ...s.activeWorkout,
+              exercises: s.activeWorkout.exercises.map((e) => {
+                if (e.id !== last.exerciseId) return e;
+                return {
+                  ...e,
+                  sets: e.sets.map((st) =>
+                    st.id === last.setId ? { ...st, isCompleted: false } : st
+                  ),
+                };
+              }),
+            },
+            undoStack: s.undoStack.slice(0, -1),
           };
         });
       },
@@ -295,7 +365,11 @@ export const useWorkoutStore = create<WorkoutState>()(
         },
       },
       // Nur activeWorkout persistieren — Timer-State wird bei Reload zurückgesetzt
-      partialize: (state) => ({ activeWorkout: state.activeWorkout }) as unknown as WorkoutState,
+      partialize: (state) => ({
+        activeWorkout: state.activeWorkout,
+        recentlyUsedIds: state.recentlyUsedIds,
+        // undoStack is intentionally NOT persisted (session-only)
+      }) as unknown as WorkoutState,
     }
   )
 );

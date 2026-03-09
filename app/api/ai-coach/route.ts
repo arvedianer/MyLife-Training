@@ -1,0 +1,163 @@
+import { NextRequest, NextResponse } from 'next/server';
+import Groq from 'groq-sdk';
+import { createClient } from '@supabase/supabase-js';
+
+type TriggerType = 'device_busy' | 'pain' | 'time_crunch' | 'post_workout';
+
+interface AiCoachRequest {
+  triggerType: TriggerType;
+  userInput?: string;
+  workoutContext?: {
+    exercises: { name: string; sets: number; totalVolume: number }[];
+    durationSeconds: number;
+    totalVolume: number;
+    newPRs: string[];
+    splitName?: string;
+  };
+  userProfile?: {
+    goal?: string;
+    level?: string;
+    equipment?: string;
+    name?: string;
+  };
+}
+
+interface DeviceBusyResponse {
+  alternative: string;
+  reason: string;
+  weightNote?: string;
+  exerciseId?: string;
+}
+
+interface PostWorkoutResponse {
+  highlights: string[];
+  coachMessage: string;
+}
+
+type AiResponse = DeviceBusyResponse | PostWorkoutResponse;
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+function buildDeviceBusyPrompt(input: string, profile: AiCoachRequest['userProfile']): string {
+  const equipment = profile?.equipment ?? 'Fitnessstudio';
+  const goal = profile?.goal ?? 'Muskelaufbau';
+  return `Du bist ein Fitness-Coach der kurze, direkte Antworten gibt. Ein Nutzer kann die folgende Übung nicht ausführen, weil das Gerät besetzt ist: "${input}".
+
+Ziel: ${goal}, Equipment: ${equipment}.
+
+Schlage EINE alternative Übung vor, die ähnliche Muskelgruppen trainiert. Antworte NUR mit diesem JSON:
+{
+  "alternative": "Name der Alternativübung",
+  "reason": "Kurze Begründung (max. 15 Wörter)",
+  "weightNote": "Gewichtshinweis falls nötig (z.B. '30kg Hanteln statt 80kg Langhantel'), sonst leer"
+}`;
+}
+
+function buildPostWorkoutPrompt(ctx: AiCoachRequest['workoutContext'], profile: AiCoachRequest['userProfile']): string {
+  const exerciseList = ctx?.exercises.map(e => `${e.name} (${e.sets} Sätze, ${e.totalVolume}kg)`).join(', ') ?? '';
+  const duration = Math.round((ctx?.durationSeconds ?? 0) / 60);
+  const prs = ctx?.newPRs.length ?? 0;
+  return `Du bist ein motivierender Fitness-Coach. Analysiere dieses Workout und gib 3 kurze Highlights.
+
+Workout: ${ctx?.splitName ?? 'Freies Training'}, ${duration} min, ${ctx?.totalVolume}kg Gesamtvolumen.
+Übungen: ${exerciseList}. Neue PRs: ${prs}.
+Nutzer-Ziel: ${profile?.goal ?? 'Fitness'}, Level: ${profile?.level ?? 'Fortgeschritten'}.
+
+Antworte NUR mit diesem JSON:
+{
+  "highlights": ["Highlight 1 (max 12 Wörter)", "Highlight 2 (max 12 Wörter)", "Highlight 3 (max 12 Wörter)"],
+  "coachMessage": "Eine motivierende Nachricht (max 20 Wörter)"
+}`;
+}
+
+const OFFLINE_FALLBACKS: Record<TriggerType, AiResponse> = {
+  device_busy: {
+    alternative: 'Kurzhantel-Variante',
+    reason: 'Gleiche Muskelgruppe, überall verfügbar',
+    weightNote: '',
+  },
+  pain: {
+    alternative: 'Leichtere Variante',
+    reason: 'Schonender für das Gelenk',
+    weightNote: '',
+  },
+  time_crunch: {
+    alternative: 'Supersatz-Kombination',
+    reason: 'Spart Zeit durch kombinierte Übungen',
+    weightNote: '',
+  },
+  post_workout: {
+    highlights: ['Workout abgeschlossen!', 'Konsistenz ist der Schlüssel.', 'Bleib auf Kurs.'],
+    coachMessage: 'Gute Arbeit heute. Weiter so!',
+  },
+};
+
+export async function POST(req: NextRequest) {
+  if (!process.env.GROQ_API_KEY) {
+    return NextResponse.json(OFFLINE_FALLBACKS.post_workout, { status: 200 });
+  }
+
+  let body: AiCoachRequest;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const { triggerType, userInput, workoutContext, userProfile } = body;
+
+  // Optional: auth check (non-blocking — allow anonymous usage for now)
+  let userId: string | null = null;
+  const authHeader = req.headers.get('authorization');
+  if (authHeader && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+    );
+    const token = authHeader.replace('Bearer ', '');
+    const { data } = await supabase.auth.getUser(token);
+    userId = data.user?.id ?? null;
+  }
+
+  const prompt =
+    triggerType === 'post_workout'
+      ? buildPostWorkoutPrompt(workoutContext, userProfile)
+      : buildDeviceBusyPrompt(userInput ?? '', userProfile);
+
+  let aiResponse: AiResponse;
+  let tokensUsed = 0;
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.1-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: 300,
+      temperature: 0.7,
+    });
+
+    const content = completion.choices[0]?.message?.content ?? '{}';
+    aiResponse = JSON.parse(content) as AiResponse;
+    tokensUsed = completion.usage?.total_tokens ?? 0;
+  } catch {
+    aiResponse = OFFLINE_FALLBACKS[triggerType] ?? OFFLINE_FALLBACKS.post_workout;
+  }
+
+  // Log to Supabase (non-blocking, fire-and-forget)
+  if (userId && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+    );
+    supabase.from('ai_interactions').insert({
+      user_id: userId,
+      trigger_type: triggerType,
+      user_input: userInput,
+      ai_response: aiResponse,
+      tokens_used: tokensUsed,
+      model: 'llama-3.1-70b-versatile',
+    }).then(() => {/* logged */}, () => {/* ignore errors */});
+  }
+
+  return NextResponse.json(aiResponse);
+}

@@ -6,6 +6,7 @@ import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Badge } from '@/components/ui/Badge';
 import { exercises as builtinExercises } from '@/constants/exercises';
 import { useExerciseStore } from '@/store/exerciseStore';
+import { useWorkoutStore } from '@/store/workoutStore';
 import type { Exercise, MuscleGroup, Equipment, ExerciseCategory } from '@/types/exercises';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -69,6 +70,7 @@ function mapCommunityExercise(row: Record<string, unknown>): Exercise & { isCust
 export function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
   const router = useRouter();
   const { customExercises, removeCustomExercise } = useExerciseStore();
+  const recentlyUsedIds = useWorkoutStore((s) => s.recentlyUsedIds);
   const [query, setQuery] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState<MuscleGroup | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
@@ -298,6 +300,48 @@ export function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Zuletzt benutzt — shown when no query/filters active */}
+      {query.length === 0 && !selectedMuscle && !selectedEquipment && !selectedCategory && recentlyUsedIds.length > 0 && (
+        <div>
+          <p style={{ ...typography.label, color: colors.textFaint, marginBottom: spacing[2] }}>
+            ZULETZT BENUTZT
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
+            {recentlyUsedIds
+              .map((id) => allExercises.find((ex) => ex.id === id))
+              .filter((ex): ex is typeof allExercises[0] => ex !== undefined)
+              .slice(0, 5)
+              .map((exercise) => (
+                <div
+                  key={`recent-${exercise.id}`}
+                  onClick={() => onSelect(exercise)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: spacing[4],
+                    backgroundColor: colors.bgCard,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: radius.lg,
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.backgroundColor = colors.bgElevated; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.backgroundColor = colors.bgCard; }}
+                >
+                  <div>
+                    <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>
+                      {exercise.nameDE}
+                    </div>
+                    <div style={{ ...typography.bodySm, color: colors.textMuted }}>{exercise.primaryMuscle}</div>
+                  </div>
+                  <Plus size={16} color={colors.accent} />
+                </div>
+              ))}
+          </div>
+          <div style={{ height: '1px', backgroundColor: colors.borderLight, margin: `${spacing[3]} 0` }} />
         </div>
       )}
 

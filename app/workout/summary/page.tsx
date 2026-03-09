@@ -1,25 +1,68 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Suspense } from 'react';
-import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp, Share2 } from 'lucide-react';
+import { Suspense, useEffect, useState } from 'react';
+import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp, Share2, RefreshCw } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useHistoryStore } from '@/store/historyStore';
+import { useUserStore } from '@/store/userStore';
 import { formatDuration, formatVolume } from '@/utils/dates';
 import { getExerciseById } from '@/constants/exercises';
 import { generateCoachInsight } from '@/utils/coach';
 import { Bot } from 'lucide-react';
 
+interface AiSummary {
+  highlights: string[];
+  coachMessage: string;
+}
+
 function SummaryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session');
+  const { profile } = useUserStore();
   // Reaktives Abonnieren der sessions erlaubt Re-Rendern, falls persist() leicht verzögert lädt
   const session = useHistoryStore((state) =>
     sessionId ? state.sessions.find(s => s.id === sessionId) : null
   );
+
+  const [aiSummary, setAiSummary] = useState<AiSummary | null>(null);
+  const [aiLoading, setAiLoading] = useState(true);
+
+  useEffect(() => {
+    if (!session) return;
+    const exercises = session.exercises.map((e) => ({
+      name: e.exercise.nameDE,
+      sets: e.sets.filter((s) => s.isCompleted).length,
+      totalVolume: e.sets.filter((s) => s.isCompleted).reduce((sum, s) => sum + s.weight * s.reps, 0),
+    }));
+    fetch('/api/ai-coach', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        triggerType: 'post_workout',
+        workoutContext: {
+          exercises,
+          durationSeconds: session.durationSeconds,
+          totalVolume: session.totalVolume,
+          newPRs: session.newPRs,
+          splitName: session.splitName,
+        },
+        userProfile: {
+          goal: profile?.goal,
+          level: profile?.level,
+          name: profile?.name,
+        },
+      }),
+    })
+      .then((r) => r.json() as Promise<AiSummary>)
+      .then((data) => setAiSummary(data))
+      .catch(() => setAiSummary(null))
+      .finally(() => setAiLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id]);
 
   if (!session) {
     return (
@@ -126,13 +169,34 @@ function SummaryContent() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0
           }}>
-            <Bot size={20} color={colors.bgPrimary} />
+            {aiLoading
+              ? <RefreshCw size={18} color={colors.bgPrimary} style={{ animation: 'spin 1s linear infinite' }} />
+              : <Bot size={20} color={colors.bgPrimary} />
+            }
           </div>
-          <div>
-            <div style={{ ...typography.label, color: colors.accent, marginBottom: '2px' }}>DEIN COACH SAGT:</div>
-            <p style={{ ...typography.bodySm, color: colors.textPrimary, lineHeight: '20px' }}>
-              " {generateCoachInsight(session)} "
-            </p>
+          <div style={{ flex: 1 }}>
+            <div style={{ ...typography.label, color: colors.accent, marginBottom: spacing[2] }}>DEIN COACH SAGT:</div>
+            {aiLoading && (
+              <p style={{ ...typography.bodySm, color: colors.textMuted }}>Analysiere dein Workout...</p>
+            )}
+            {!aiLoading && aiSummary && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
+                {aiSummary.highlights.map((h, i) => (
+                  <div key={i} style={{ display: 'flex', gap: spacing[2], alignItems: 'flex-start' }}>
+                    <span style={{ color: colors.accent, flexShrink: 0 }}>›</span>
+                    <span style={{ ...typography.bodySm, color: colors.textPrimary }}>{h}</span>
+                  </div>
+                ))}
+                <p style={{ ...typography.bodySm, color: colors.accent, marginTop: spacing[1], fontStyle: 'italic' }}>
+                  {aiSummary.coachMessage}
+                </p>
+              </div>
+            )}
+            {!aiLoading && !aiSummary && (
+              <p style={{ ...typography.bodySm, color: colors.textPrimary, lineHeight: '20px' }}>
+                " {generateCoachInsight(session)} "
+              </p>
+            )}
           </div>
         </div>
       </div>

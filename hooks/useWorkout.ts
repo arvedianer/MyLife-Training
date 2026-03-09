@@ -115,11 +115,14 @@ export function useWorkout() {
     moveExercise,
     addExercise: store.addExercise,
     removeExercise: store.removeExercise,
+    replaceExercise: store.replaceExercise,
     addSet: store.addSet,
     updateSet: store.updateSet,
     removeSet: store.removeSet,
     toggleSetComplete: store.toggleSetComplete,
     cancelWorkout: store.cancelWorkout,
     startRestTimer: store.startRestTimer,
+    undoLastSet: store.undoLastSet,
+    undoStack: store.undoStack,
   };
 }

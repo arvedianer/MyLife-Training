@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, X, Check, Clock } from 'lucide-react';
-import { colors } from '@/constants/tokens';
+import { Plus, X, Check, Clock, RotateCcw, Star } from 'lucide-react';
+import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { ExerciseCard } from '@/components/workout/ExerciseCard';
 import { Button } from '@/components/ui/Button';
 import { RestTimerOverlay } from '@/components/overlays/RestTimerOverlay';
@@ -34,21 +34,34 @@ export default function ActiveWorkoutPage() {
     removeSet,
     toggleSetComplete,
     removeExercise,
+    replaceExercise,
     moveExercise,
     startRestTimer,
+    undoLastSet,
+    undoStack,
   } = useWorkout();
 
   const restTimer = useRestTimer();
   const { sessions } = useHistoryStore();
 
   const [elapsed, setElapsed] = useState(0);
-  const [showPR, setShowPR] = useState(false);
+  const [showPR, setShowPR] = useState(false); // end-of-workout overlay
   const [showCancel, setShowCancel] = useState(false);
   const [prExerciseName, setPRExerciseName] = useState('');
+  const [prBannerName, setPRBannerName] = useState<string | null>(null); // inline banner during workout
   const [hasNotifPermission, setHasNotifPermission] = useState(true); // Default true to avoid flash
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isFinishing = useRef(false); // prevents the "no workout" redirect from firing during completion
+
+  // Wake Lock — keep screen on during active workout
+  useEffect(() => {
+    let lock: WakeLockSentinel | null = null;
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').then(l => { lock = l; }).catch(() => {});
+    }
+    return () => { lock?.release().catch(() => {}); };
+  }, []);
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -131,8 +144,9 @@ export default function ActiveWorkoutPage() {
     // PR-Check: nur beim Abschließen (nicht beim Rückgängigmachen)
     if (workoutExercise && set && !set.isCompleted && set.weight > 0 && set.reps > 0) {
       if (checkSetForPR(workoutExercise.exercise.id, set.weight, set.reps)) {
-        setPRExerciseName(workoutExercise.exercise.nameDE);
-        setShowPR(true);
+        // Show inline banner (not full overlay) during workout
+        setPRBannerName(workoutExercise.exercise.nameDE);
+        setTimeout(() => setPRBannerName(null), 3000);
       }
     }
 
@@ -164,6 +178,18 @@ export default function ActiveWorkoutPage() {
               {formatDuration(elapsed)}
             </span>
           </div>
+
+          {/* Undo last completed set */}
+          {undoStack.length > 0 && (
+            <button
+              onClick={undoLastSet}
+              title="Letzten Satz rückgängig machen"
+              className={styles.cancelBtn}
+              style={{ opacity: 0.8 }}
+            >
+              <RotateCcw size={16} color={colors.warning} />
+            </button>
+          )}
 
           {/* Request Notifications (Optional) */}
           {!hasNotifPermission && (
@@ -235,6 +261,7 @@ export default function ActiveWorkoutPage() {
                   onToggleSet={(setId) => handleToggleSet(workoutExercise.id, setId)}
                   onRemoveSet={(setId) => removeSet(workoutExercise.id, setId)}
                   onRemoveExercise={() => removeExercise(workoutExercise.id)}
+                  onReplaceExercise={(newEx) => replaceExercise(workoutExercise.id, newEx)}
                   onMoveUp={index > 0 ? () => moveExercise(workoutExercise.id, 'up') : undefined}
                   onMoveDown={index < activeWorkout.exercises.length - 1 ? () => moveExercise(workoutExercise.id, 'down') : undefined}
                   onStartTimer={(seconds) => startRestTimer(seconds)}
@@ -275,11 +302,40 @@ export default function ActiveWorkoutPage() {
         onRestart={startRestTimer}
       />
 
+      {/* PRMomentOverlay — kept for end-of-workout, but disabled during active workout (inline banner used instead) */}
       <PRMomentOverlay
         isOpen={showPR}
         exerciseName={prExerciseName}
         onClose={handleClosePR}
       />
+
+      {/* Inline PR Banner — slides up during active workout */}
+      {prBannerName && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '100px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 150,
+            backgroundColor: colors.prColor,
+            color: colors.bgPrimary,
+            padding: `${spacing[3]} ${spacing[5]}`,
+            borderRadius: radius.full,
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing[2],
+            boxShadow: `0 4px 24px ${colors.prColor}60`,
+            animation: 'scaleIn 0.2s ease-out',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <Star size={16} color={colors.bgPrimary} fill={colors.bgPrimary} />
+          <span style={{ ...typography.body, fontWeight: '700' }}>
+            Neuer Rekord! {prBannerName}
+          </span>
+        </div>
+      )}
 
       <CancelWorkoutOverlay
         isOpen={showCancel}

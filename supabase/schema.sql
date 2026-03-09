@@ -193,3 +193,48 @@ create index if not exists session_exercises_session_id on public.session_exerci
 create index if not exists personal_records_user_exercise on public.personal_records (user_id, exercise_id);
 create index if not exists custom_splits_user_id on public.custom_splits (user_id);
 create index if not exists community_exercises_created_by on public.community_exercises (created_by);
+
+-- ─────────────────────────────────────────
+-- AI INTERACTIONS (Groq Coach logging)
+-- ─────────────────────────────────────────
+create table if not exists public.ai_interactions (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references auth.users not null,
+  session_id  uuid references public.sessions on delete set null,
+  trigger_type text not null, -- 'device_busy' | 'pain' | 'time_crunch' | 'post_workout'
+  user_input  text,
+  ai_response jsonb,
+  tokens_used int,
+  model       text default 'llama-3.1-70b-versatile',
+  created_at  timestamptz default now()
+);
+
+alter table public.ai_interactions enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename = 'ai_interactions' and policyname = 'ai_interactions_own') then
+    create policy "ai_interactions_own" on public.ai_interactions for all using (auth.uid() = user_id);
+  end if;
+end $$;
+
+create index if not exists ai_interactions_user_id on public.ai_interactions (user_id, created_at desc);
+
+-- ─────────────────────────────────────────
+-- EQUIPMENT NOTES (per-exercise user notes)
+-- ─────────────────────────────────────────
+create table if not exists public.equipment_notes (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references auth.users not null,
+  exercise_id text not null,
+  note        text not null,
+  updated_at  timestamptz default now(),
+  unique(user_id, exercise_id)
+);
+
+alter table public.equipment_notes enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename = 'equipment_notes' and policyname = 'equipment_notes_own') then
+    create policy "equipment_notes_own" on public.equipment_notes for all using (auth.uid() = user_id);
+  end if;
+end $$;

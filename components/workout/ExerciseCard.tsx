@@ -1,11 +1,12 @@
 'use client';
 
-import { Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Target, Timer, TrendingUp, Check, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Target, Timer, TrendingUp, Check, ArrowUp, ArrowDown, AlertTriangle, X, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { SetRow } from './SetRow';
 import { Badge } from '@/components/ui/Badge';
 import type { WorkoutExercise } from '@/types/workout';
+import type { Exercise } from '@/types/exercises';
 import styles from './ExerciseCard.module.css';
 
 interface OverloadSuggestion {
@@ -23,10 +24,17 @@ interface ExerciseCardProps {
   onToggleSet: (setId: string) => void;
   onRemoveSet: (setId: string) => void;
   onRemoveExercise: () => void;
+  onReplaceExercise?: (newExercise: Exercise) => void;
   onStartTimer: (seconds: number) => void;
   onApplySuggestion?: (weight: number, reps: number) => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+}
+
+interface AiAlternative {
+  alternative: string;
+  reason: string;
+  weightNote?: string;
 }
 
 export function ExerciseCard({
@@ -38,6 +46,7 @@ export function ExerciseCard({
   onToggleSet,
   onRemoveSet,
   onRemoveExercise,
+  onReplaceExercise,
   onStartTimer,
   onApplySuggestion,
   onMoveUp,
@@ -47,6 +56,9 @@ export function ExerciseCard({
   const [scienceExpanded, setScienceExpanded] = useState(false);
   const [customRest, setCustomRest] = useState<number | null>(null);
   const [isEditingRest, setIsEditingRest] = useState(false);
+  const [showDeviceBusy, setShowDeviceBusy] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<AiAlternative | null>(null);
 
   const { exercise, sets } = workoutExercise;
   const completedSets = sets.filter((s) => s.isCompleted).length;
@@ -61,6 +73,33 @@ export function ExerciseCard({
 
   // Use optional custom override, else exercise specific, else fallback
   const restSeconds = customRest ?? exercise.restSeconds ?? restTimerDefault;
+
+  const fetchAlternative = async () => {
+    setAiLoading(true);
+    setAiResult(null);
+    try {
+      const res = await fetch('/api/ai-coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          triggerType: 'device_busy',
+          userInput: exercise.nameDE,
+        }),
+      });
+      const data = await res.json() as AiAlternative;
+      setAiResult(data);
+    } catch {
+      setAiResult({ alternative: 'Kurzhantel-Variante', reason: 'Gleiche Muskelgruppe', weightNote: '' });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleOpenDeviceBusy = () => {
+    setShowDeviceBusy(true);
+    setAiResult(null);
+    fetchAlternative();
+  };
 
   return (
     <div className={`${styles.exerciseCard} ${isFullyCompleted ? styles.cardBgCompleted : styles.cardBgNormal}`}>
@@ -134,6 +173,16 @@ export function ExerciseCard({
                 </button>
               )}
             </div>
+
+            {/* Gerät besetzt */}
+            <button
+              onClick={handleOpenDeviceBusy}
+              className={styles.scienceToggle}
+              style={{ borderColor: `${colors.warning}40`, color: colors.warning }}
+            >
+              <AlertTriangle size={10} color={colors.warning} />
+              <span style={{ ...typography.label, fontSize: '10px', color: colors.warning }}>Besetzt</span>
+            </button>
 
             {/* Science note toggle (now always visible to explain reps too) */}
             <button
@@ -275,6 +324,124 @@ export function ExerciseCard({
             <Plus size={14} />
             Satz hinzufügen
           </button>
+        </div>
+      )}
+
+      {/* Gerät besetzt Modal */}
+      {showDeviceBusy && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            display: 'flex',
+            alignItems: 'flex-end',
+            backgroundColor: 'rgba(0,0,0,0.65)',
+          }}
+          onClick={() => setShowDeviceBusy(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              backgroundColor: colors.bgElevated,
+              borderTop: `1px solid ${colors.border}`,
+              borderRadius: `${radius.xl} ${radius.xl} 0 0`,
+              padding: spacing[6],
+              paddingBottom: `calc(${spacing[6]} + env(safe-area-inset-bottom))`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[4] }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
+                <AlertTriangle size={18} color={colors.warning} />
+                <span style={{ ...typography.h3, color: colors.textPrimary }}>Gerät besetzt</span>
+              </div>
+              <button onClick={() => setShowDeviceBusy(false)} style={{ padding: spacing[1] }}>
+                <X size={20} color={colors.textMuted} />
+              </button>
+            </div>
+
+            <p style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[5] }}>
+              Alternative für <strong style={{ color: colors.textPrimary }}>{exercise.nameDE}</strong>
+            </p>
+
+            {/* Loading state */}
+            {aiLoading && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3], padding: spacing[4], backgroundColor: colors.bgCard, borderRadius: radius.lg }}>
+                <RefreshCw size={16} color={colors.accent} style={{ animation: 'spin 1s linear infinite' }} />
+                <span style={{ ...typography.body, color: colors.textMuted }}>KI sucht Alternative...</span>
+              </div>
+            )}
+
+            {/* Result */}
+            {!aiLoading && aiResult && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
+                <div style={{
+                  backgroundColor: colors.bgCard,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: radius.lg,
+                  padding: spacing[4],
+                }}>
+                  <div style={{ ...typography.h3, color: colors.accent, marginBottom: spacing[1] }}>
+                    {aiResult.alternative}
+                  </div>
+                  <div style={{ ...typography.bodySm, color: colors.textMuted }}>{aiResult.reason}</div>
+                  {aiResult.weightNote && (
+                    <div style={{ ...typography.bodySm, color: colors.warning, marginTop: spacing[2] }}>
+                      {aiResult.weightNote}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: spacing[3] }}>
+                  <button
+                    onClick={() => setShowDeviceBusy(false)}
+                    style={{
+                      flex: 1,
+                      padding: spacing[3],
+                      backgroundColor: colors.bgHighest,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: radius.md,
+                      color: colors.textMuted,
+                      ...typography.body,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Find exercise in our library by name (fuzzy)
+                      import('@/constants/exercises').then(({ exercises: exList }) => {
+                        const alt = aiResult.alternative.toLowerCase();
+                        const match = exList.find(
+                          (ex: Exercise) => ex.nameDE.toLowerCase() === alt || ex.name.toLowerCase() === alt
+                        );
+                        if (match && onReplaceExercise) {
+                          onReplaceExercise(match);
+                        }
+                        setShowDeviceBusy(false);
+                      });
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: spacing[3],
+                      backgroundColor: colors.accent,
+                      border: 'none',
+                      borderRadius: radius.md,
+                      color: colors.bgPrimary,
+                      ...typography.body,
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Übernehmen
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
