@@ -38,25 +38,25 @@ const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
 
 const sizeStyles: Record<ButtonSize, React.CSSProperties> = {
   sm: {
-    padding: `${spacing[2]} ${spacing[3]}`,
+    padding: `${spacing[2]} ${spacing[4]}`,
     ...typography.bodySm,
     fontWeight: '600',
-    borderRadius: radius.md,
-    minHeight: '32px',
+    borderRadius: radius.lg,
+    minHeight: '34px',
   },
   md: {
     padding: `${spacing[3]} ${spacing[5]}`,
     ...typography.body,
     fontWeight: '600',
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     minHeight: '44px',
   },
   lg: {
     padding: `${spacing[4]} ${spacing[6]}`,
     ...typography.bodyLg,
     fontWeight: '700',
-    borderRadius: radius.lg,
-    minHeight: '52px',
+    borderRadius: radius.full,   // Titan Pro pill shape
+    minHeight: '54px',
   },
 };
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, RotateCcw, Weight, Timer, LogOut, User } from 'lucide-react';
+import { ChevronRight, RotateCcw, Weight, Timer, LogOut, User, Globe, Database } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AppShell } from '@/components/layout/AppShell';
@@ -11,6 +11,7 @@ import { useHistoryStore } from '@/store/historyStore';
 import { usePlanStore } from '@/store/planStore';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { supabase } from '@/lib/supabase';
+import { loadMockData } from '@/utils/mockData';
 
 interface SupabaseUser {
   email?: string;
@@ -39,13 +40,15 @@ function getInitials(name?: string, email?: string): string {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { profile, weightUnit, restTimerDefault, setWeightUnit, setRestTimerDefault, resetUser } =
+  const { profile, weightUnit, restTimerDefault, language, setWeightUnit, setRestTimerDefault, setLanguage, resetUser, updateProfile } =
     useUserStore();
   const { sessions } = useHistoryStore();
   const { splits } = usePlanStore();
 
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(profile?.name ?? '');
 
   useEffect(() => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -79,7 +82,7 @@ export default function SettingsPage() {
         restTimerSeconds: 0,
         restTimerTotal: 0,
       });
-      router.replace('/onboarding/goal');
+      router.replace('/onboarding/name');
     }
   };
 
@@ -177,6 +180,62 @@ export default function SettingsPage() {
           {/* ── PROFIL ────────────────────────────────────────────────── */}
           {profile && (
             <Section title="Profil">
+              {/* Editable name row */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: `${spacing[3]} 0`, borderBottom: `1px solid ${colors.borderLight}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
+                  <User size={16} color={colors.textMuted} />
+                  <span style={{ ...typography.body, color: colors.textMuted }}>Name</span>
+                </div>
+                {editingName ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
+                    <input
+                      value={nameInput}
+                      onChange={e => setNameInput(e.target.value)}
+                      placeholder="Dein Name"
+                      autoFocus
+                      style={{
+                        backgroundColor: colors.bgHighest,
+                        border: `1px solid ${colors.accent}`,
+                        borderRadius: radius.md,
+                        padding: `${spacing[1]} ${spacing[2]}`,
+                        ...typography.body,
+                        color: colors.textPrimary,
+                        outline: 'none',
+                        width: '130px',
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        updateProfile({ name: nameInput.trim() || undefined });
+                        setEditingName(false);
+                      }}
+                      style={{
+                        padding: `${spacing[1]} ${spacing[3]}`,
+                        borderRadius: radius.full,
+                        backgroundColor: colors.accent,
+                        border: 'none',
+                        ...typography.label, color: colors.bgPrimary,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      OK
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setNameInput(profile?.name ?? ''); setEditingName(true); }}
+                    style={{
+                      ...typography.body, color: profile?.name ? colors.textSecondary : colors.accent,
+                      background: 'none', border: 'none', cursor: 'pointer',
+                    }}
+                  >
+                    {profile?.name || 'Tippen um Namen zu setzen →'}
+                  </button>
+                )}
+              </div>
               <InfoRow label="Ziel" value={profile.goal} />
               <InfoRow label="Level" value={profile.level} />
               <InfoRow label="Trainingstage" value={`${profile.trainingDays}x / Woche`} />
@@ -219,6 +278,44 @@ export default function SettingsPage() {
                     }}
                   >
                     {unit.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sprache */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: `${spacing[3]} 0`,
+                borderBottom: `1px solid ${colors.borderLight}`,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
+                <Globe size={18} color={colors.textMuted} />
+                <span style={{ ...typography.body, color: colors.textSecondary }}>
+                  Sprache
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: spacing[2] }}>
+                {(['de', 'en'] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => setLanguage(lang)}
+                    style={{
+                      padding: `${spacing[1]} ${spacing[3]}`,
+                      borderRadius: radius.full,
+                      border: `1px solid ${language === lang ? colors.accent : colors.border}`,
+                      backgroundColor: language === lang ? colors.accentBg : 'transparent',
+                      ...typography.label,
+                      color: language === lang ? colors.accent : colors.textMuted,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {lang.toUpperCase()}
                   </button>
                 ))}
               </div>
@@ -286,6 +383,33 @@ export default function SettingsPage() {
               <RotateCcw size={18} color={colors.danger} />
               <span style={{ ...typography.body, color: colors.danger }}>
                 Alle Daten zurücksetzen
+              </span>
+            </button>
+          </Section>
+
+          {/* ── ENTWICKLER ───────────────────────────────────────────── */}
+          <Section title="Entwickler">
+            <button
+              onClick={() => {
+                if (confirm('Bestehende Historie überschreiben und 3 Monate Beispieldaten laden?')) {
+                  loadMockData();
+                  alert('Beispieldaten erfolgreich geladen!');
+                }
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing[3],
+                width: '100%',
+                padding: `${spacing[3]} 0`,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <Database size={18} color={colors.accent} />
+              <span style={{ ...typography.body, color: colors.accent }}>
+                Mockup-Daten laden (3 Monate)
               </span>
             </button>
           </Section>

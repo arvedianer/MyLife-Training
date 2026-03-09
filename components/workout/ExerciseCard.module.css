@@ -1,0 +1,280 @@
+.exerciseCard {
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Base styling */
+.cardBgNormal {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-glass);
+}
+
+.cardBgCompleted {
+  background-color: var(--success-10);
+  border: 1px solid var(--success-50);
+  box-shadow: 0 0 15px var(--success-10);
+}
+
+.headerContainer {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.headerBorder {
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.headerBgCompleted {
+  background-color: transparent;
+}
+
+.headerBgNormal {
+  background-color: var(--border-glass);
+}
+
+.exerciseTitle {
+  font-family: var(--font-barlow);
+  font-size: 22px;
+  line-height: 22px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.3s ease;
+}
+
+.exerciseTitleNormal { color: var(--text-primary); }
+.exerciseTitleCompleted { color: var(--success); }
+
+/* Badges */
+.badgesContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.badgeIconBox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 6px;
+  padding: 2px 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
+}
+
+.badgeAccentBox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 6px;
+  padding: 2px 8px;
+  background-color: var(--accent-15);
+  border: 1px solid var(--accent-30);
+}
+
+/* Science Note Toggle Hover */
+.scienceToggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.scienceToggleClosed {
+  background-color: rgba(255,255,255,0.03);
+  border: 1px solid var(--border-glass);
+}
+.scienceToggleExpanded {
+  background-color: var(--accent-20);
+  border: 1px solid var(--accent-50);
+}
+
+.scienceCard {
+  margin-top: 8px;
+  padding: 12px;
+  background-color: var(--accent-10);
+  border: 1px solid var(--accent-20);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Icon Buttons */
+.hoverBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.opacityHover {
+  opacity: 0.5;
+  transition: opacity 0.15s, background-color 0.15s, box-shadow 0.15s;
+}
+.opacityHover:hover {
+  opacity: 1;
+}
+
+.dangerBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  opacity: 0.5;
+  transition: opacity 0.15s, background-color 0.15s, box-shadow 0.15s;
+}
+.dangerBtn:hover {
+  opacity: 1;
+  background-color: var(--danger-bg);
+  box-shadow: 0 0 10px var(--danger-bg);
+}
+
+.collapseBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+/* Inline suggestion (always visible in header) */
+.suggestionInline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 10px;
+  margin-top: 6px;
+  border-radius: 8px;
+  background-color: var(--accent-10);
+  border: 1px solid var(--accent-25);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+.suggestionInline:hover {
+  background-color: var(--accent-20);
+  border-color: var(--accent-50);
+}
+
+/* Suggestion Box */
+.suggestionBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+  border-radius: 10px;
+  backgroundColor: var(--accent-15);
+  border: 1px solid var(--accent-40);
+  cursor: default;
+  transition: all 0.2s ease;
+}
+.suggestionBoxActive {
+  cursor: pointer;
+  box-shadow: 0 0 12px var(--accent-15);
+}
+.suggestionBoxActive:hover {
+  background-color: var(--accent-25);
+  box-shadow: 0 0 16px var(--accent-25);
+}
+
+/* Headers */
+.tableHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  margin-bottom: 4px;
+}
+.headerCell {
+  flex: 1;
+  font-family: var(--font-manrope);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+.headerCellRight {
+  width: 48px;
+  text-align: right;
+  font-family: var(--font-manrope);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+
+/* Add Set Button */
+.addSetBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 0;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: var(--font-manrope);
+  font-size: 12px;
+  color: var(--accent);
+  transition: opacity 0.15s;
+}
+.addSetBtn:hover {
+  opacity: 0.7;
+}
+
+/* Text Styles mapped to tokens */
+.bodySmMuted {
+  font-family: var(--font-manrope);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-muted);
+}
+.bodySmMutedLine18 {
+  font-family: var(--font-manrope);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-muted);
+}
+.labelAccent {
+  font-family: var(--font-manrope);
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.labelFaint {
+  font-family: var(--font-manrope);
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+.monoSmMuted {
+  font-family: var(--font-courier);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.monoSmAccent {
+  font-family: var(--font-courier);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--accent);
+}

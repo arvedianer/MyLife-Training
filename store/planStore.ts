@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { zustandStorage } from '@/utils/storage';
 import type { TrainingSplit, SplitDay } from '@/types/splits';
+import { supabase } from '@/lib/supabase';
 
 interface PlanState {
   // Splits
@@ -23,6 +24,7 @@ interface PlanState {
   getActiveSplit: () => TrainingSplit | undefined;
   getSplitById: (id: string) => TrainingSplit | undefined;
   getTodaysSplitDay: () => SplitDay | undefined;
+  loadFromSupabase: (userId: string) => Promise<void>;
 }
 
 export const usePlanStore = create<PlanState>()(
@@ -31,24 +33,69 @@ export const usePlanStore = create<PlanState>()(
       splits: [],
       activeSplitId: null,
 
-      addSplit: (split) =>
+      addSplit: async (split) => {
         set((state) => ({
           splits: [...state.splits, split],
           activeSplitId: state.activeSplitId ?? split.id,
-        })),
+        }));
 
-      updateSplit: (id, updates) =>
+        if (split.type === 'custom') {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            try {
+              await supabase.from('custom_splits').insert({
+                id: split.id,
+                user_id: user.id,
+                name: split.name,
+                days_per_week: split.daysPerWeek,
+                days: split.days, // JSONB
+              });
+            } catch (e) {
+              console.error("Failed to sync split to Supabase:", e);
+            }
+          }
+        }
+      },
+
+      updateSplit: async (id, updates) => {
         set((state) => ({
           splits: state.splits.map((s) =>
             s.id === id ? { ...s, ...updates } : s
           ),
-        })),
+        }));
 
-      deleteSplit: (id) =>
+        const split = get().splits.find(s => s.id === id);
+        if (split && split.type === 'custom') {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            try {
+              await supabase.from('custom_splits').update({
+                name: split.name,
+                days_per_week: split.daysPerWeek,
+                days: split.days,
+              }).eq('id', split.id).eq('user_id', user.id);
+            } catch (e) {
+              console.error("Failed to update split in Supabase:", e);
+            }
+          }
+        }
+      },
+
+      deleteSplit: async (id) => {
         set((state) => ({
           splits: state.splits.filter((s) => s.id !== id),
           activeSplitId: state.activeSplitId === id ? null : state.activeSplitId,
-        })),
+        }));
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          try {
+            await supabase.from('custom_splits').delete().eq('id', id);
+          } catch (e) {
+            console.error("Failed to delete split from Supabase:", e);
+          }
+        }
+      },
 
       setActiveSplit: (id) =>
         set((state) => ({
@@ -124,6 +171,40 @@ export const usePlanStore = create<PlanState>()(
         const adjustedDay = (dayOfWeek + 6) % 7; // Montag als 0
         const dayIndex = adjustedDay % activeSplit.days.length;
         return activeSplit.days[dayIndex];
+      },
+
+      loadFromSupabase: async (userId) => {
+        try {
+          const { data, error } = await supabase.from('custom_splits')
+            .select('*').eq('user_id', userId);
+
+          if (error) throw error;
+
+          if (data) {
+            const mappedSplits: TrainingSplit[] = data.map((d: any) => ({
+              id: d.id,
+              name: d.name,
+              type: 'custom',
+              description: 'Aus der Cloud geladen',
+              scienceNote: '',
+              days: d.days || [],
+              daysPerWeek: d.days_per_week,
+              difficulty: 'intermediate',
+              isActive: false,
+              createdAt: Date.now(),
+            }));
+
+            set((state) => {
+              const existingIds = new Set(state.splits.map((s) => s.id));
+              const newSplits = mappedSplits.filter((s) => !existingIds.has(s.id));
+              return {
+                splits: [...state.splits, ...newSplits],
+              };
+            });
+          }
+        } catch (e) {
+          console.error("Failed to load splits from Supabase:", e);
+        }
       },
     }),
     {

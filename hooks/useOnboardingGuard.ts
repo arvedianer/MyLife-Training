@@ -14,7 +14,7 @@ export function useOnboardingGuard() {
 
   useEffect(() => {
     if (!onboardingCompleted) {
-      router.replace('/onboarding/goal');
+      router.replace('/onboarding/name');
     }
   }, [onboardingCompleted, router]);
 

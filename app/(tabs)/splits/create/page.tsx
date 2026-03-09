@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { Plus, X, Search, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { useState, useCallback, useMemo, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Plus, X, Search, ChevronDown, ChevronUp, Check, Sofa } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { usePlanStore } from '@/store/planStore';
-import { exercises as allExercises, getExerciseById } from '@/constants/exercises';
+import { exercises as allHardcodedExercises, getExerciseById } from '@/constants/exercises';
+import { useExerciseStore } from '@/store/exerciseStore';
 import type { TrainingSplit, RepScheme } from '@/types/splits';
 import type { MuscleGroup, Equipment } from '@/types/exercises';
 
@@ -15,40 +16,43 @@ interface DayForm {
   name: string;
   exerciseIds: string[];
   repScheme: RepScheme;
+  restDay: boolean;
 }
 
 const muscleFilterOptions: { id: MuscleGroup; label: string }[] = [
-  { id: 'chest',     label: 'Brust'     },
-  { id: 'back',      label: 'Rücken'    },
+  { id: 'chest', label: 'Brust' },
+  { id: 'back', label: 'Rücken' },
   { id: 'shoulders', label: 'Schultern' },
-  { id: 'biceps',    label: 'Bizeps'    },
-  { id: 'triceps',   label: 'Trizeps'   },
-  { id: 'legs',      label: 'Beine'     },
-  { id: 'glutes',    label: 'Gesäß'     },
-  { id: 'core',      label: 'Core'      },
-  { id: 'calves',    label: 'Waden'     },
-  { id: 'forearms',  label: 'Unterarme' },
+  { id: 'biceps', label: 'Bizeps' },
+  { id: 'triceps', label: 'Trizeps' },
+  { id: 'legs', label: 'Beine' },
+  { id: 'glutes', label: 'Gesäß' },
+  { id: 'core', label: 'Core' },
+  { id: 'calves', label: 'Waden' },
+  { id: 'forearms', label: 'Unterarme' },
 ];
 
 const equipmentFilterOptions: { id: Equipment; label: string }[] = [
-  { id: 'barbell',    label: 'Langhantel'   },
-  { id: 'dumbbell',   label: 'Kurzhantel'   },
-  { id: 'cable',      label: 'Kabel'        },
-  { id: 'machine',    label: 'Maschine'     },
+  { id: 'barbell', label: 'Langhantel' },
+  { id: 'dumbbell', label: 'Kurzhantel' },
+  { id: 'cable', label: 'Kabel' },
+  { id: 'machine', label: 'Maschine' },
   { id: 'bodyweight', label: 'Eigengewicht' },
-  { id: 'kettlebell', label: 'Kettlebell'   },
-  { id: 'band',       label: 'Band'         },
+  { id: 'kettlebell', label: 'Kettlebell' },
+  { id: 'band', label: 'Band' },
 ];
 
 const repSchemeOptions: { id: RepScheme; label: string; color: string; bg: string }[] = [
-  { id: 'strength',    label: 'KRAFT',          color: '#FF9500', bg: '#1A1000' },
-  { id: 'hypertrophy', label: 'HYPERTROPHIE',   color: colors.accent, bg: colors.accentBg },
-  { id: 'endurance',   label: 'AUSDAUER',       color: colors.success, bg: colors.successBg },
+  { id: 'strength', label: 'KRAFT', color: '#FF9500', bg: '#1A1000' },
+  { id: 'hypertrophy', label: 'HYPERTROPHIE', color: colors.accent, bg: colors.accentBg },
+  { id: 'endurance', label: 'AUSDAUER', color: colors.success, bg: colors.successBg },
 ];
 
-export default function CreateSplitPage() {
+function CreateSplitContent() {
   const router = useRouter();
-  const { addSplit, splits } = usePlanStore();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('edit');
+  const { addSplit, updateSplit, splits } = usePlanStore();
 
   const [splitName, setSplitName] = useState('');
   const [daysPerWeek, setDaysPerWeek] = useState(3);
@@ -57,6 +61,7 @@ export default function CreateSplitPage() {
       name: defaultDayName(i, 3),
       exerciseIds: [],
       repScheme: 'hypertrophy' as RepScheme,
+      restDay: false,
     }))
   );
   const [expandedDay, setExpandedDay] = useState<number | null>(0);
@@ -64,6 +69,32 @@ export default function CreateSplitPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMuscle, setSearchMuscle] = useState<MuscleGroup | null>(null);
   const [searchEquipment, setSearchEquipment] = useState<Equipment | null>(null);
+
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  useEffect(() => {
+    if (editId && !hasLoaded) {
+      const existing = splits.find(s => s.id === editId);
+      if (existing) {
+        setSplitName(existing.name);
+        setDaysPerWeek(existing.daysPerWeek);
+        setDays(existing.days.map((d) => ({
+          name: d.name,
+          exerciseIds: [...d.exerciseIds],
+          repScheme: d.repScheme || 'hypertrophy',
+          restDay: d.restDay ?? false,
+        })));
+      }
+      setHasLoaded(true);
+    } else if (!editId) {
+      setHasLoaded(true);
+    }
+  }, [editId, splits, hasLoaded]);
+
+  const customExercises = useExerciseStore(state => state.customExercises);
+  const allExercises = useMemo(() => {
+    return [...customExercises, ...allHardcodedExercises].sort((a, b) => a.nameDE.localeCompare(b.nameDE));
+  }, [customExercises]);
 
   const filteredExercises = useMemo(() => {
     return allExercises.filter((e) => {
@@ -74,8 +105,7 @@ export default function CreateSplitPage() {
 
       const matchesMuscle =
         !searchMuscle ||
-        e.primaryMuscle === searchMuscle ||
-        e.secondaryMuscles.includes(searchMuscle);
+        e.primaryMuscle === searchMuscle;
 
       const matchesEquipment =
         !searchEquipment || e.equipment.includes(searchEquipment);
@@ -94,6 +124,7 @@ export default function CreateSplitPage() {
             name: defaultDayName(prev.length + i, n),
             exerciseIds: [] as string[],
             repScheme: 'hypertrophy' as RepScheme,
+            restDay: false,
           })),
         ];
       }
@@ -141,6 +172,27 @@ export default function CreateSplitPage() {
 
   const handleSave = () => {
     if (!splitName.trim()) return;
+
+    if (editId) {
+      updateSplit(editId, {
+        name: splitName.trim(),
+        daysPerWeek,
+        days: days.map((d, i) => {
+          const existingDay = splits.find(s => s.id === editId)?.days[i];
+          return {
+            id: existingDay?.id || `custom-day-${Date.now()}-${i}`,
+            name: d.name.trim() || `Tag ${i + 1}`,
+            muscleGroups: [],
+            exerciseIds: d.restDay ? [] : d.exerciseIds,
+            restDay: d.restDay,
+            repScheme: d.repScheme,
+          };
+        }),
+      });
+      router.back();
+      return;
+    }
+
     const newSplit: TrainingSplit = {
       id: `custom-${Date.now()}`,
       name: splitName.trim(),
@@ -155,8 +207,8 @@ export default function CreateSplitPage() {
         id: `custom-day-${Date.now()}-${i}`,
         name: d.name.trim() || `Tag ${i + 1}`,
         muscleGroups: [],
-        exerciseIds: d.exerciseIds,
-        restDay: false,
+        exerciseIds: d.restDay ? [] : d.exerciseIds,
+        restDay: d.restDay,
         repScheme: d.repScheme,
       })),
     };
@@ -174,7 +226,7 @@ export default function CreateSplitPage() {
         paddingBottom: '160px',
       }}
     >
-      <PageHeader title="Eigener Plan" />
+      <PageHeader title={editId ? "Plan bearbeiten" : "Eigener Plan"} />
 
       <div
         style={{
@@ -322,7 +374,34 @@ export default function CreateSplitPage() {
                   flexShrink: 0,
                 }}
               >
-                {day.exerciseIds.length > 0 && (
+                {/* Rest day toggle */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDays((prev) =>
+                      prev.map((d, i) =>
+                        i === dayIdx ? { ...d, restDay: !d.restDay } : d
+                      )
+                    );
+                  }}
+                  title={day.restDay ? 'Trainingstag' : 'Als Ruhetag markieren'}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    border: `1px solid ${day.restDay ? colors.accent : colors.border}`,
+                    backgroundColor: day.restDay ? colors.accentBg : 'transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Sofa size={13} color={day.restDay ? colors.accent : colors.textDisabled} />
+                </button>
+                {!day.restDay && day.exerciseIds.length > 0 && (
                   <span
                     style={{
                       ...typography.monoSm,
@@ -343,10 +422,40 @@ export default function CreateSplitPage() {
               </div>
             </button>
 
-            {/* Expanded: exercise list + picker */}
+            {/* Expanded: rest day or exercise list + picker */}
             {expandedDay === dayIdx && (
               <div style={{ borderTop: `1px solid ${colors.borderLight}` }}>
-                {/* Selected exercises */}
+                {/* Rest day state */}
+                {day.restDay && (
+                  <div
+                    style={{
+                      padding: spacing[4],
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing[3],
+                      backgroundColor: `${colors.accent}08`,
+                    }}
+                  >
+                    <Sofa size={18} color={colors.accent} />
+                    <div>
+                      <div style={{ ...typography.body, color: colors.accent, fontWeight: '600' }}>
+                        Ruhetag
+                      </div>
+                      <div style={{ ...typography.bodySm, color: colors.textMuted }}>
+                        Kein Training — Erholung & Regeneration
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setDays(prev => prev.map((d, i) => i === dayIdx ? { ...d, restDay: false } : d))}
+                      style={{ marginLeft: 'auto', ...typography.bodySm, color: colors.textMuted, background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      Rückgängig
+                    </button>
+                  </div>
+                )}
+                {/* Selected exercises + picker (hidden on rest days) */}
+                {!day.restDay && (
+                <div>
                 {day.exerciseIds.length > 0 && (
                   <div style={{ padding: `${spacing[2]} ${spacing[4]}` }}>
                     {day.exerciseIds.map((exId) => {
@@ -623,6 +732,8 @@ export default function CreateSplitPage() {
                     </div>
                   </div>
                 )}
+                </div>
+                )}
               </div>
             )}
           </div>
@@ -649,6 +760,14 @@ export default function CreateSplitPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function CreateSplitPage() {
+  return (
+    <Suspense>
+      <CreateSplitContent />
+    </Suspense>
   );
 }
 

@@ -14,32 +14,64 @@ export const predefinedSplits: TrainingSplit[] = [
     createdAt: 0,
     days: [
       {
-        id: 'ppl-push',
-        name: 'Push',
+        id: 'ppl-push-1',
+        name: 'Push 1',
         muscleGroups: ['chest', 'shoulders', 'triceps'],
-        exerciseIds: ['bench-press', 'overhead-press', 'incline-bench-press', 'lateral-raise', 'tricep-pushdown'],
+        exerciseIds: ['bench-press', 'overhead-press', 'incline-bench-press', 'cable-crossover', 'lateral-raise', 'tricep-pushdown'],
         restDay: false,
         repScheme: 'hypertrophy',
         scienceNote: 'Drückende Muskelgruppen in einer Session — maximale Synergien zwischen Brust, Schulter und Trizeps.',
       },
       {
-        id: 'ppl-pull',
-        name: 'Pull',
+        id: 'ppl-pull-1',
+        name: 'Pull 1',
         muscleGroups: ['back', 'biceps'],
-        exerciseIds: ['deadlift', 'pull-up', 'barbell-row', 'barbell-curl', 'face-pull'],
+        exerciseIds: ['deadlift', 'pull-up', 't-bar-row', 'face-pull', 'barbell-curl'],
         restDay: false,
         repScheme: 'hypertrophy',
         scienceNote: 'Ziehende Muskelgruppen gemeinsam trainiert. Deadlift als Anker-Übung für maximale hintere Kette.',
       },
       {
-        id: 'ppl-legs',
-        name: 'Legs',
+        id: 'ppl-legs-1',
+        name: 'Legs 1',
         muscleGroups: ['legs', 'glutes', 'calves'],
-        exerciseIds: ['squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'calf-raise'],
+        exerciseIds: ['squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'calf-raise-standing', 'crunch'],
         restDay: false,
         repScheme: 'hypertrophy',
-        scienceNote: 'Dedizierter Beintag erlaubt maximales Volumen für Quadrizeps, Hamstrings und Gesäß ohne Energieabzug durch Oberkörperübungen.',
+        scienceNote: 'Dedizierter Beintag erlaubt maximales Volumen für Quadrizeps, Hamstrings und Gesäß.',
       },
+      {
+        id: 'ppl-push-2',
+        name: 'Push 2',
+        muscleGroups: ['chest', 'shoulders', 'triceps'],
+        exerciseIds: ['dumbbell-bench-press', 'machine-shoulder-press', 'pec-deck', 'cable-lateral-raise', 'rope-pushdown'],
+        restDay: false,
+        repScheme: 'hypertrophy',
+      },
+      {
+        id: 'ppl-pull-2',
+        name: 'Pull 2',
+        muscleGroups: ['back', 'biceps'],
+        exerciseIds: ['lat-pulldown', 'seated-cable-row', 'preacher-curl', 'hammer-curl', 'face-pull'],
+        restDay: false,
+        repScheme: 'hypertrophy',
+      },
+      {
+        id: 'ppl-legs-2',
+        name: 'Legs 2',
+        muscleGroups: ['legs', 'glutes', 'calves'],
+        exerciseIds: ['front-squat', 'leg-extension', 'leg-curl', 'hip-thrust', 'calf-raise-seated'],
+        restDay: false,
+        repScheme: 'hypertrophy',
+      },
+      {
+        id: 'ppl-rest',
+        name: 'Rest Day',
+        muscleGroups: [],
+        exerciseIds: [],
+        restDay: true,
+        scienceNote: 'ZNS und Muskulatur regenerieren vollständig für den nächsten PPL-Zylkus.',
+      }
     ],
   },
   // ─── 1: Arnold ─────────────────────────────────────────────────────────────
@@ -56,7 +88,7 @@ export const predefinedSplits: TrainingSplit[] = [
     days: [
       {
         id: 'arnold-chest-back',
-        name: 'Brust & Rücken',
+        name: 'Brust & Rücken 1',
         muscleGroups: ['chest', 'back'],
         exerciseIds: ['bench-press', 'barbell-row', 'incline-bench-press', 'pull-up', 'cable-fly'],
         restDay: false,
@@ -65,7 +97,7 @@ export const predefinedSplits: TrainingSplit[] = [
       },
       {
         id: 'arnold-shoulders-arms',
-        name: 'Schultern & Arme',
+        name: 'Schultern & Arme 1',
         muscleGroups: ['shoulders', 'biceps', 'triceps'],
         exerciseIds: ['overhead-press', 'barbell-curl', 'tricep-pushdown', 'lateral-raise', 'hammer-curl'],
         restDay: false,
@@ -74,13 +106,45 @@ export const predefinedSplits: TrainingSplit[] = [
       },
       {
         id: 'arnold-legs',
-        name: 'Beine',
+        name: 'Beine 1',
         muscleGroups: ['legs', 'glutes', 'calves'],
-        exerciseIds: ['squat', 'leg-press', 'romanian-deadlift', 'hip-thrust', 'calf-raise'],
+        exerciseIds: ['squat', 'leg-press', 'romanian-deadlift', 'hip-thrust', 'calf-raise-standing'],
         restDay: false,
         repScheme: 'hypertrophy',
-        scienceNote: 'Kniebeuge als Hauptübung, gefolgt von Isolation für Hamstrings und Gesäß. Kein Oberkörper-Volumen — volle Energie für Unterkörper.',
+        scienceNote: 'Kniebeuge als Hauptübung, gefolgt von Isolation für Hamstrings und Gesäß.',
       },
+      {
+        id: 'arnold-chest-back-2',
+        name: 'Brust & Rücken 2',
+        muscleGroups: ['chest', 'back'],
+        exerciseIds: ['dumbbell-bench-press', 'lat-pulldown', 'dumbbell-fly', 'seated-cable-row', 'face-pull'],
+        restDay: false,
+        repScheme: 'hypertrophy',
+      },
+      {
+        id: 'arnold-shoulders-arms-2',
+        name: 'Schultern & Arme 2',
+        muscleGroups: ['shoulders', 'biceps', 'triceps'],
+        exerciseIds: ['dumbbell-shoulder-press', 'incline-curl', 'skull-crusher', 'lateral-raise', 'reverse-curl'],
+        restDay: false,
+        repScheme: 'hypertrophy',
+      },
+      {
+        id: 'arnold-legs-2',
+        name: 'Beine 2',
+        muscleGroups: ['legs', 'glutes', 'calves'],
+        exerciseIds: ['front-squat', 'leg-extension', 'leg-curl', 'calf-raise-seated'],
+        restDay: false,
+        repScheme: 'hypertrophy',
+      },
+      {
+        id: 'arnold-rest',
+        name: 'Rest Day',
+        muscleGroups: [],
+        exerciseIds: [],
+        restDay: true,
+        scienceNote: 'Volles 6-Tage Training bewältigt. Zeit zum Wachsen.',
+      }
     ],
   },
   // ─── 2: Upper/Lower ────────────────────────────────────────────────────────
@@ -96,8 +160,8 @@ export const predefinedSplits: TrainingSplit[] = [
     createdAt: 0,
     days: [
       {
-        id: 'ul-upper',
-        name: 'Oberkörper',
+        id: 'ul-upper-1',
+        name: 'Oberkörper 1',
         muscleGroups: ['chest', 'back', 'shoulders', 'biceps', 'triceps'],
         exerciseIds: ['bench-press', 'barbell-row', 'overhead-press', 'barbell-curl', 'tricep-pushdown'],
         restDay: false,
@@ -105,14 +169,51 @@ export const predefinedSplits: TrainingSplit[] = [
         scienceNote: 'Compound-Übungen zuerst für maximalen neuromuskulären Stimulus. Isolationsübungen am Ende für gezielten Pump.',
       },
       {
-        id: 'ul-lower',
-        name: 'Unterkörper',
+        id: 'ul-lower-1',
+        name: 'Unterkörper 1',
         muscleGroups: ['legs', 'glutes', 'calves', 'core'],
-        exerciseIds: ['squat', 'romanian-deadlift', 'leg-press', 'leg-curl', 'calf-raise'],
+        exerciseIds: ['squat', 'romanian-deadlift', 'leg-press', 'leg-curl', 'calf-raise-standing', 'crunch'],
         restDay: false,
         repScheme: 'hypertrophy',
         scienceNote: 'Kniebeuge und Rumänisches Kreuzheben decken Quadrizeps und hintere Kette ab. Beinpresse als Ergänzung für zusätzliches Volumen.',
       },
+      {
+        id: 'ul-rest-1',
+        name: 'Rest Day',
+        muscleGroups: [],
+        exerciseIds: [],
+        restDay: true,
+      },
+      {
+        id: 'ul-upper-2',
+        name: 'Oberkörper 2',
+        muscleGroups: ['chest', 'back', 'shoulders', 'biceps', 'triceps'],
+        exerciseIds: ['incline-bench-press', 'lat-pulldown', 'dumbbell-shoulder-press', 'hammer-curl', 'skull-crusher'],
+        restDay: false,
+        repScheme: 'hypertrophy',
+      },
+      {
+        id: 'ul-lower-2',
+        name: 'Unterkörper 2',
+        muscleGroups: ['legs', 'glutes', 'calves', 'core'],
+        exerciseIds: ['deadlift', 'front-squat', 'leg-extension', 'calf-raise-seated'],
+        restDay: false,
+        repScheme: 'hypertrophy',
+      },
+      {
+        id: 'ul-rest-2',
+        name: 'Rest Day (Wochenende)',
+        muscleGroups: [],
+        exerciseIds: [],
+        restDay: true,
+      },
+      {
+        id: 'ul-rest-3',
+        name: 'Rest Day (Wochenende)',
+        muscleGroups: [],
+        exerciseIds: [],
+        restDay: true,
+      }
     ],
   },
   // ─── 3: Full Body ──────────────────────────────────────────────────────────
@@ -128,14 +229,34 @@ export const predefinedSplits: TrainingSplit[] = [
     createdAt: 0,
     days: [
       {
-        id: 'fb-day',
-        name: 'Ganzkörper',
+        id: 'fb-day-1',
+        name: 'Ganzkörper 1',
         muscleGroups: ['chest', 'back', 'legs', 'shoulders', 'core'],
         exerciseIds: ['squat', 'bench-press', 'barbell-row', 'overhead-press', 'deadlift'],
         restDay: false,
         repScheme: 'hypertrophy',
         scienceNote: '5 Grundübungen decken alle Hauptmuskelgruppen ab. Kurz, effizient und wissenschaftlich belegt als optimal für Anfänger.',
       },
+      { id: 'fb-rest-1', name: 'Rest Day', muscleGroups: [], exerciseIds: [], restDay: true },
+      {
+        id: 'fb-day-2',
+        name: 'Ganzkörper 2',
+        muscleGroups: ['chest', 'back', 'legs', 'shoulders', 'core'],
+        exerciseIds: ['leg-press', 'incline-bench-press', 'lat-pulldown', 'lateral-raise', 'romanian-deadlift'],
+        restDay: false,
+        repScheme: 'hypertrophy',
+      },
+      { id: 'fb-rest-2', name: 'Rest Day', muscleGroups: [], exerciseIds: [], restDay: true },
+      {
+        id: 'fb-day-3',
+        name: 'Ganzkörper 3',
+        muscleGroups: ['chest', 'back', 'legs', 'shoulders', 'core'],
+        exerciseIds: ['hack-squat', 'dumbbell-bench-press', 'seated-cable-row', 'dumbbell-shoulder-press', 'leg-curl'],
+        restDay: false,
+        repScheme: 'hypertrophy',
+      },
+      { id: 'fb-rest-3', name: 'Rest Day (Wochenende)', muscleGroups: [], exerciseIds: [], restDay: true },
+      { id: 'fb-rest-4', name: 'Rest Day (Wochenende)', muscleGroups: [], exerciseIds: [], restDay: true }
     ],
   },
   // ─── 4: Bro Split ──────────────────────────────────────────────────────────
@@ -178,6 +299,13 @@ export const predefinedSplits: TrainingSplit[] = [
         scienceNote: 'Alle drei Schulterköpfe (anterior, medial, posterior) werden direkt adressiert — für runde, vollständige Schulterentwicklung.',
       },
       {
+        id: 'bro-rest-1',
+        name: 'Rest Day',
+        muscleGroups: [],
+        exerciseIds: [],
+        restDay: true,
+      },
+      {
         id: 'bro-arms',
         name: 'Arme',
         muscleGroups: ['biceps', 'triceps'],
@@ -194,6 +322,13 @@ export const predefinedSplits: TrainingSplit[] = [
         restDay: false,
         repScheme: 'hypertrophy',
         scienceNote: 'Vollständige Bein-Session von Quad-dominant bis Hamstring-dominant. Hohe Intensität durch ausgeruhten Zustand nach oberen Körpertagen.',
+      },
+      {
+        id: 'bro-rest-2',
+        name: 'Rest Day',
+        muscleGroups: [],
+        exerciseIds: [],
+        restDay: true,
       },
     ],
   },
@@ -216,7 +351,7 @@ export const predefinedSplits: TrainingSplit[] = [
         exerciseIds: ['bench-press', 'barbell-row', 'overhead-press', 'barbell-curl', 'close-grip-bench'],
         restDay: false,
         repScheme: 'strength',
-        scienceNote: 'Schwere Grundübungen bei 3–5 Wdh. aktivieren mehr motorische Einheiten und erhöhen die Neuroadaptation (Kraft ohne Muskelmasse-Limit).',
+        scienceNote: 'Schwere Grundübungen bei 3–5 Wdh. aktivieren mehr motorische Einheiten und erhöhen die Neuroadaptation.',
       },
       {
         id: 'phul-power-lower',
@@ -227,6 +362,7 @@ export const predefinedSplits: TrainingSplit[] = [
         repScheme: 'strength',
         scienceNote: 'Kniebeuge und Kreuzheben schwer und spezifisch — klassisches 5/3/1-Prinzip für maximale Unterkörperkraft.',
       },
+      { id: 'phul-rest-1', name: 'Rest Day', muscleGroups: [], exerciseIds: [], restDay: true },
       {
         id: 'phul-hyper-upper',
         name: 'Hypertrophie Oberkörper',
@@ -234,7 +370,7 @@ export const predefinedSplits: TrainingSplit[] = [
         exerciseIds: ['incline-bench-press', 'dumbbell-row', 'dumbbell-shoulder-press', 'cable-fly', 'tricep-pushdown', 'dumbbell-curl', 'lateral-raise'],
         restDay: false,
         repScheme: 'hypertrophy',
-        scienceNote: 'Moderate Lasten (8–15 Wdh.) erzeugen metabolischen Stress und Muskelschaden — optimale Kombination für Hypertrophie laut Schoenfeld (2010).',
+        scienceNote: 'Moderate Lasten (8–15 Wdh.) erzeugen metabolischen Stress und Muskelschaden für Hypertrophie.',
       },
       {
         id: 'phul-hyper-lower',
@@ -243,29 +379,31 @@ export const predefinedSplits: TrainingSplit[] = [
         exerciseIds: ['hack-squat', 'leg-press', 'bulgarian-split-squat', 'leg-extension', 'leg-curl', 'hip-thrust', 'calf-raise'],
         restDay: false,
         repScheme: 'hypertrophy',
-        scienceNote: 'Maschinen- und Isolationsübungen für maximalen Pump und Time Under Tension. Hip Thrust als abschließender Gluteus-Fokus.',
+        scienceNote: 'Maschinen- und Isolationsübungen für maximalen Pump und Time Under Tension.',
       },
+      { id: 'phul-rest-2', name: 'Rest Day', muscleGroups: [], exerciseIds: [], restDay: true },
+      { id: 'phul-rest-3', name: 'Rest Day', muscleGroups: [], exerciseIds: [], restDay: true }
     ],
   },
 ];
 
 // ── Dumbbell-Swap-Map für Equipment-Anpassung ──────────────────────────────
 const dumbbellSwapMap: Record<string, string> = {
-  'bench-press':   'dumbbell-bench-press',
-  'barbell-row':   'dumbbell-row',
-  'overhead-press':'dumbbell-shoulder-press',
-  'barbell-curl':  'dumbbell-curl',
-  'deadlift':      'romanian-deadlift',
+  'bench-press': 'dumbbell-bench-press',
+  'barbell-row': 'dumbbell-row',
+  'overhead-press': 'dumbbell-shoulder-press',
+  'barbell-curl': 'dumbbell-curl',
+  'deadlift': 'romanian-deadlift',
 };
 
 const bodyweightSwapMap: Record<string, string> = {
-  'bench-press':    'push-up',
-  'barbell-row':    'pull-up',
+  'bench-press': 'push-up',
+  'barbell-row': 'pull-up',
   'overhead-press': 'push-up',
-  'barbell-curl':   'hammer-curl',
-  'deadlift':       'pull-up',
-  'squat':          'squat',          // bodyweight squat — same ID, weight 0
-  'leg-press':      'bulgarian-split-squat',
+  'barbell-curl': 'hammer-curl',
+  'deadlift': 'pull-up',
+  'squat': 'squat',          // bodyweight squat — same ID, weight 0
+  'leg-press': 'bulgarian-split-squat',
 };
 
 function swapExercises(exerciseIds: string[], swapMap: Record<string, string>): string[] {

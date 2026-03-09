@@ -28,7 +28,7 @@ export default function DaysPage() {
     useUserStore.setState((s) => ({
       profile: { ...s.profile, trainingDays: selected } as typeof s.profile,
     }));
-    setOnboardingStep(4);
+    setOnboardingStep(5);
     router.push('/onboarding/equipment');
   };
 
@@ -46,9 +46,9 @@ export default function DaysPage() {
       {/* Progress */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
         <span style={{ ...typography.label, color: colors.textMuted }}>
-          SCHRITT 3 VON 5
+          SCHRITT 4 VON 6
         </span>
-        <ProgressBar progress={0.6} />
+        <ProgressBar progress={4 / 6} />
       </div>
 
       {/* Heading */}

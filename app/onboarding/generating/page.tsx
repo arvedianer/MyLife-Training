@@ -15,12 +15,13 @@ const steps = [
   'Trainingsplan erstellen...',
   'Übungen auswählen...',
   'Progressive Overload konfigurieren...',
-  'Dein Plan ist bereit!',
+  'Plan ist bereit!',
 ];
 
 export default function GeneratingPage() {
   const router = useRouter();
   const { profile } = useUserStore();
+  const firstName = profile?.name?.split(' ')[0];
 
   const [currentStep, setCurrentStep] = useState(0);
   const [done, setDone] = useState(false);
@@ -45,6 +46,7 @@ export default function GeneratingPage() {
 
     // Store-Methoden imperativ aufrufen (vermeidet Endlos-Loop durch instabile Referenzen)
     const fullProfile: UserProfile = {
+      name: profile.name,
       goal: profile.goal ?? 'muskelaufbau',
       level: profile.level ?? 'anfaenger',
       trainingDays: profile.trainingDays ?? 3,
@@ -110,7 +112,7 @@ export default function GeneratingPage() {
           MY LIFE
         </h1>
         <p style={{ ...typography.body, color: colors.textMuted, marginTop: spacing[2] }}>
-          Training
+          {done && firstName ? `Bereit, ${firstName}!` : 'Training'}
         </p>
       </div>
 

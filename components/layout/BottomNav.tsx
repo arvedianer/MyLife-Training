@@ -2,16 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Dumbbell, Plus, BarChart2, Layers } from 'lucide-react';
-import { colors, typography, spacing } from '@/constants/tokens';
-
-const tabs = [
-  { href: '/dashboard', icon: Home,     label: 'Home'    },
-  { href: '/splits',    icon: Layers,   label: 'Splits'  },
-  // Mitte: Start-Button (separat gerendert)
-  { href: '/exercises', icon: Dumbbell, label: 'Übungen' },
-  { href: '/stats',     icon: BarChart2, label: 'Stats'  },
-] as const;
+import { Home, Dumbbell, BarChart2, Layers, Plus } from 'lucide-react';
+import { colors, typography, spacing, radius } from '@/constants/tokens';
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -37,59 +29,39 @@ export function BottomNav() {
         zIndex: 50,
       }}
     >
-      {/* Home + Log */}
-      {tabs.slice(0, 2).map((tab) => (
-        <NavTab
-          key={tab.href}
-          href={tab.href}
-          icon={<tab.icon size={22} color={isActive(tab.href) ? colors.accent : colors.textDisabled} />}
-          label={tab.label}
-          active={isActive(tab.href)}
-        />
-      ))}
+      {/* Left tabs */}
+      <NavTab href="/dashboard" icon={<Home size={22} color={isActive('/dashboard') ? colors.accent : colors.textDisabled} />} label="Home"   active={isActive('/dashboard')} />
+      <NavTab href="/splits"    icon={<Layers size={22} color={isActive('/splits')    ? colors.accent : colors.textDisabled} />} label="Splits"  active={isActive('/splits')} />
 
-      {/* Center FAB — Start */}
+      {/* Center FAB */}
       <Link
         href="/start"
         style={{
-          width: '52px',
-          height: '52px',
-          borderRadius: '50%',
-          backgroundColor: isActive('/start') ? colors.accentDark : colors.accent,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          marginTop: '-20px',
-          boxShadow: `0 0 24px ${colors.accent}50`,
-          transition: 'background-color 0.2s, transform 0.1s, box-shadow 0.2s',
+          width: '52px',
+          height: '52px',
+          borderRadius: radius.full,
+          backgroundColor: colors.accent,
+          boxShadow: `0 0 0 4px ${colors.bgPrimary}, 0 4px 16px rgba(0,0,0,0.4)`,
           flexShrink: 0,
+          marginBottom: '10px',
+          transition: 'transform 0.15s, box-shadow 0.15s',
         }}
         onMouseEnter={(e) => {
-          (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1.05)';
+          (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1.08)';
         }}
         onMouseLeave={(e) => {
-          (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1)';
-        }}
-        onMouseDown={(e) => {
-          (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(0.95)';
-        }}
-        onMouseUp={(e) => {
           (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1)';
         }}
       >
         <Plus size={26} color={colors.bgPrimary} strokeWidth={2.5} />
       </Link>
 
-      {/* Stats + Splits */}
-      {tabs.slice(2).map((tab) => (
-        <NavTab
-          key={tab.href}
-          href={tab.href}
-          icon={<tab.icon size={22} color={isActive(tab.href) ? colors.accent : colors.textDisabled} />}
-          label={tab.label}
-          active={isActive(tab.href)}
-        />
-      ))}
+      {/* Right tabs */}
+      <NavTab href="/exercises" icon={<Dumbbell size={22} color={isActive('/exercises') ? colors.accent : colors.textDisabled} />} label="Übungen" active={isActive('/exercises')} />
+      <NavTab href="/stats"     icon={<BarChart2 size={22} color={isActive('/stats')     ? colors.accent : colors.textDisabled} />} label="Stats"   active={isActive('/stats')} />
     </nav>
   );
 }
@@ -111,8 +83,8 @@ function NavTab({ href, icon, label, active }: NavTabProps) {
         alignItems: 'center',
         justifyContent: 'center',
         gap: '3px',
-        padding: `${spacing[1]} ${spacing[3]}`,
-        minWidth: '60px',
+        flex: 1,
+        padding: `${spacing[1]} ${spacing[2]}`,
         transition: 'opacity 0.15s',
       }}
     >

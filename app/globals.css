@@ -7,27 +7,43 @@
   --font-manrope: 'Manrope', sans-serif;
   --font-courier: 'Courier Prime', monospace;
 
-  /* Colors */
+  /* Colors — fast schwarz, klare Hierarchie */
   --bg-primary:    #080808;
-  --bg-secondary:  #0E0E0E;
-  --bg-card:       #161616;
-  --bg-elevated:   #1E1E1E;
-  --bg-highest:    #262626;
+  --bg-secondary:  #111111;
+  --bg-card:       #141414;
+  --bg-elevated:   #1C1C1C;
+  --bg-highest:    #242424;
 
   --text-primary:   #FFFFFF;
-  --text-secondary: #F5F5F5;
-  --text-muted:     #AAAAAA;
-  --text-disabled:  #888888;
+  --text-secondary: #EBEBEB;
+  --text-muted:     #8E8E93;
+  --text-disabled:  #636366;
+  --text-faint:     #48484A;
 
-  --accent:      #4DFFED;
+  /* Akzent — Cyan (NUR CTAs / aktive States) */
+  --accent:      #3DFFE6;
   --accent-dark: #00CCC0;
-  --accent-bg:   #0A1F1A;
+  --accent-bg:   rgba(61, 255, 230, 0.10);
 
-  --danger:    #FF3B30;
-  --success:   #34C759;
+  /* PR / Stats — Purple */
+  --pr-color:    #BF6FFF;
+  --pr-color-bg: rgba(191, 111, 255, 0.12);
 
-  --border:       #262626;
-  --border-light: #1E1E1E;
+  /* Gewicht / Volumen — Blue */
+  --volume-color:    #4A9EFF;
+  --volume-color-bg: rgba(74, 158, 255, 0.12);
+
+  --danger:    #FF453A;
+  --success:   #30D158;
+  --warning:   #FF6B35;
+
+  --border:        rgba(255, 255, 255, 0.08);
+  --border-light:  rgba(255, 255, 255, 0.05);
+  --border-glass:  rgba(255, 255, 255, 0.10);
+
+  /* Card depth — the Titan Pro signature */
+  --shadow-card:   0 0 0 1px rgba(255,255,255,0.06), 0 4px 20px rgba(0,0,0,0.5);
+  --shadow-card-hover: 0 0 0 1px rgba(255,255,255,0.09), 0 8px 32px rgba(0,0,0,0.6);
 }
 
 /* ── CSS Reset ──────────────────────────────────────────────────────────── */

@@ -8,10 +8,11 @@
 
 **MY LIFE Training App** ist eine Fitness-Tracking App als Teil des größeren "My Life" Ökosystems (Training + Kalorien + Life Improvement). Diese Repo ist ausschließlich die **Training App**.
 
-- **Plattform:** React Native mit Expo (iOS + Android aus einer Codebase)
+- **Plattform:** Next.js 14 (App Router) als Web-PWA — läuft im Browser, installierbar auf Mobile
 - **Sprache:** TypeScript (strict mode, keine any-Types)
-- **Status:** Aufbauphase — wir folgen dem geplanten Feature-Set (MVP first)
-- **Planung:** Feature Map, Design System, App-Struktur und User Flows sind vollständig dokumentiert
+- **Backend:** Supabase (Auth, PostgreSQL, Row Level Security)
+- **Status:** MVP vollständig — alle Core-Features implementiert
+- **Deployment:** Vercel (`vercel.json` vorhanden)
 
 **WICHTIG:** Bevor du irgendetwas baust, lies dieses Dokument komplett. Jede Entscheidung hier ist bewusst getroffen und dokumentiert.
 
@@ -20,28 +21,32 @@
 ## 1. TECH STACK
 
 ```
-React Native 0.73+     — Cross-Platform Mobile
-Expo SDK 50+           — Build-System, OTA Updates, native APIs
+Next.js 14             — Web-App mit App Router (file-based routing)
 TypeScript 5+          — Strict Mode, keine any
-Expo Router v3         — File-based Navigation (wie Next.js, aber für RN)
-Zustand                — Global State Management (leichtgewichtig, kein Redux)
-MMKV                   — Lokaler Storage (schneller als AsyncStorage)
-React Query (TanStack) — Server State, Caching, Background Refetch
-Zod                    — Schema Validation (Forms, API Responses)
+Supabase               — Auth, PostgreSQL DB, Row Level Security
+Zustand                — Global State Management (kein Redux)
+  └─ persist           — localStorage-Persistenz (offline-first)
+React Query (TanStack) — Server State, Caching (QueryProvider)
+Zod                    — Schema Validation
 React Hook Form        — Form Handling
 date-fns               — Datum-Operationen (kein moment.js)
-Victory Native XL      — Charts & Graphen (optimiert für React Native)
-Reanimated 3           — Animationen (60fps, läuft auf UI Thread)
-Gesture Handler        — Touch & Swipe Interaktionen
-Haptics (Expo)         — Vibrations-Feedback
+Recharts               — Charts & Graphen (Web-optimiert)
+Framer Motion          — Animationen
+lucide-react           — Icons (konsistentes Line-Style)
+@supabase/supabase-js  — Supabase Client v2
 ```
+
+**PWA-Stack:**
+- `public/manifest.json` — App-Manifest (Name, Icons, Theme)
+- `public/sw.js` — Service Worker (Stale-while-revalidate, Offline-Fallback)
+- `components/PWACheck.tsx` — SW-Registrierung
 
 **Nicht verwenden:**
 
-- ❌ Redux / Redux Toolkit (zu komplex für dieses Projekt)
+- ❌ Redux / Redux Toolkit (zu komplex)
 - ❌ Moment.js (deprecated, zu groß)
-- ❌ Animated API (veraltet — nur Reanimated 3)
-- ❌ StyleSheet.create mit hardcoded Werten (immer Design Tokens nutzen)
+- ❌ Victory Native / Reanimated (React Native — wir sind Web)
+- ❌ Hardcoded Farben oder Abstände (immer Design Tokens)
 - ❌ any TypeScript Typ
 
 ---
@@ -267,25 +272,19 @@ backgroundColor: '#161616' // nie hardcoded Farben
 
 ---
 
-## 7. ANIMATIONEN (Reanimated 3)
+## 7. ANIMATIONEN (Framer Motion)
 
 ```typescript
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSpring,
-  Easing,
-} from 'react-native-reanimated';
+import { motion } from 'framer-motion';
 
 // Standard Screen Fade-In
-const opacity = useSharedValue(0);
-const translateY = useSharedValue(10);
-
-useEffect(() => {
-  opacity.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.cubic) });
-  translateY.value = withTiming(0, { duration: 350, easing: Easing.out(Easing.cubic) });
-}, []);
+<motion.div
+  initial={{ opacity: 0, y: 8 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.3, ease: 'easeOut' }}
+>
+  {children}
+</motion.div>
 ```
 
 ---
@@ -313,13 +312,11 @@ useEffect(() => {
 
 **Out of Scope (V2/V3 — nicht anfassen):**
 
-- ❌ Muskelgruppen Heatmap (Screen 16)
-- ❌ Profil Screen (Screen 23)
-- ❌ Backend / Cloud Sync
+- ❌ Muskelgruppen Heatmap
+- ❌ Profil Screen
 - ❌ Account-Verknüpfung mit My Life App
 - ❌ Supersets
 - ❌ Video-Demos
-- ❌ Community Features
 - ❌ KI-Chat
 
 ---
@@ -328,22 +325,16 @@ useEffect(() => {
 
 ```bash
 # Dev starten
-npx expo start
-
-# iOS Simulator
-npx expo run:ios
-
-# Android Emulator
-npx expo run:android
+npm run dev
 
 # TypeScript Check
 npx tsc --noEmit
 
-# Lint
-npx eslint . --ext .ts,.tsx
+# Build
+npm run build
 
-# Tests
-npx jest
+# Production starten
+npm run start
 ```
 
 ---
@@ -355,15 +346,15 @@ Checkliste für jeden neuen Screen:
 1. **Datei anlegen** im richtigen `app/` Ordner
 2. **Design Tokens** — keine hardcoded Werte
 3. **TypeScript** — alle Props und State-Typen definieren
-4. **Navigation** — korrekte Expo Router Links
+4. **Navigation** — `next/link` oder `useRouter()` aus `next/navigation`
 5. **Dark Mode** — funktioniert automatisch durch Token-System
 6. **Loading States** — immer berücksichtigen
 7. **Empty States** — was passiert wenn keine Daten da sind?
-8. **Animationen** — Screen Fade-In standardmäßig einbauen
-9. **Haptics** — bei wichtigen Aktionen (Set abhaken, PR, etc.)
+8. **Animationen** — Framer Motion für Übergänge
+9. **Icons** — nur `lucide-react`, keine Emojis als UI-Elemente
 10. **Deutsche UI-Texte** — alle User-sichtbaren Strings auf Deutsch
 
 ---
 
-*Letzte Aktualisierung: Feb 2026 · Version 1.0*
-*Erstellt auf Basis von: Feature Map v1.0 · Design System v1.0 · App-Struktur v1.0 · User Flows v1.0*
+*Letzte Aktualisierung: März 2026 · Version 1.1*
+*Stack: Next.js 14 + Supabase + Zustand + Recharts + Framer Motion*

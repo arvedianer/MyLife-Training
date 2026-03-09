@@ -1,14 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings } from 'lucide-react';
+import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { useUserStore } from '@/store/userStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { usePlanStore } from '@/store/planStore';
-import { formatWorkoutDate, formatDuration, formatVolume } from '@/utils/dates';
+import { formatWorkoutDate, formatDuration, formatVolume, calculateStreak } from '@/utils/dates';
+import { parseISO } from 'date-fns';
 
 export default function DashboardPage() {
   const { profile } = useUserStore();
@@ -22,14 +23,29 @@ export default function DashboardPage() {
   // Streak berechnen
   const streak = calculateStreak(sessions.map((s) => s.date));
 
-  // Wochenvolumen
+  // Wochenvolumen (parseISO für konsistente Timezone-Behandlung)
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
   weekAgo.setHours(0, 0, 0, 0);
 
-  const recentWeekSessions = sessions.filter((s) => new Date(s.date) >= weekAgo);
+  const recentWeekSessions = sessions.filter((s) => parseISO(s.date) >= weekAgo);
   const weekVolume = recentWeekSessions.reduce((sum, s) => sum + s.totalVolume, 0);
   const weekWorkouts = recentWeekSessions.length;
+
+  // Goal personalization
+  const goal = profile?.goal;
+  const GOAL_TAGLINES: Record<string, string> = {
+    muskelaufbau: 'Baue Muskeln. Set für Set.',
+    kraft: 'Mehr Kraft. Jeden Tag.',
+    abnehmen: 'Bleib konsistent. Du schaffst das.',
+    fitness: 'Aktiv und fit bleiben.',
+    ausdauer: 'Weiter. Immer weiter.',
+  };
+  const GOAL_LABELS: Record<string, string> = {
+    muskelaufbau: 'Muskelaufbau', kraft: 'Maximalkraft',
+    abnehmen: 'Fettabbau', fitness: 'Fitness', ausdauer: 'Ausdauer',
+  };
+  const goalTagline = goal ? GOAL_TAGLINES[goal] : null;
 
   return (
     <div
@@ -59,8 +75,27 @@ export default function DashboardPage() {
           <p style={{ ...typography.body, color: colors.textMuted }}>
             {todaysDay && !todaysDay.restDay
               ? `Heute: ${todaysDay.name}`
-              : 'Heute ist ein Ruhetag'}
+              : goalTagline ?? 'Heute ist ein Ruhetag'}
           </p>
+          {goal && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: spacing[1],
+                marginTop: spacing[2],
+                padding: `2px ${spacing[2]}`,
+                backgroundColor: colors.accentBg,
+                border: `1px solid ${colors.accent}40`,
+                borderRadius: radius.full,
+              }}
+            >
+              <Target size={10} color={colors.accent} />
+              <span style={{ ...typography.label, color: colors.accent, fontSize: '10px' }}>
+                {GOAL_LABELS[goal] ?? goal}
+              </span>
+            </div>
+          )}
         </div>
         <Link href="/settings">
           <button
@@ -130,10 +165,11 @@ export default function DashboardPage() {
       {/* Stats Row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing[3] }}>
         <StatCard
-          icon={<Flame size={18} color={colors.accent} />}
+          icon={<Flame size={18} color={colors.success} />}
           value={String(streak)}
           label="Streak"
           unit="Tage"
+          valueColor={colors.success}
         />
         <StatCard
           icon={<Calendar size={18} color={colors.accent} />}
@@ -142,10 +178,11 @@ export default function DashboardPage() {
           unit="Einheiten"
         />
         <StatCard
-          icon={<TrendingUp size={18} color={colors.accent} />}
+          icon={<TrendingUp size={18} color={colors.volumeColor} />}
           value={formatVolume(weekVolume).replace('kg', '').replace('t', '')}
           label="Volumen"
           unit={weekVolume >= 1000 ? 'Tonnen' : 'kg'}
+          valueColor={colors.volumeColor}
         />
       </div>
 
@@ -220,11 +257,13 @@ function StatCard({
   value,
   label,
   unit,
+  valueColor,
 }: {
   icon: React.ReactNode;
   value: string;
   label: string;
   unit: string;
+  valueColor?: string;
 }) {
   return (
     <div
@@ -240,7 +279,7 @@ function StatCard({
     >
       {icon}
       <div>
-        <div style={{ ...typography.monoLg, color: colors.textPrimary }}>
+        <div style={{ ...typography.monoLg, color: valueColor ?? colors.textPrimary }}>
           {value}
         </div>
         <div style={{ ...typography.monoSm, color: colors.textMuted }}>
@@ -259,33 +298,4 @@ function getGreeting(): string {
   if (hour < 12) return 'Morgen';
   if (hour < 17) return 'Tag';
   return 'Abend';
-}
-
-// Parse a YYYY-MM-DD string as a local-time Date (avoids UTC midnight timezone shift)
-function parseLocalDate(dateStr: string): Date {
-  const parts = dateStr.split('-');
-  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-}
-
-function calculateStreak(dates: string[]): number {
-  if (dates.length === 0) return 0;
-  const sorted = Array.from(new Set(dates)).sort().reverse();
-  let streak = 0;
-  let currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0);
-
-  for (const dateStr of sorted) {
-    const date = parseLocalDate(dateStr);
-    const diff = Math.round(
-      (currentDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    if (diff <= 1) {
-      streak++;
-      currentDate = date;
-    } else {
-      break;
-    }
-  }
-
-  return streak;
 }

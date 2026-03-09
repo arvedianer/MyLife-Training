@@ -4,6 +4,8 @@ import { zustandStorage } from '@/utils/storage';
 import { getExerciseById } from '@/constants/exercises';
 import type { ActiveWorkout, WorkoutExercise, SetEntry } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
+import { useHistoryStore } from './historyStore';
+import { calculateIntelligentWeight } from '@/utils/overload';
 
 interface WorkoutState {
   // Aktives Workout (null = kein Workout läuft)
@@ -41,11 +43,11 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function createDefaultSet(): SetEntry {
+function createDefaultSet(initialWeight = 0, initialReps = 0): SetEntry {
   return {
     id: generateId(),
-    weight: 0,
-    reps: 0,
+    weight: initialWeight,
+    reps: initialReps,
     isCompleted: false,
     isPR: false,
   };
@@ -60,16 +62,23 @@ export const useWorkoutStore = create<WorkoutState>()(
       restTimerTotal: 0,
 
       startWorkout: (splitName, preloadExerciseIds) => {
+        const sessions = useHistoryStore.getState().sessions;
+
         // Build pre-loaded WorkoutExercise list from split's exerciseIds
         const preloaded: WorkoutExercise[] = (preloadExerciseIds ?? [])
           .map((id) => getExerciseById(id))
           .filter((ex): ex is Exercise => !!ex)
-          .map((ex) => ({
-            id: generateId(),
-            exercise: ex,
-            // Create the default number of sets with last-used weight pre-filled as 0
-            sets: Array.from({ length: ex.defaultSets }, () => createDefaultSet()),
-          }));
+          .map((ex) => {
+            const suggestion = calculateIntelligentWeight(ex.id, sessions);
+            const w = suggestion ? suggestion.weight : 0;
+            const r = suggestion ? suggestion.reps : 8; // Default 6-8 reps (represented as 8)
+            return {
+              id: generateId(),
+              exercise: ex,
+              // Always create exactly 2 sets as default, overrides ex.defaultSets per user request
+              sets: Array.from({ length: 2 }, () => createDefaultSet(w, r)),
+            };
+          });
 
         set({
           activeWorkout: {
@@ -96,10 +105,17 @@ export const useWorkoutStore = create<WorkoutState>()(
       addExercise: (exercise) =>
         set((state) => {
           if (!state.activeWorkout) return state;
+
+          const sessions = useHistoryStore.getState().sessions;
+          const suggestion = calculateIntelligentWeight(exercise.id, sessions);
+          const w = suggestion ? suggestion.weight : 0;
+          const r = suggestion ? suggestion.reps : 8; // Default 6-8 reps
+
           const newExercise: WorkoutExercise = {
             id: generateId(),
             exercise,
-            sets: [createDefaultSet()],
+            // Always create exactly 2 sets as default
+            sets: [createDefaultSet(w, r), createDefaultSet(w, r)],
           };
           return {
             activeWorkout: {
@@ -139,12 +155,13 @@ export const useWorkoutStore = create<WorkoutState>()(
               exercises: state.activeWorkout.exercises.map((e) => {
                 if (e.id !== exerciseId) return e;
                 const lastSet = e.sets[e.sets.length - 1];
-                const newSet: SetEntry = {
-                  ...createDefaultSet(),
-                  // Letzten Satz als Vorlage
-                  weight: lastSet?.weight ?? 0,
-                  reps: lastSet?.reps ?? 0,
-                };
+
+                // Letzten Satz als exakte Vorlage für Gewicht & Reps des neuen Satzes
+                const newSet: SetEntry = createDefaultSet(
+                  lastSet?.weight ?? 0,
+                  lastSet?.reps ?? 0
+                );
+
                 return { ...e, sets: [...e.sets, newSet] };
               }),
             },

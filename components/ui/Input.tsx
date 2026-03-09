@@ -94,15 +94,17 @@ export function NumericInput({
       }}
       style={{
         width: '100%',
-        padding: `${spacing[2]} ${spacing[3]}`,
-        backgroundColor: colors.bgHighest,
-        border: `1px solid ${colors.border}`,
-        borderRadius: radius.md,
+        padding: `${spacing[2]} ${spacing[2]}`,
+        backgroundColor: colors.bgElevated,
+        border: `1px solid ${colors.borderLight}`,
+        borderRadius: radius.lg,
         ...typography.mono,
+        fontSize: '15px',
+        fontWeight: '700',
         color: colors.textPrimary,
         outline: 'none',
         textAlign: 'center',
-        transition: 'border-color 0.15s',
+        transition: 'border-color 0.15s, background-color 0.15s',
         MozAppearance: 'textfield',
         ...style,
       }}

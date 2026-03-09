@@ -17,7 +17,7 @@ export interface SplitDay {
   muscleGroups: MuscleGroup[];
   exerciseIds: string[];
   restDay: boolean;
-  repScheme: RepScheme;       // Training focus for this day
+  repScheme?: RepScheme;       // Training focus for this day
   scienceNote?: string;       // Why this day is structured this way
 }
 

@@ -7,14 +7,15 @@ import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useUserStore } from '@/store/userStore';
+import { GOAL_THEMES } from '@/utils/theme';
 import type { WorkoutGoal } from '@/types/workout';
 
 const goals: { id: WorkoutGoal; label: string; description: string; icon: React.ElementType }[] = [
-  { id: 'muskelaufbau',  label: 'Muskelaufbau',  description: 'Muskeln aufbauen & Definition verbessern', icon: Dumbbell },
-  { id: 'kraft',         label: 'Kraft',          description: 'Maximalstärke & Kraftwerte steigern',      icon: Target   },
-  { id: 'abnehmen',      label: 'Abnehmen',       description: 'Körperfett reduzieren & fit werden',       icon: Flame    },
-  { id: 'fitness',       label: 'Fitness',        description: 'Allgemeine Fitness & Gesundheit',          icon: Heart    },
-  { id: 'ausdauer',      label: 'Ausdauer',       description: 'Kondition & Cardio verbessern',            icon: Wind     },
+  { id: 'muskelaufbau', label: 'Muskelaufbau',  description: 'Muskeln aufbauen & Definition verbessern', icon: Dumbbell },
+  { id: 'kraft',        label: 'Maximalkraft',  description: 'Maximalstärke & Kraftwerte steigern',      icon: Target   },
+  { id: 'abnehmen',     label: 'Abnehmen',      description: 'Körperfett reduzieren & fit werden',       icon: Flame    },
+  { id: 'fitness',      label: 'Fitness',       description: 'Allgemeine Fitness & Gesundheit',          icon: Heart    },
+  { id: 'ausdauer',     label: 'Ausdauer',      description: 'Kondition & Cardio verbessern',            icon: Wind     },
 ];
 
 export default function GoalPage() {
@@ -28,9 +29,9 @@ export default function GoalPage() {
     if (!selected) return;
     useUserStore.setState((s) => ({
       profile: { ...s.profile, goal: selected } as typeof s.profile,
-      onboardingStep: 2,
+      onboardingStep: 3,
     }));
-    setOnboardingStep(2);
+    setOnboardingStep(3);
     router.push('/onboarding/level');
   };
 
@@ -48,9 +49,9 @@ export default function GoalPage() {
       {/* Progress */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
         <span style={{ ...typography.label, color: colors.textMuted }}>
-          SCHRITT 1 VON 5
+          SCHRITT 2 VON 6
         </span>
-        <ProgressBar progress={0.2} />
+        <ProgressBar progress={2 / 6} />
       </div>
 
       {/* Heading */}
@@ -68,6 +69,10 @@ export default function GoalPage() {
         {goals.map((goal) => {
           const Icon = goal.icon;
           const isSelected = selected === goal.id;
+          const goalTheme = GOAL_THEMES[goal.id];
+          const accentColor = isSelected ? goalTheme.accent : colors.accent;
+          const accentBgColor = isSelected ? goalTheme.accentBg : colors.accentBg;
+
           return (
             <button
               key={goal.id}
@@ -77,8 +82,8 @@ export default function GoalPage() {
                 alignItems: 'center',
                 gap: spacing[4],
                 padding: spacing[4],
-                backgroundColor: isSelected ? colors.accentBg : colors.bgCard,
-                border: `1px solid ${isSelected ? colors.accent : colors.border}`,
+                backgroundColor: isSelected ? accentBgColor : colors.bgCard,
+                border: `1px solid ${isSelected ? accentColor : colors.border}`,
                 borderRadius: radius.lg,
                 cursor: 'pointer',
                 textAlign: 'left',
@@ -90,7 +95,7 @@ export default function GoalPage() {
                   width: '44px',
                   height: '44px',
                   borderRadius: radius.md,
-                  backgroundColor: isSelected ? `${colors.accent}20` : colors.bgHighest,
+                  backgroundColor: isSelected ? `${accentColor}20` : colors.bgHighest,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -98,7 +103,7 @@ export default function GoalPage() {
                   transition: 'background-color 0.15s',
                 }}
               >
-                <Icon size={22} color={isSelected ? colors.accent : colors.textMuted} />
+                <Icon size={22} color={isSelected ? accentColor : colors.textMuted} />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ ...typography.bodyLg, color: colors.textPrimary, fontWeight: '600' }}>
@@ -113,8 +118,8 @@ export default function GoalPage() {
                   width: '20px',
                   height: '20px',
                   borderRadius: '50%',
-                  border: `2px solid ${isSelected ? colors.accent : colors.border}`,
-                  backgroundColor: isSelected ? colors.accent : 'transparent',
+                  border: `2px solid ${isSelected ? accentColor : colors.border}`,
+                  backgroundColor: isSelected ? accentColor : 'transparent',
                   flexShrink: 0,
                   transition: 'all 0.15s',
                 }}
@@ -124,14 +129,22 @@ export default function GoalPage() {
         })}
       </div>
 
-      {/* Continue */}
-      <div style={{ marginTop: 'auto' }}>
-        <Button
-          fullWidth
-          size="lg"
-          disabled={!selected}
-          onClick={handleContinue}
+      {/* Actions */}
+      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
+        <button
+          onClick={() => router.back()}
+          style={{
+            ...typography.body,
+            color: colors.textMuted,
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            textAlign: 'center',
+          }}
         >
+          ← Zurück
+        </button>
+        <Button fullWidth size="lg" disabled={!selected} onClick={handleContinue}>
           Weiter
         </Button>
       </div>

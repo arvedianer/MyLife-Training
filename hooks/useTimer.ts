@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 import { useWorkoutStore } from '@/store/workoutStore';
+import { startSilentAudioLoop, stopSilentAudioLoop, playTimerCompleteBeep } from '@/utils/audio';
+import { sendLocalNotification, getRandomBroskiQuote } from '@/utils/notifications';
 
 /**
  * Rest-Timer Hook — läuft im Store, überlebt Navigation.
@@ -17,9 +19,24 @@ export function useRestTimer() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    let internalSeconds = restTimerSeconds;
+
     if (restTimerActive) {
+      startSilentAudioLoop();
+
       intervalRef.current = setInterval(() => {
-        // Imperativ — kein stale closure, kein doppeltes Intervall
+        internalSeconds -= 1;
+        if (internalSeconds <= 0) {
+          playTimerCompleteBeep();
+          stopSilentAudioLoop();
+
+          // Fire Broski Push Notification
+          sendLocalNotification(getRandomBroskiQuote(), {
+            body: 'Dein Timer ist abgelaufen. Zurück ans Eisen!',
+            tag: 'rest-timer',
+            requireInteraction: true // Keeps the notification visible until interacted with
+          });
+        }
         useWorkoutStore.getState().tickRestTimer();
       }, 1000);
     } else {
@@ -34,8 +51,9 @@ export function useRestTimer() {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      stopSilentAudioLoop();
     };
-  }, [restTimerActive]); // tickRestTimer bewusst nicht in deps
+  }, [restTimerActive, restTimerSeconds]);
 
   const progress = restTimerTotal > 0 ? restTimerSeconds / restTimerTotal : 0;
 

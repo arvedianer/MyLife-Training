@@ -37,4 +37,6 @@ export interface Exercise {
   repRange: { min: number; max: number };  // Target rep range for this exercise
   restSeconds: number;                      // Recommended rest between sets (seconds)
   scienceNote: string;                      // Form cue + evidence-based rationale
+  isPublic?: boolean;
+  createdBy?: string;
 }

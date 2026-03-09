@@ -16,6 +16,8 @@ import { Badge } from '@/components/ui/Badge';
 import { useHistoryStore } from '@/store/historyStore';
 import { getExerciseById } from '@/constants/exercises';
 import { formatShortDate, formatVolume } from '@/utils/dates';
+import { calculate1RMBrzycki } from '@/utils/calculations';
+import { useState } from 'react';
 
 export default function ExerciseDetailPage({
   params,
@@ -25,6 +27,7 @@ export default function ExerciseDetailPage({
   const { id } = params;
   const exercise = getExerciseById(id);
   const { getSessionsByExercise, getPersonalRecords } = useHistoryStore();
+  const [chartType, setChartType] = useState<'weight' | '1rm'>('weight');
 
   const sessions = getSessionsByExercise(id);
   const prs = getPersonalRecords();
@@ -55,20 +58,24 @@ export default function ExerciseDetailPage({
     })
     .slice(0, 30);
 
-  // Gewichtsprogression: bestes Gewicht je Session
+  // Gewichtsprogression: bestes Gewicht & 1RM je Session
   const progressionData = sessions
     .map((session) => {
       const ex = session.exercises.find((e) => e.exercise.id === id);
       if (!ex) return null;
       const completedSets = ex.sets.filter((s) => s.isCompleted && s.weight > 0);
       if (completedSets.length === 0) return null;
+
       const bestWeight = Math.max(...completedSets.map((s) => s.weight));
+      const best1RM = Math.max(...completedSets.map((s) => calculate1RMBrzycki(s.weight, s.reps)));
+
       return {
         datum: formatShortDate(session.date),
         gewicht: bestWeight,
+        e1rm: best1RM,
       };
     })
-    .filter((d): d is { datum: string; gewicht: number } => d !== null)
+    .filter((d): d is { datum: string; gewicht: number; e1rm: number } => d !== null)
     .reverse()
     .slice(0, 15);
 
@@ -108,11 +115,45 @@ export default function ExerciseDetailPage({
           </div>
         )}
 
-        {/* Gewichtsprogression Chart */}
+        {/* Progression Chart */}
         <div>
-          <h3 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>
-            Gewichtsprogression
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: spacing[3] }}>
+            <h3 style={{ ...typography.h3, color: colors.textPrimary }}>
+              Progression
+            </h3>
+            <div style={{ display: 'flex', gap: spacing[2], backgroundColor: 'rgba(255,255,255,0.05)', padding: '2px', borderRadius: radius.md, border: `1px solid ${colors.borderGlass}` }}>
+              <button
+                onClick={() => setChartType('weight')}
+                style={{
+                  ...typography.label,
+                  padding: '4px 8px',
+                  background: chartType === 'weight' ? `${colors.accent}20` : 'transparent',
+                  border: chartType === 'weight' ? `1px solid ${colors.accent}40` : '1px solid transparent',
+                  color: chartType === 'weight' ? colors.accent : colors.textMuted,
+                  borderRadius: radius.sm,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                Max Gew.
+              </button>
+              <button
+                onClick={() => setChartType('1rm')}
+                style={{
+                  ...typography.label,
+                  padding: '4px 8px',
+                  background: chartType === '1rm' ? `${colors.accent}20` : 'transparent',
+                  border: chartType === '1rm' ? `1px solid ${colors.accent}40` : '1px solid transparent',
+                  color: chartType === '1rm' ? colors.accent : colors.textMuted,
+                  borderRadius: radius.sm,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                1RM (Trend)
+              </button>
+            </div>
+          </div>
           <div
             style={{
               backgroundColor: colors.bgCard,
@@ -147,16 +188,16 @@ export default function ExerciseDetailPage({
                   <Tooltip
                     contentStyle={{
                       backgroundColor: colors.bgElevated,
-                      border: `1px solid ${colors.border}`,
+                      border: `1px solid ${colors.borderGlass}`,
                       borderRadius: radius.md,
                       color: colors.textPrimary,
                       fontSize: '12px',
                     }}
                     labelStyle={{ color: colors.textMuted }}
                     itemStyle={{ color: colors.accent }}
-                    formatter={(value: number) => [`${value} kg`, 'Bestes Gewicht']}
+                    formatter={(value: number) => [`${value} kg`, chartType === 'weight' ? 'Bestes Gewicht' : 'geschätztes 1RM']}
                   />
-                  {prWeight > 0 && (
+                  {prWeight > 0 && chartType === 'weight' && (
                     <ReferenceLine
                       y={prWeight}
                       stroke={colors.accent}
@@ -166,7 +207,7 @@ export default function ExerciseDetailPage({
                   )}
                   <Line
                     type="monotone"
-                    dataKey="gewicht"
+                    dataKey={chartType === 'weight' ? 'gewicht' : 'e1rm'}
                     stroke={colors.accent}
                     strokeWidth={2}
                     dot={{ fill: colors.accent, r: 3, strokeWidth: 0 }}

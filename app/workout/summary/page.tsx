@@ -2,21 +2,24 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
-import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp } from 'lucide-react';
+import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp, Share2 } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useHistoryStore } from '@/store/historyStore';
 import { formatDuration, formatVolume } from '@/utils/dates';
-import { exercises } from '@/constants/exercises';
+import { getExerciseById } from '@/constants/exercises';
+import { generateCoachInsight } from '@/utils/coach';
+import { Bot } from 'lucide-react';
 
 function SummaryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session');
-  const { getSessionById } = useHistoryStore();
-
-  const session = sessionId ? getSessionById(sessionId) : null;
+  // Reaktives Abonnieren der sessions erlaubt Re-Rendern, falls persist() leicht verzögert lädt
+  const session = useHistoryStore((state) =>
+    sessionId ? state.sessions.find(s => s.id === sessionId) : null
+  );
 
   if (!session) {
     return (
@@ -30,6 +33,44 @@ function SummaryContent() {
       </div>
     );
   }
+
+  const handleShare = async () => {
+    if (!session) return;
+
+    let text = `🔥 Workout abgeschlossen: ${session.splitName || 'Freies Training'} 🔥\n\n`;
+    text += `⏱️ Dauer: ${formatDuration(session.durationSeconds)}\n`;
+    text += `💪 Volumen: ${formatVolume(session.totalVolume)} kg\n`;
+    text += `📊 Sätze: ${session.totalSets}\n\n`;
+
+    if (session.newPRs.length > 0) {
+      text += `🌟 ${session.newPRs.length} Neue Rekorde:\n`;
+      session.newPRs.forEach(exId => {
+        const ex = getExerciseById(exId);
+        if (ex) text += `- ${ex.nameDE}\n`;
+      });
+      text += '\n';
+    }
+
+    text += `Trainiert mit MY LIFE Training.`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Mein Workout',
+          text: text,
+        });
+      } catch (error) {
+        console.log('Teilen abgebrochen oder fehlgeschlagen:', error);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        alert('Workout-Zusammenfassung kopiert!');
+      } catch (err) {
+        console.error('Fehler beim Kopieren', err);
+      }
+    }
+  };
 
   return (
     <div
@@ -68,6 +109,34 @@ function SummaryContent() {
         )}
       </div>
 
+      {/* AI Coach Insight */}
+      <div style={{ padding: spacing[5], paddingBottom: 0 }}>
+        <div style={{
+          backgroundColor: `${colors.accent}15`,
+          border: `1px solid ${colors.accent}40`,
+          borderRadius: radius.xl,
+          padding: spacing[4],
+          display: 'flex',
+          gap: spacing[3],
+          alignItems: 'flex-start'
+        }}>
+          <div style={{
+            width: '36px', height: '36px', borderRadius: '50%',
+            backgroundColor: colors.accent,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            <Bot size={20} color={colors.bgPrimary} />
+          </div>
+          <div>
+            <div style={{ ...typography.label, color: colors.accent, marginBottom: '2px' }}>DEIN COACH SAGT:</div>
+            <p style={{ ...typography.bodySm, color: colors.textPrimary, lineHeight: '20px' }}>
+              " {generateCoachInsight(session)} "
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Stats */}
       <div
         style={{
@@ -102,7 +171,7 @@ function SummaryContent() {
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
             {session.newPRs.map((exId) => {
-              const exercise = exercises.find((e) => e.id === exId);
+              const exercise = getExerciseById(exId);
               if (!exercise) return null;
               return (
                 <div
@@ -180,6 +249,9 @@ function SummaryContent() {
       >
         <Button fullWidth size="lg" onClick={() => router.replace('/dashboard')}>
           Zum Dashboard
+        </Button>
+        <Button variant="secondary" fullWidth onClick={handleShare} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          Workout teilen <Share2 size={18} style={{ marginLeft: spacing[2] }} />
         </Button>
         <Button variant="ghost" fullWidth onClick={() => router.push('/log')}>
           Im Verlauf ansehen

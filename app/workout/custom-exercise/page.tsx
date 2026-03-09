@@ -1,48 +1,51 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Check, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Check, X, Users, Lock } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { supabase } from '@/lib/supabase';
-import type { MuscleGroup, Equipment, ExerciseCategory } from '@/types/exercises';
+import { useExerciseStore } from '@/store/exerciseStore';
+import type { MuscleGroup, Equipment, ExerciseCategory, Exercise } from '@/types/exercises';
 
 const muscleOptions: { id: MuscleGroup; label: string }[] = [
-  { id: 'chest',     label: 'Brust'      },
-  { id: 'back',      label: 'Rücken'     },
-  { id: 'shoulders', label: 'Schultern'  },
-  { id: 'biceps',    label: 'Bizeps'     },
-  { id: 'triceps',   label: 'Trizeps'    },
-  { id: 'legs',      label: 'Beine'      },
-  { id: 'glutes',    label: 'Gesäß'      },
-  { id: 'core',      label: 'Core'       },
-  { id: 'calves',    label: 'Waden'      },
-  { id: 'forearms',  label: 'Unterarme'  },
+  { id: 'chest', label: 'Brust' },
+  { id: 'back', label: 'Rücken' },
+  { id: 'shoulders', label: 'Schultern' },
+  { id: 'biceps', label: 'Bizeps' },
+  { id: 'triceps', label: 'Trizeps' },
+  { id: 'legs', label: 'Beine' },
+  { id: 'glutes', label: 'Gesäß' },
+  { id: 'core', label: 'Core' },
+  { id: 'calves', label: 'Waden' },
+  { id: 'forearms', label: 'Unterarme' },
 ];
 
 const equipmentOptions: { id: Equipment; label: string }[] = [
-  { id: 'barbell',    label: 'Langhantel'   },
-  { id: 'dumbbell',   label: 'Kurzhantel'   },
-  { id: 'cable',      label: 'Kabel'        },
-  { id: 'machine',    label: 'Maschine'     },
+  { id: 'barbell', label: 'Langhantel' },
+  { id: 'dumbbell', label: 'Kurzhantel' },
+  { id: 'cable', label: 'Kabel' },
+  { id: 'machine', label: 'Maschine' },
   { id: 'bodyweight', label: 'Eigengewicht' },
-  { id: 'kettlebell', label: 'Kettlebell'   },
-  { id: 'band',       label: 'Band'         },
-  { id: 'smith',      label: 'Smith'        },
+  { id: 'kettlebell', label: 'Kettlebell' },
+  { id: 'band', label: 'Band' },
+  { id: 'smith', label: 'Smith' },
 ];
 
 const categoryOptions: { id: ExerciseCategory; label: string }[] = [
-  { id: 'compound',  label: 'Compound'  },
+  { id: 'compound', label: 'Compound' },
   { id: 'isolation', label: 'Isolation' },
-  { id: 'cardio',    label: 'Cardio'    },
+  { id: 'cardio', label: 'Cardio' },
 ];
 
 const restOptions = [45, 60, 90, 120, 180];
 
 export default function CustomExercisePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('edit');
 
   const [nameDE, setNameDE] = useState('');
   const [nameEN, setNameEN] = useState('');
@@ -57,9 +60,36 @@ export default function CustomExercisePage() {
   const [repRangeMax, setRepRangeMax] = useState(12);
   const [restSeconds, setRestSeconds] = useState(90);
   const [scienceNote, setScienceNote] = useState('');
+  const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const { customExercises, addCustomExercise, updateCustomExercise } = useExerciseStore();
+
+  useEffect(() => {
+    if (editId) {
+      const existing = customExercises.find(e => e.id === editId);
+      if (existing) {
+        setNameDE(existing.nameDE);
+        setNameEN(existing.name !== existing.nameDE ? existing.name : '');
+        setPrimaryMuscle(existing.primaryMuscle);
+        setSecondaryMuscles(existing.secondaryMuscles);
+        setEquipment(existing.equipment);
+        setCategory(existing.category);
+        setDefaultSets(existing.defaultSets);
+        setDefaultReps(existing.defaultReps);
+        setDefaultWeight(existing.defaultWeight);
+        setRepRangeMin(existing.repRange.min);
+        setRepRangeMax(existing.repRange.max);
+        setRestSeconds(existing.restSeconds);
+        setScienceNote(existing.scienceNote);
+        setIsPublic(existing.isPublic ?? false);
+        setIsEditing(true);
+      }
+    }
+  }, [editId, customExercises]);
 
   const toggleSecondary = (muscle: MuscleGroup) => {
     setSecondaryMuscles((prev) =>
@@ -81,35 +111,74 @@ export default function CustomExercisePage() {
     setSaving(true);
     setError(null);
 
+    // Get user best-effort — if offline, still save locally
+    let user = null;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setError('Du musst eingeloggt sein, um eigene Übungen zu erstellen.');
-        setSaving(false);
-        return;
+      const { data } = await supabase.auth.getUser();
+      user = data.user;
+    } catch {
+      // Offline or Supabase unreachable — continue with local save only
+    }
+
+    const newExercise: Exercise & { isCustom?: boolean } = {
+      id: isEditing ? editId! : `community-${crypto.randomUUID()}`,
+      name: nameEN.trim() || nameDE.trim(),
+      nameDE: nameDE.trim(),
+      primaryMuscle: primaryMuscle!,
+      secondaryMuscles,
+      equipment,
+      category,
+      defaultSets,
+      defaultReps,
+      defaultWeight,
+      repRange: { min: repRangeMin, max: repRangeMax },
+      restSeconds,
+      scienceNote: scienceNote.trim(),
+      isPublic,
+      createdBy: user?.id,
+      isCustom: true,
+    };
+
+    try {
+      if (isEditing) {
+        updateCustomExercise(newExercise.id, newExercise);
+      } else {
+        addCustomExercise(newExercise);
       }
-
-      const { error: insertError } = await supabase.from('community_exercises').insert({
-        name: nameEN.trim() || nameDE.trim(),
-        name_de: nameDE.trim(),
-        primary_muscle: primaryMuscle,
-        secondary_muscles: secondaryMuscles,
-        equipment,
-        category,
-        default_sets: defaultSets,
-        default_reps: defaultReps,
-        default_weight: defaultWeight,
-        rep_range_min: repRangeMin,
-        rep_range_max: repRangeMax,
-        rest_seconds: restSeconds,
-        science_note: scienceNote.trim(),
-        created_by: user.id,
-      });
-
-      if (insertError) throw insertError;
 
       setSuccess(true);
       setTimeout(() => router.back(), 1200);
+
+      if (user) {
+        const payload = {
+          id: newExercise.id.replace('community-', ''),
+          name: newExercise.name,
+          name_de: newExercise.nameDE,
+          primary_muscle: newExercise.primaryMuscle,
+          secondary_muscles: newExercise.secondaryMuscles,
+          equipment: newExercise.equipment,
+          category: newExercise.category,
+          default_sets: newExercise.defaultSets,
+          default_reps: newExercise.defaultReps,
+          default_weight: newExercise.defaultWeight,
+          rep_range_min: newExercise.repRange?.min,
+          rep_range_max: newExercise.repRange?.max,
+          rest_seconds: newExercise.restSeconds,
+          science_note: newExercise.scienceNote,
+          is_public: newExercise.isPublic,
+          created_by: user.id,
+        };
+
+        if (isEditing) {
+          supabase.from('community_exercises').update(payload).eq('id', payload.id).then(({ error }) => {
+            if (error) console.error(error);
+          });
+        } else {
+          supabase.from('community_exercises').insert(payload).then(({ error }) => {
+            if (error) console.error(error);
+          });
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler beim Speichern.');
       setSaving(false);
@@ -136,7 +205,7 @@ export default function CustomExercisePage() {
         paddingBottom: '100px',
       }}
     >
-      <PageHeader title="Eigene Übung" />
+      <PageHeader title={isEditing ? 'Übung bearbeiten' : 'Eigene Übung'} />
 
       {success ? (
         <div
@@ -162,9 +231,9 @@ export default function CustomExercisePage() {
           >
             <Check size={32} color={colors.success} />
           </div>
-          <p style={{ ...typography.body, color: colors.success }}>Übung erstellt!</p>
+          <p style={{ ...typography.body, color: colors.success }}>Übung {isEditing ? 'aktualisiert' : 'erstellt'}!</p>
           <p style={{ ...typography.bodySm, color: colors.textMuted }}>
-            Sie erscheint jetzt in der Übungssuche für alle Nutzer.
+            Sie erscheint jetzt in der Übungssuche{isPublic ? ' für alle Nutzer.' : ' in deiner privaten Liste.'}
           </p>
         </div>
       ) : (
@@ -176,6 +245,58 @@ export default function CustomExercisePage() {
             gap: spacing[5],
           }}
         >
+          {/* Privacy Toggle */}
+          <div style={{
+            display: 'flex',
+            backgroundColor: colors.bgCard,
+            borderRadius: radius.xl,
+            padding: spacing[1],
+            border: `1px solid ${colors.border}`,
+          }}>
+            <button
+              onClick={() => setIsPublic(false)}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing[2],
+                padding: spacing[3],
+                borderRadius: radius.lg,
+                backgroundColor: !isPublic ? colors.accentBg : 'transparent',
+                color: !isPublic ? colors.accent : colors.textMuted,
+                border: 'none',
+                ...typography.bodySm,
+                fontWeight: !isPublic ? '600' : '400',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Lock size={16} />
+              Privat
+            </button>
+            <button
+              onClick={() => setIsPublic(true)}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing[2],
+                padding: spacing[3],
+                borderRadius: radius.lg,
+                backgroundColor: isPublic ? colors.accentBg : 'transparent',
+                color: isPublic ? colors.accent : colors.textMuted,
+                border: 'none',
+                ...typography.bodySm,
+                fontWeight: isPublic ? '600' : '400',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Users size={16} />
+              Community
+            </button>
+          </div>
+
           {/* Name DE */}
           <div>
             {sectionLabel('NAME (DEUTSCH) *')}
@@ -427,7 +548,7 @@ export default function CustomExercisePage() {
             onClick={handleSave}
             disabled={!canSave || saving}
           >
-            {saving ? 'Wird gespeichert...' : 'Übung erstellen'}
+            {saving ? 'Wird gespeichert...' : (isEditing ? 'Übung aktualisieren' : 'Übung erstellen')}
           </Button>
         </div>
       )}

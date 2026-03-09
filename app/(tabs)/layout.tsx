@@ -1,9 +1,12 @@
 'use client';
 
 import { useOnboardingGuard } from '@/hooks/useOnboardingGuard';
+import { useSync } from '@/hooks/useSync';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { AppShell } from '@/components/layout/AppShell';
-import { colors } from '@/constants/tokens';
+import { ActiveWorkoutBanner } from '@/components/workout/ActiveWorkoutBanner';
+import { colors, spacing, typography } from '@/constants/tokens';
+import { WifiOff } from 'lucide-react';
 
 export default function TabsLayout({
   children,
@@ -11,6 +14,7 @@ export default function TabsLayout({
   children: React.ReactNode;
 }) {
   const ready = useOnboardingGuard();
+  const { syncError } = useSync();
 
   if (!ready) return null;
 
@@ -23,6 +27,24 @@ export default function TabsLayout({
           height: '100dvh',
         }}
       >
+        {syncError && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: spacing[2],
+              padding: `${spacing[2]} ${spacing[4]}`,
+              backgroundColor: colors.bgElevated,
+              borderBottom: `1px solid ${colors.border}`,
+            }}
+          >
+            <WifiOff size={12} color={colors.textMuted} />
+            <span style={{ ...typography.label, color: colors.textMuted }}>
+              OFFLINE — Lokale Daten werden genutzt
+            </span>
+          </div>
+        )}
         <main
           style={{
             flex: 1,
@@ -34,6 +56,7 @@ export default function TabsLayout({
         >
           {children}
         </main>
+        <ActiveWorkoutBanner />
         <BottomNav />
       </div>
     </AppShell>

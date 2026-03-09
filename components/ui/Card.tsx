@@ -14,9 +14,10 @@ export function Card({ children, onPress, elevated = false, style, padding }: Ca
   const baseStyle: React.CSSProperties = {
     backgroundColor: elevated ? colors.bgElevated : colors.bgCard,
     border: `1px solid ${colors.border}`,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     padding: padding ?? spacing[4],
-    transition: 'background-color 0.15s',
+    boxShadow: colors.shadowCard,
+    transition: 'background-color 0.15s, box-shadow 0.15s',
     ...style,
   };
 
@@ -30,15 +31,16 @@ export function Card({ children, onPress, elevated = false, style, padding }: Ca
           display: 'block',
           width: '100%',
           textAlign: 'left',
-          border: `1px solid ${colors.border}`,
         }}
         onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-            colors.bgElevated;
+          const el = e.currentTarget as HTMLButtonElement;
+          el.style.backgroundColor = colors.bgElevated;
+          el.style.boxShadow = colors.shadowCardHover;
         }}
         onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-            elevated ? colors.bgElevated : colors.bgCard;
+          const el = e.currentTarget as HTMLButtonElement;
+          el.style.backgroundColor = elevated ? colors.bgElevated : colors.bgCard;
+          el.style.boxShadow = colors.shadowCard;
         }}
       >
         {children}

@@ -4,17 +4,20 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, X, Check, Clock } from 'lucide-react';
-import { colors, typography, spacing } from '@/constants/tokens';
+import { colors } from '@/constants/tokens';
 import { ExerciseCard } from '@/components/workout/ExerciseCard';
 import { Button } from '@/components/ui/Button';
 import { RestTimerOverlay } from '@/components/overlays/RestTimerOverlay';
 import { PRMomentOverlay } from '@/components/overlays/PRMomentOverlay';
+import { CancelWorkoutOverlay } from '@/components/overlays/CancelWorkoutOverlay';
 import { useWorkout } from '@/hooks/useWorkout';
 import { useRestTimer } from '@/hooks/useTimer';
 import { useUserStore } from '@/store/userStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { calculateOverloadSuggestion } from '@/utils/overload';
 import { formatDuration } from '@/utils/dates';
+import { requestNotificationPermission } from '@/utils/notifications';
+import styles from './page.module.css';
 
 export default function ActiveWorkoutPage() {
   const router = useRouter();
@@ -31,6 +34,7 @@ export default function ActiveWorkoutPage() {
     removeSet,
     toggleSetComplete,
     removeExercise,
+    moveExercise,
     startRestTimer,
   } = useWorkout();
 
@@ -39,9 +43,26 @@ export default function ActiveWorkoutPage() {
 
   const [elapsed, setElapsed] = useState(0);
   const [showPR, setShowPR] = useState(false);
+  const [showCancel, setShowCancel] = useState(false);
   const [prExerciseName, setPRExerciseName] = useState('');
+  const [hasNotifPermission, setHasNotifPermission] = useState(true); // Default true to avoid flash
+
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isFinishing = useRef(false); // prevents the "no workout" redirect from firing during completion
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setHasNotifPermission(Notification.permission === 'granted');
+    }
+  }, []);
+
+  const handleRequestPush = async () => {
+    const granted = await requestNotificationPermission();
+    setHasNotifPermission(granted);
+    if (granted) {
+      alert("Coach is ready! Du bekommst jetzt Timer-Benachrichtigungen.");
+    }
+  };
 
   // Workout-Timer — clear before set to prevent accumulation
   useEffect(() => {
@@ -69,6 +90,8 @@ export default function ActiveWorkoutPage() {
     }
   }, [activeWorkout, router]);
 
+  const handleClosePR = useCallback(() => setShowPR(false), []);
+
   // Finishing: blank screen while navigation happens (avoids redirect to /start)
   if (!activeWorkout) return null;
 
@@ -82,12 +105,15 @@ export default function ActiveWorkoutPage() {
     }
   };
 
-  const handleCancel = () => {
-    if (confirm('Workout wirklich abbrechen? Alle Daten gehen verloren.')) {
-      isFinishing.current = true; // prevent useEffect double-redirect
-      cancelWorkout();
-      router.replace('/start');
-    }
+  const handleCancelClick = () => {
+    setShowCancel(true);
+  };
+
+  const handleConfirmCancel = () => {
+    isFinishing.current = true; // prevent useEffect double-redirect
+    cancelWorkout();
+    setShowCancel(false);
+    router.replace('/start');
   };
 
   const handleApplySuggestion = (exerciseId: string, weight: number, reps: number) => {
@@ -114,73 +140,46 @@ export default function ActiveWorkoutPage() {
     // Rest-Timer wird von SetRow → ExerciseCard → onStartTimer gehandelt
   };
 
-  const handleClosePR = useCallback(() => setShowPR(false), []);
-
   const progress = totalSetsCount > 0 ? completedSetsCount / totalSetsCount : 0;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100dvh',
-        backgroundColor: colors.bgPrimary,
-      }}
-    >
+    <div className={styles.pageContainer}>
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: `${spacing[4]} ${spacing[5]}`,
-          paddingTop: `calc(${spacing[4]} + env(safe-area-inset-top))`,
-          borderBottom: `1px solid ${colors.borderLight}`,
-          backgroundColor: colors.bgPrimary,
-          flexShrink: 0,
-        }}
-      >
+      <div className={styles.header}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
-            <div
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: colors.success,
-                animation: 'pulse 2s infinite',
-              }}
-            />
-            <span style={{ ...typography.label, color: colors.success }}>LIVE</span>
+          <div className={styles.liveIndicatorContainer}>
+            <div className={styles.liveDot} />
+            <span className={styles.liveText}>LIVE</span>
           </div>
-          <h1 style={{ ...typography.h3, color: colors.textPrimary, marginTop: '2px' }}>
+          <h1 className={styles.workoutTitle}>
             {activeWorkout.plannedSplit ?? 'Freies Training'}
           </h1>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
+        <div className={styles.headerActions}>
           {/* Timer */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[1] }}>
+          <div className={styles.timerContainer}>
             <Clock size={14} color={colors.textMuted} />
-            <span style={{ ...typography.mono, color: colors.textMuted }}>
+            <span className={styles.timerText}>
               {formatDuration(elapsed)}
             </span>
           </div>
 
+          {/* Request Notifications (Optional) */}
+          {!hasNotifPermission && (
+            <button
+              onClick={handleRequestPush}
+              title="Benachrichtigungen für Workout-Timer aktivieren"
+              className={styles.coachAlertBtn}
+            >
+              Coach Alerts
+            </button>
+          )}
+
           {/* Cancel */}
           <button
-            onClick={handleCancel}
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              backgroundColor: colors.bgCard,
-              border: `1px solid ${colors.border}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
+            onClick={handleCancelClick}
+            className={styles.cancelBtn}
           >
             <X size={16} color={colors.textMuted} />
           </button>
@@ -188,52 +187,25 @@ export default function ActiveWorkoutPage() {
       </div>
 
       {/* Progress Bar */}
-      <div style={{ height: '3px', backgroundColor: colors.bgHighest, flexShrink: 0 }}>
+      <div className={styles.progressBarContainer}>
         <div
-          style={{
-            height: '100%',
-            width: `${progress * 100}%`,
-            backgroundColor: colors.accent,
-            transition: 'width 0.3s ease',
-          }}
+          className={styles.progressBarFill}
+          style={{ width: `${progress * 100}%` }}
         />
       </div>
 
       {/* Sets counter */}
-      <div
-        style={{
-          padding: `${spacing[2]} ${spacing[5]}`,
-          backgroundColor: colors.bgSecondary,
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ ...typography.bodySm, color: colors.textMuted }}>
+      <div className={styles.setsCounterContainer}>
+        <span className={styles.setsCounterText}>
           {completedSetsCount} / {totalSetsCount} Sätze abgeschlossen
         </span>
       </div>
 
       {/* Exercises (scrollable) */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: `${spacing[4]} ${spacing[5]}`,
-          WebkitOverflowScrolling: 'touch',
-        }}
-      >
+      <div className={styles.scrollContainer}>
         {activeWorkout.exercises.length === 0 ? (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: `${spacing[16]} ${spacing[4]}`,
-              gap: spacing[4],
-              textAlign: 'center',
-            }}
-          >
-            <p style={{ ...typography.body, color: colors.textMuted }}>
+          <div className={styles.emptyStateContainer}>
+            <p className={styles.emptyStateText}>
               Noch keine Übungen hinzugefügt.
             </p>
             <Link href="/workout/add-exercise">
@@ -245,7 +217,7 @@ export default function ActiveWorkoutPage() {
           </div>
         ) : (
           <>
-            {activeWorkout.exercises.map((workoutExercise) => {
+            {activeWorkout.exercises.map((workoutExercise, index) => {
               const suggestion = calculateOverloadSuggestion(
                 workoutExercise.exercise.id,
                 sessions,
@@ -263,43 +235,36 @@ export default function ActiveWorkoutPage() {
                   onToggleSet={(setId) => handleToggleSet(workoutExercise.id, setId)}
                   onRemoveSet={(setId) => removeSet(workoutExercise.id, setId)}
                   onRemoveExercise={() => removeExercise(workoutExercise.id)}
+                  onMoveUp={index > 0 ? () => moveExercise(workoutExercise.id, 'up') : undefined}
+                  onMoveDown={index < activeWorkout.exercises.length - 1 ? () => moveExercise(workoutExercise.id, 'down') : undefined}
                   onStartTimer={(seconds) => startRestTimer(seconds)}
                   onApplySuggestion={(w, r) => handleApplySuggestion(workoutExercise.id, w, r)}
                 />
               );
             })}
+
+            {/* Bottom Actions moved inside the scrollable stream */}
+            <div className={styles.bottomActions}>
+              <Link href="/workout/add-exercise" style={{ flex: 1 }}>
+                <Button variant="secondary" fullWidth>
+                  <Plus size={16} />
+                  Übung
+                </Button>
+              </Link>
+              <Button
+                fullWidth
+                style={{ flex: 2 }}
+                onClick={handleFinish}
+                disabled={activeWorkout.exercises.length === 0}
+              >
+                <Check size={16} />
+                Abschließen
+              </Button>
+            </div>
           </>
         )}
       </div>
 
-      {/* Bottom Actions */}
-      <div
-        style={{
-          padding: `${spacing[4]} ${spacing[5]}`,
-          paddingBottom: `calc(${spacing[4]} + env(safe-area-inset-bottom))`,
-          borderTop: `1px solid ${colors.borderLight}`,
-          backgroundColor: colors.bgPrimary,
-          flexShrink: 0,
-          display: 'flex',
-          gap: spacing[3],
-        }}
-      >
-        <Link href="/workout/add-exercise" style={{ flex: 1 }}>
-          <Button variant="secondary" fullWidth>
-            <Plus size={16} />
-            Übung
-          </Button>
-        </Link>
-        <Button
-          fullWidth
-          style={{ flex: 2 }}
-          onClick={handleFinish}
-          disabled={activeWorkout.exercises.length === 0}
-        >
-          <Check size={16} />
-          Abschließen
-        </Button>
-      </div>
 
       {/* Overlays */}
       <RestTimerOverlay
@@ -316,12 +281,11 @@ export default function ActiveWorkoutPage() {
         onClose={handleClosePR}
       />
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-      `}</style>
+      <CancelWorkoutOverlay
+        isOpen={showCancel}
+        onConfirm={handleConfirmCancel}
+        onCancel={() => setShowCancel(false)}
+      />
     </div>
   );
 }

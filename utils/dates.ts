@@ -47,3 +47,26 @@ export function formatVolume(volume: number): string {
   if (volume >= 1000) return `${(volume / 1000).toFixed(1)}t`;
   return `${volume}kg`;
 }
+
+/** Berechnet den aktuellen Trainings-Streak aus einem Array von ISO-Datumsstrings (YYYY-MM-DD). */
+export function calculateStreak(dates: string[]): number {
+  if (dates.length === 0) return 0;
+  const sorted = Array.from(new Set(dates)).sort().reverse();
+  let streak = 0;
+  let cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+
+  for (const dateStr of sorted) {
+    const parts = dateStr.split('-');
+    const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const diff = Math.round((cursor.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff <= 1) {
+      streak++;
+      cursor = date;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}

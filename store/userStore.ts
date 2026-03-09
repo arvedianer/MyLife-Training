@@ -14,6 +14,7 @@ interface UserState {
   // Einstellungen
   weightUnit: 'kg' | 'lbs';
   restTimerDefault: number; // Sekunden
+  language: 'de' | 'en';
 
   // Actions
   setOnboardingStep: (step: number) => void;
@@ -21,6 +22,7 @@ interface UserState {
   updateProfile: (updates: Partial<UserProfile>) => void;
   setWeightUnit: (unit: 'kg' | 'lbs') => void;
   setRestTimerDefault: (seconds: number) => void;
+  setLanguage: (lang: 'de' | 'en') => void;
   resetUser: () => void;
 }
 
@@ -29,7 +31,8 @@ const initialState = {
   onboardingStep: 1,
   profile: null,
   weightUnit: 'kg' as const,
-  restTimerDefault: 90,
+  restTimerDefault: 150,
+  language: 'de' as const,
 };
 
 export const useUserStore = create<UserState>()(
@@ -55,6 +58,8 @@ export const useUserStore = create<UserState>()(
       setWeightUnit: (unit) => set({ weightUnit: unit }),
 
       setRestTimerDefault: (seconds) => set({ restTimerDefault: seconds }),
+
+      setLanguage: (lang) => set({ language: lang }),
 
       resetUser: () => set(initialState),
     }),

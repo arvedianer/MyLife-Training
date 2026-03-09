@@ -1,0 +1,104 @@
+.setRowContainer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-light, #262626);
+    background-color: transparent;
+    transition: all 0.2s ease;
+}
+
+.setRowCompleted {
+    background-color: var(--success-10, rgba(50, 215, 75, 0.05));
+}
+
+.setNumberBox {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background-color: var(--bg-highest, #2E2E2E);
+    border: 1px solid var(--border, #333333);
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.setNumberBoxPR {
+    background-color: var(--pr-color-bg, rgba(191, 111, 255, 0.12));
+    border: 1px solid rgba(191, 111, 255, 0.45);
+    box-shadow: 0 0 8px rgba(191, 111, 255, 0.18);
+}
+
+.setNumberText {
+    font-family: var(--font-courier, 'Courier New', Courier, monospace);
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 400;
+    color: var(--text-muted, #8E8E93);
+}
+
+.setNumberTextPR {
+    color: var(--pr-color, #BF6FFF);
+}
+
+.volumeContainer {
+    width: 44px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.volumeText {
+    font-family: var(--font-courier, 'Courier New', Courier, monospace);
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 400;
+    color: var(--text-muted, #8E8E93);
+}
+
+.volumeTextFaint {
+    color: var(--text-faint, #48484A);
+}
+
+.actionsContainer {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.completeBtn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    transition: background-color 0.15s;
+}
+
+.completeBtn:hover {
+    background-color: var(--bg-highest, #2E2E2E);
+}
+
+.deleteBtn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    transition: background-color 0.15s, opacity 0.15s;
+    opacity: 0.4;
+}
+
+.deleteBtn:hover {
+    opacity: 1;
+    background-color: var(--danger-bg, rgba(255, 69, 58, 0.12));
+}

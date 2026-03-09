@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Edit2, Play, ChevronDown, ChevronUp, FlaskConical, Share2 } from 'lucide-react';
+import { CheckCircle2, Edit2, Play, ChevronDown, ChevronUp, FlaskConical, Share2, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge } from '@/components/ui/Badge';
@@ -12,7 +12,9 @@ import { usePlanStore } from '@/store/planStore';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { getExerciseById } from '@/constants/exercises';
 import { encodePlan } from '@/utils/planShare';
-import type { RepScheme } from '@/types/splits';
+import { predefinedSplits } from '@/constants/splits';
+import { analyzeSplit } from '@/utils/splitAnalysis';
+import type { RepScheme, TrainingSplit } from '@/types/splits';
 
 export default function SplitDetailPage({
   params,
@@ -21,9 +23,22 @@ export default function SplitDetailPage({
 }) {
   const router = useRouter();
   const { splitName } = params;
-  const { getSplitById, activeSplitId, setActiveSplit } = usePlanStore();
+  const decodedName = decodeURIComponent(splitName);
+  const { getSplitById, activeSplitId, setActiveSplit, addSplit } = usePlanStore();
   const { startWorkout, activeWorkout } = useWorkoutStore();
-  const split = getSplitById(decodeURIComponent(splitName));
+
+  let split = getSplitById(decodedName);
+  let isTemplate = false;
+
+  if (!split) {
+    // Try finding in predefined templates
+    const template = predefinedSplits.find(s => s.id === decodedName);
+    if (template) {
+      split = template;
+      isTemplate = true;
+    }
+  }
+
   const [scienceOpen, setScienceOpen] = useState(false);
 
   if (!split) {
@@ -35,6 +50,7 @@ export default function SplitDetailPage({
   }
 
   const isActive = split.id === activeSplitId;
+  const analysis = analyzeSplit(split);
   const [shareToast, setShareToast] = useState(false);
 
   const handleShare = () => {
@@ -47,9 +63,22 @@ export default function SplitDetailPage({
   };
 
   const difficultyLabel: Record<string, string> = {
-    beginner:     'Anfänger',
+    beginner: 'Anfänger',
     intermediate: 'Fortgeschritten',
-    advanced:     'Profi',
+    advanced: 'Profi',
+  };
+
+  const handleActivateTemplate = () => {
+    if (!split) return;
+    const clonedSplit: TrainingSplit = {
+      ...split,
+      id: `custom-${Date.now()}`,
+      isActive: true,
+      type: 'custom',
+      createdAt: Date.now(),
+    };
+    addSplit(clonedSplit);
+    router.push('/splits');
   };
 
   return (
@@ -77,23 +106,25 @@ export default function SplitDetailPage({
               <Share2 size={16} color={colors.textMuted} />
             </button>
             {/* Edit button */}
-            <Link href="/splits/edit">
-              <button
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  backgroundColor: colors.bgCard,
-                  border: `1px solid ${colors.border}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                <Edit2 size={16} color={colors.textMuted} />
-              </button>
-            </Link>
+            {!isTemplate && (
+              <Link href={`/splits/create?edit=${split.id}`}>
+                <button
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    backgroundColor: colors.bgCard,
+                    border: `1px solid ${colors.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Edit2 size={16} color={colors.textMuted} />
+                </button>
+              </Link>
+            )}
           </div>
         }
       />
@@ -140,6 +171,88 @@ export default function SplitDetailPage({
             </Badge>
             {isActive && <Badge variant="success">Aktiv</Badge>}
           </div>
+        </div>
+
+        {/* Plan Quality Card */}
+        <div
+          style={{
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.xl,
+            padding: spacing[4],
+          }}
+        >
+          {/* Header row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[3] }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
+              <ShieldCheck size={16} color={colors.accent} />
+              <span style={{ ...typography.label, color: colors.textMuted }}>PLAN QUALITÄT</span>
+            </div>
+            {/* Grade badge */}
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                backgroundColor: analysis.score >= 70 ? `${colors.success}20` : analysis.score >= 50 ? `${colors.accent}20` : `${colors.danger}20`,
+                border: `2px solid ${analysis.score >= 70 ? colors.success : analysis.score >= 50 ? colors.accent : colors.danger}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <span style={{
+                ...typography.label,
+                color: analysis.score >= 70 ? colors.success : analysis.score >= 50 ? colors.accent : colors.danger,
+                fontSize: '14px',
+              }}>
+                {analysis.grade}
+              </span>
+            </div>
+          </div>
+
+          {/* Score bar */}
+          <div style={{ marginBottom: spacing[3] }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing[1] }}>
+              <span style={{ ...typography.bodySm, color: colors.textMuted }}>Score</span>
+              <span style={{ ...typography.monoSm, color: colors.textPrimary }}>{analysis.score}/100</span>
+            </div>
+            <div style={{ height: '6px', borderRadius: '3px', backgroundColor: colors.bgHighest, overflow: 'hidden' }}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${analysis.score}%`,
+                  borderRadius: '3px',
+                  backgroundColor: analysis.score >= 70 ? colors.success : analysis.score >= 50 ? colors.accent : colors.danger,
+                  transition: 'width 0.4s ease',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Strengths */}
+          {analysis.strengths.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[1], marginBottom: analysis.issues.length > 0 ? spacing[2] : 0 }}>
+              {analysis.strengths.map((s, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
+                  <CheckCircle2 size={12} color={colors.success} />
+                  <span style={{ ...typography.bodySm, color: colors.textMuted }}>{s}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Issues */}
+          {analysis.issues.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[1] }}>
+              {analysis.issues.map((issue, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: spacing[2] }}>
+                  <AlertTriangle size={12} color={colors.danger} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span style={{ ...typography.bodySm, color: colors.textMuted }}>{issue}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Science Note — kollabierbar */}
@@ -194,15 +307,26 @@ export default function SplitDetailPage({
         )}
 
         {/* Activate */}
-        {!isActive && (
+        {isTemplate ? (
           <Button
             fullWidth
-            variant="secondary"
-            onClick={() => setActiveSplit(split.id)}
+            variant="primary"
+            onClick={handleActivateTemplate}
           >
             <CheckCircle2 size={16} />
-            Als aktiven Plan setzen
+            Vorlage aktivieren
           </Button>
+        ) : (
+          !isActive && (
+            <Button
+              fullWidth
+              variant="secondary"
+              onClick={() => setActiveSplit(split!.id)}
+            >
+              <CheckCircle2 size={16} />
+              Als aktiven Plan setzen
+            </Button>
+          )
         )}
 
         {/* Trainingstage */}
@@ -336,9 +460,9 @@ export default function SplitDetailPage({
 
 function RepSchemeBadge({ scheme }: { scheme: RepScheme }) {
   const config: Record<RepScheme, { label: string; color: string; bg: string }> = {
-    strength:    { label: 'KRAFT',        color: '#FF6B35', bg: '#FF6B3515' },
+    strength: { label: 'KRAFT', color: colors.warning, bg: colors.warningBg },
     hypertrophy: { label: 'HYPERTROPHIE', color: colors.accent, bg: `${colors.accent}15` },
-    endurance:   { label: 'AUSDAUER',     color: colors.success, bg: `${colors.success}15` },
+    endurance: { label: 'AUSDAUER', color: colors.success, bg: `${colors.success}15` },
   };
   const c = config[scheme];
   return (

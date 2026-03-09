@@ -45,7 +45,7 @@ export default function LevelPage() {
     useUserStore.setState((s) => ({
       profile: { ...s.profile, level: selected } as typeof s.profile,
     }));
-    setOnboardingStep(3);
+    setOnboardingStep(4);
     router.push('/onboarding/days');
   };
 
@@ -63,9 +63,9 @@ export default function LevelPage() {
       {/* Progress */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
         <span style={{ ...typography.label, color: colors.textMuted }}>
-          SCHRITT 2 VON 5
+          SCHRITT 3 VON 6
         </span>
-        <ProgressBar progress={0.4} />
+        <ProgressBar progress={3 / 6} />
       </div>
 
       {/* Heading */}

@@ -3,6 +3,7 @@ import { Barlow_Condensed, Manrope, Courier_Prime } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { StoreProvider } from '@/components/providers/StoreProvider';
+import { PWACheck } from '@/components/PWACheck';
 
 const barlowCondensed = Barlow_Condensed({
   subsets: ['latin'],
@@ -28,12 +29,23 @@ const courierPrime = Courier_Prime({
 export const metadata: Metadata = {
   title: 'MY LIFE · Training',
   description: 'Dein intelligenter Trainingsbegleiter',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'MyLife',
+  },
+  applicationName: 'MyLife',
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  viewportFit: 'cover',
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -48,7 +60,10 @@ export default function RootLayout({
     >
       <body>
         <QueryProvider>
-          <StoreProvider>{children}</StoreProvider>
+          <StoreProvider>
+            <PWACheck />
+            {children}
+          </StoreProvider>
         </QueryProvider>
       </body>
     </html>

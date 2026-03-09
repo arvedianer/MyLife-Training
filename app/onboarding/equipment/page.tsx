@@ -48,7 +48,7 @@ export default function EquipmentPage() {
     useUserStore.setState((s) => ({
       profile: { ...s.profile, equipment: selected } as typeof s.profile,
     }));
-    setOnboardingStep(5);
+    setOnboardingStep(6);
     router.push('/onboarding/generating');
   };
 
@@ -66,9 +66,9 @@ export default function EquipmentPage() {
       {/* Progress */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
         <span style={{ ...typography.label, color: colors.textMuted }}>
-          SCHRITT 4 VON 5
+          SCHRITT 5 VON 6
         </span>
-        <ProgressBar progress={0.8} />
+        <ProgressBar progress={5 / 6} />
       </div>
 
       {/* Heading */}

@@ -1,50 +1,50 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Plus, Dumbbell } from 'lucide-react';
+import { Search, Plus, Dumbbell, Edit2, Trash2, Filter } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Badge } from '@/components/ui/Badge';
 import { exercises as builtinExercises } from '@/constants/exercises';
-import { supabase } from '@/lib/supabase';
+import { useExerciseStore } from '@/store/exerciseStore';
 import type { Exercise, MuscleGroup, Equipment, ExerciseCategory } from '@/types/exercises';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 interface ExerciseSearchProps {
   onSelect: (exercise: Exercise) => void;
 }
 
 const muscleGroups: { id: MuscleGroup; label: string }[] = [
-  { id: 'chest',     label: 'Brust'     },
-  { id: 'back',      label: 'Rücken'    },
+  { id: 'chest', label: 'Brust' },
+  { id: 'back', label: 'Rücken' },
   { id: 'shoulders', label: 'Schultern' },
-  { id: 'biceps',    label: 'Bizeps'    },
-  { id: 'triceps',   label: 'Trizeps'   },
-  { id: 'legs',      label: 'Beine'     },
-  { id: 'glutes',    label: 'Gesäß'     },
-  { id: 'core',      label: 'Core'      },
-  { id: 'calves',    label: 'Waden'     },
-  { id: 'forearms',  label: 'Unterarme' },
+  { id: 'biceps', label: 'Bizeps' },
+  { id: 'triceps', label: 'Trizeps' },
+  { id: 'legs', label: 'Beine' },
+  { id: 'glutes', label: 'Gesäß' },
+  { id: 'core', label: 'Core' },
+  { id: 'calves', label: 'Waden' },
+  { id: 'forearms', label: 'Unterarme' },
 ];
 
 const equipmentFilters: { id: Equipment; label: string }[] = [
-  { id: 'barbell',    label: 'Langhantel'   },
-  { id: 'dumbbell',   label: 'Kurzhantel'   },
-  { id: 'cable',      label: 'Kabel'        },
-  { id: 'machine',    label: 'Maschine'     },
+  { id: 'barbell', label: 'Langhantel' },
+  { id: 'dumbbell', label: 'Kurzhantel' },
+  { id: 'cable', label: 'Kabel' },
+  { id: 'machine', label: 'Maschine' },
   { id: 'bodyweight', label: 'Eigengewicht' },
-  { id: 'kettlebell', label: 'Kettlebell'   },
-  { id: 'band',       label: 'Band'         },
-  { id: 'smith',      label: 'Smith'        },
+  { id: 'kettlebell', label: 'Kettlebell' },
+  { id: 'band', label: 'Band' },
+  { id: 'smith', label: 'Smith' },
 ];
 
 const categoryFilters: { id: ExerciseCategory; label: string }[] = [
-  { id: 'compound',  label: 'Compound'  },
+  { id: 'compound', label: 'Mehrgelenk' }, // "Compound" ist für viele zu komplex
   { id: 'isolation', label: 'Isolation' },
-  { id: 'cardio',    label: 'Cardio'    },
+  { id: 'cardio', label: 'Ausdauer' },
 ];
 
-// Map community exercise from Supabase row to Exercise interface
-function mapCommunityExercise(row: Record<string, unknown>): Exercise & { isCustom: true } {
+function mapCommunityExercise(row: Record<string, unknown>): Exercise & { isCustom?: boolean } {
   return {
     id: `community-${row.id as string}`,
     name: row.name as string,
@@ -68,33 +68,29 @@ function mapCommunityExercise(row: Record<string, unknown>): Exercise & { isCust
 
 export function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
   const router = useRouter();
+  const { customExercises, removeCustomExercise } = useExerciseStore();
   const [query, setQuery] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState<MuscleGroup | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<ExerciseCategory | null>(null);
-  const [communityExercises, setCommunityExercises] = useState<(Exercise & { isCustom: true })[]>([]);
+  const [selectedOrigin, setSelectedOrigin] = useState<'all' | 'builtin' | 'community' | 'private'>('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Fetch community exercises from Supabase
   useEffect(() => {
-    const fetchCommunity = async () => {
-      try {
-        const { data } = await supabase
-          .from('community_exercises')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (data) {
-          setCommunityExercises(data.map(mapCommunityExercise));
-        }
-      } catch {
-        // Supabase not configured — silently skip
-      }
-    };
-    fetchCommunity();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setCurrentUserId(user.id);
+    });
   }, []);
 
   const allExercises = useMemo(
-    () => [...builtinExercises, ...communityExercises],
-    [communityExercises]
+    () => {
+      // Kombiniere custom exercises aus dem Store mit den Built-in Exercises
+      // Stelle sicher, dass eigene als "isCustom" markiert sind
+      const mappedCustom = customExercises.map(e => ({ ...e, isCustom: true }));
+      return [...builtinExercises, ...mappedCustom];
+    },
+    [customExercises]
   );
 
   const filtered = useMemo(() => {
@@ -106,8 +102,7 @@ export function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
 
       const matchesMuscle =
         !selectedMuscle ||
-        ex.primaryMuscle === selectedMuscle ||
-        ex.secondaryMuscles.includes(selectedMuscle);
+        ex.primaryMuscle === selectedMuscle;
 
       const matchesEquipment =
         !selectedEquipment || ex.equipment.includes(selectedEquipment);
@@ -115,9 +110,16 @@ export function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
       const matchesCategory =
         !selectedCategory || ex.category === selectedCategory;
 
+      const isCustom = (ex as Exercise & { isCustom?: boolean }).isCustom;
+      const isPublic = (ex as Exercise & { isPublic?: boolean }).isPublic ?? true;
+
+      if (selectedOrigin === 'builtin' && isCustom) return false;
+      if (selectedOrigin === 'community' && (!isCustom || !isPublic)) return false;
+      if (selectedOrigin === 'private' && (!isCustom || isPublic)) return false;
+
       return matchesQuery && matchesMuscle && matchesEquipment && matchesCategory;
     });
-  }, [query, selectedMuscle, selectedEquipment, selectedCategory, allExercises]);
+  }, [query, selectedMuscle, selectedEquipment, selectedCategory, selectedOrigin, allExercises]);
 
   function FilterChip<T extends string>({
     id,
@@ -153,81 +155,151 @@ export function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
-      {/* Search Input */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: spacing[3],
-          backgroundColor: colors.bgHighest,
-          border: `1px solid ${colors.border}`,
-          borderRadius: radius.lg,
-          padding: `${spacing[3]} ${spacing[4]}`,
-        }}
-      >
-        <Search size={18} color={colors.textMuted} />
-        <input
-          type="text"
-          placeholder="Übung suchen..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+      {/* Search Input & Filter Toggle */}
+      <div style={{ display: 'flex', gap: spacing[2] }}>
+        <div
           style={{
             flex: 1,
-            ...typography.body,
-            color: colors.textPrimary,
-            backgroundColor: 'transparent',
-            border: 'none',
-            outline: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing[3],
+            backgroundColor: colors.bgHighest,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.lg,
+            padding: `${spacing[3]} ${spacing[4]}`,
           }}
-          autoFocus
-        />
-      </div>
-
-      {/* Muscle Filter */}
-      <div style={{ overflowX: 'auto', paddingBottom: '2px' }}>
-        <div style={{ display: 'flex', gap: spacing[2], width: 'max-content' }}>
-          <FilterChip<'null'>
-            id="null"
-            label="ALLE"
-            selected={!selectedMuscle}
-            onToggle={() => setSelectedMuscle(null)}
+        >
+          <Search size={18} color={colors.textMuted} />
+          <input
+            type="text"
+            placeholder="Übung suchen..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{
+              flex: 1,
+              ...typography.body,
+              color: colors.textPrimary,
+              backgroundColor: 'transparent',
+              border: 'none',
+              outline: 'none',
+            }}
+            autoFocus
           />
-          {muscleGroups.map((mg) => (
-            <FilterChip<MuscleGroup>
-              key={mg.id}
-              id={mg.id}
-              label={mg.label}
-              selected={selectedMuscle === mg.id}
-              onToggle={(id) => setSelectedMuscle(selectedMuscle === id ? null : id)}
-            />
-          ))}
         </div>
+
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: `0 ${spacing[4]}`,
+            backgroundColor: showFilters ? colors.accentBg : colors.bgHighest,
+            border: `1px solid ${showFilters ? colors.accent : colors.border}`,
+            borderRadius: radius.lg,
+            color: showFilters ? colors.accent : colors.textMuted,
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+          }}
+          title="Filter ein-/ausblenden"
+        >
+          <Filter size={18} />
+        </button>
       </div>
 
-      {/* Equipment + Category Filter */}
-      <div style={{ overflowX: 'auto', paddingBottom: '2px' }}>
-        <div style={{ display: 'flex', gap: spacing[2], width: 'max-content' }}>
-          {equipmentFilters.map((eq) => (
-            <FilterChip<Equipment>
-              key={eq.id}
-              id={eq.id}
-              label={eq.label}
-              selected={selectedEquipment === eq.id}
-              onToggle={(id) => setSelectedEquipment(selectedEquipment === id ? null : id)}
-            />
-          ))}
-          <div style={{ width: '1px', backgroundColor: colors.border, margin: `0 ${spacing[1]}` }} />
-          {categoryFilters.map((cat) => (
-            <FilterChip<ExerciseCategory>
-              key={cat.id}
-              id={cat.id}
-              label={cat.label}
-              selected={selectedCategory === cat.id}
-              onToggle={(id) => setSelectedCategory(selectedCategory === id ? null : id)}
-            />
-          ))}
+      {showFilters && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3], marginBottom: spacing[2], marginTop: spacing[1] }}>
+
+          {/* Herkunft / Typ Filter (Privat, Community, App) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[1] }}>
+            <span style={{ ...typography.label, color: colors.textMuted }}>KATEGORIE / HERKUNFT</span>
+            <div style={{ overflowX: 'auto', paddingBottom: '2px' }}>
+              <div style={{ display: 'flex', gap: spacing[2], width: 'max-content' }}>
+                <FilterChip<'all' | 'builtin' | 'community' | 'private'>
+                  id="all"
+                  label="ALLE ÜBUNGEN"
+                  selected={selectedOrigin === 'all'}
+                  onToggle={(id) => setSelectedOrigin(id)}
+                />
+                <FilterChip<'all' | 'builtin' | 'community' | 'private'>
+                  id="builtin"
+                  label="VON MYLIFE"
+                  selected={selectedOrigin === 'builtin'}
+                  onToggle={(id) => setSelectedOrigin(id)}
+                />
+                <FilterChip<'all' | 'builtin' | 'community' | 'private'>
+                  id="community"
+                  label="VON COMMUNITY"
+                  selected={selectedOrigin === 'community'}
+                  onToggle={(id) => setSelectedOrigin(id)}
+                />
+                <FilterChip<'all' | 'builtin' | 'community' | 'private'>
+                  id="private"
+                  label="NUR MEINE EIGENEN"
+                  selected={selectedOrigin === 'private'}
+                  onToggle={(id) => setSelectedOrigin(id)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ width: '100%', height: '1px', backgroundColor: colors.borderLight }} />
+
+          {/* Muscle Filter */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[1] }}>
+            <span style={{ ...typography.label, color: colors.textMuted }}>MUSKELGRUPPEN</span>
+            <div style={{ overflowX: 'auto', paddingBottom: '2px' }}>
+              <div style={{ display: 'flex', gap: spacing[2], width: 'max-content' }}>
+                <FilterChip<'null'>
+                  id="null"
+                  label="EGAL"
+                  selected={!selectedMuscle}
+                  onToggle={() => setSelectedMuscle(null)}
+                />
+                {muscleGroups.map((mg) => (
+                  <FilterChip<MuscleGroup>
+                    key={mg.id}
+                    id={mg.id}
+                    label={mg.label}
+                    selected={selectedMuscle === mg.id}
+                    onToggle={(id) => setSelectedMuscle(selectedMuscle === id ? null : id)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ width: '100%', height: '1px', backgroundColor: colors.borderLight }} />
+
+          {/* Equipment + Category Filter */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[1] }}>
+            <span style={{ ...typography.label, color: colors.textMuted }}>ART & GERÄT</span>
+            <div style={{ overflowX: 'auto', paddingBottom: '2px' }}>
+              <div style={{ display: 'flex', gap: spacing[2], width: 'max-content' }}>
+                {categoryFilters.map((cat) => (
+                  <FilterChip<ExerciseCategory>
+                    key={cat.id}
+                    id={cat.id}
+                    label={cat.label}
+                    selected={selectedCategory === cat.id}
+                    onToggle={(id) => setSelectedCategory(selectedCategory === id ? null : id)}
+                  />
+                ))}
+                <div style={{ width: '1px', backgroundColor: colors.border, margin: `0 ${spacing[1]}` }} />
+                {equipmentFilters.map((eq) => (
+                  <FilterChip<Equipment>
+                    key={eq.id}
+                    id={eq.id}
+                    label={eq.label}
+                    selected={selectedEquipment === eq.id}
+                    onToggle={(id) => setSelectedEquipment(selectedEquipment === id ? null : id)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Results */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
@@ -240,8 +312,11 @@ export function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
         ) : (
           filtered.map((exercise) => {
             const isCustom = (exercise as Exercise & { isCustom?: boolean }).isCustom;
+            const exerciseCreatedBy = (exercise as Exercise & { createdBy?: string }).createdBy;
+            const isCreator = isCustom && (!exerciseCreatedBy || exerciseCreatedBy === currentUserId);
+            const isPublic = (exercise as Exercise & { isPublic?: boolean }).isPublic ?? true;
             return (
-              <button
+              <div
                 key={exercise.id}
                 onClick={() => onSelect(exercise)}
                 style={{
@@ -257,13 +332,13 @@ export function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
                   transition: 'background-color 0.15s',
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgElevated;
+                  (e.currentTarget as HTMLDivElement).style.backgroundColor = colors.bgElevated;
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgCard;
+                  (e.currentTarget as HTMLDivElement).style.backgroundColor = colors.bgCard;
                 }}
               >
-                <div>
+                <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
                     <span style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>
                       {exercise.nameDE}
@@ -272,29 +347,78 @@ export function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
                       <span
                         style={{
                           ...typography.label,
-                          color: '#00CCCC',
-                          backgroundColor: '#00CCCC15',
-                          border: '1px solid #00CCCC30',
+                          color: isPublic ? '#00CCCC' : colors.textMuted,
+                          backgroundColor: isPublic ? '#00CCCC15' : colors.bgElevated,
+                          border: `1px solid ${isPublic ? '#00CCCC30' : colors.border}`,
                           borderRadius: radius.sm,
                           padding: '1px 6px',
                         }}
                       >
-                        Community
+                        {isPublic ? 'Community' : 'Privat'}
                       </span>
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginTop: spacing[1] }}>
-                    <Badge variant="muted">{exercise.primaryMuscle}</Badge>
+                    <Badge variant="muted">
+                      {muscleGroups.find(m => m.id === exercise.primaryMuscle)?.label || exercise.primaryMuscle}
+                    </Badge>
                     <span style={{ ...typography.bodySm, color: colors.textDisabled }}>
-                      {exercise.equipment.join(' · ')}
+                      {exercise.equipment.map(eq => equipmentFilters.find(f => f.id === eq)?.label || eq).join(' · ')}
                     </span>
                     <span style={{ ...typography.bodySm, color: colors.textFaint }}>
-                      {exercise.category}
+                      {categoryFilters.find(c => c.id === exercise.category)?.label || exercise.category}
                     </span>
                   </div>
                 </div>
-                <Plus size={18} color={colors.accent} />
-              </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
+                  {isCreator && (
+                    <>
+                      <button
+                        title="Bearbeiten"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/workout/custom-exercise?edit=${exercise.id}`);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: spacing[1],
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: colors.textMuted,
+                        }}
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button
+                        title="Löschen"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm('Möchtest du diese Übung wirklich löschen?')) {
+                            removeCustomExercise(exercise.id);
+                          }
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: spacing[1],
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: colors.danger,
+                        }}
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </>
+                  )}
+                  <Plus size={18} color={colors.accent} />
+                </div>
+              </div>
             );
           })
         )}

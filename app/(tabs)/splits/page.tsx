@@ -6,14 +6,119 @@ import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { usePlanStore } from '@/store/planStore';
+import { predefinedSplits } from '@/constants/splits';
+import type { TrainingSplit } from '@/types/splits';
 
 export default function SplitsPage() {
-  const { splits, activeSplitId, setActiveSplit } = usePlanStore();
+  const { splits, activeSplitId, setActiveSplit, addSplit } = usePlanStore();
 
   const difficultyLabel: Record<string, string> = {
-    beginner:     'Anfänger',
+    beginner: 'Anfänger',
     intermediate: 'Fortgeschritten',
-    advanced:     'Profi',
+    advanced: 'Profi',
+  };
+
+  const handleActivateTemplate = (template: TrainingSplit) => {
+    const clonedSplit: TrainingSplit = {
+      ...template,
+      id: `custom-${Date.now()}`,
+      isActive: true,
+      type: 'custom',
+      createdAt: Date.now(),
+    };
+    addSplit(clonedSplit);
+  };
+
+  const renderSplitCard = (split: TrainingSplit, isTemplate = false) => {
+    const isActive = split.id === activeSplitId;
+    return (
+      <div
+        key={split.id}
+        style={{
+          backgroundColor: isActive ? colors.accentBg : colors.bgCard,
+          border: `1px solid ${isActive ? colors.accent + '40' : colors.border}`,
+          borderRadius: radius.xl,
+          overflow: 'hidden',
+        }}
+      >
+        <Link href={`/splits/${encodeURIComponent(split.id)}`}>
+          <div
+            style={{
+              padding: spacing[4],
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing[2] }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginBottom: spacing[1] }}>
+                  <h3 style={{ ...typography.h3, color: colors.textPrimary }}>
+                    {split.name}
+                  </h3>
+                  {isActive && (
+                    <CheckCircle2 size={16} color={colors.accent} />
+                  )}
+                </div>
+                <p style={{ ...typography.bodySm, color: colors.textMuted }}>
+                  {split.description}
+                </p>
+              </div>
+              <ChevronRight size={18} color={colors.textDisabled} style={{ marginLeft: spacing[3], flexShrink: 0 }} />
+            </div>
+
+            {/* Badges */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
+              <Badge variant={isActive ? 'accent' : 'muted'}>
+                {split.daysPerWeek}x / Woche
+              </Badge>
+              <Badge variant="default">
+                {difficultyLabel[split.difficulty] ?? split.difficulty}
+              </Badge>
+            </div>
+          </div>
+        </Link>
+
+        {/* Split Days Preview */}
+        <div
+          style={{
+            borderTop: `1px solid ${isActive ? colors.accent + '20' : colors.border}`,
+            padding: `${spacing[3]} ${spacing[4]}`,
+            display: 'flex',
+            gap: spacing[2],
+            flexWrap: 'wrap',
+          }}
+        >
+          {split.days.map((day) => (
+            <span
+              key={day.id}
+              style={{
+                ...typography.label,
+                fontSize: '10px',
+                color: isActive ? colors.accent : colors.textMuted,
+                backgroundColor: isActive ? `${colors.accent}15` : colors.bgHighest,
+                padding: `${spacing[1]} ${spacing[2]}`,
+                borderRadius: radius.full,
+              }}
+            >
+              {day.name}
+            </span>
+          ))}
+        </div>
+
+        {/* Activate Button */}
+        {!isActive && (
+          <div style={{ padding: `0 ${spacing[4]} ${spacing[4]}` }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              fullWidth
+              onClick={() => isTemplate ? handleActivateTemplate(split) : setActiveSplit(split.id)}
+            >
+              {isTemplate ? 'Vorlage aktivieren' : 'Als aktiv setzen'}
+            </Button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -24,6 +129,7 @@ export default function SplitsPage() {
         display: 'flex',
         flexDirection: 'column',
         gap: spacing[6],
+        paddingBottom: '100px',
       }}
     >
       {/* Header */}
@@ -42,117 +148,38 @@ export default function SplitsPage() {
         </Link>
       </div>
 
-      {/* Splits */}
-      {splits.length === 0 ? (
-        <div
-          style={{
-            textAlign: 'center',
-            padding: `${spacing[10]} ${spacing[4]}`,
-            backgroundColor: colors.bgCard,
-            border: `1px solid ${colors.border}`,
-            borderRadius: radius.lg,
-          }}
-        >
-          <p style={{ ...typography.body, color: colors.textMuted }}>
-            Kein Trainingsplan vorhanden.
-          </p>
-        </div>
-      ) : (
+      {/* Meine Pläne */}
+      <div>
+        <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>Meine Pläne</h2>
+        {splits.length === 0 ? (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: `${spacing[10]} ${spacing[4]}`,
+              backgroundColor: colors.bgCard,
+              border: `1px solid ${colors.border}`,
+              borderRadius: radius.lg,
+              marginBottom: spacing[4],
+            }}
+          >
+            <p style={{ ...typography.body, color: colors.textMuted }}>
+              Kein eigener Trainingsplan vorhanden.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3], marginBottom: spacing[6] }}>
+            {splits.map(split => renderSplitCard(split, false))}
+          </div>
+        )}
+      </div>
+
+      {/* Vorlagen */}
+      <div>
+        <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>Vorlagen</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
-          {splits.map((split) => {
-            const isActive = split.id === activeSplitId;
-            return (
-              <div
-                key={split.id}
-                style={{
-                  backgroundColor: isActive ? colors.accentBg : colors.bgCard,
-                  border: `1px solid ${isActive ? colors.accent + '40' : colors.border}`,
-                  borderRadius: radius.xl,
-                  overflow: 'hidden',
-                }}
-              >
-                {/* Split Header */}
-                <Link href={`/splits/${encodeURIComponent(split.id)}`}>
-                  <div
-                    style={{
-                      padding: spacing[4],
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing[2] }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginBottom: spacing[1] }}>
-                          <h3 style={{ ...typography.h3, color: colors.textPrimary }}>
-                            {split.name}
-                          </h3>
-                          {isActive && (
-                            <CheckCircle2 size={16} color={colors.accent} />
-                          )}
-                        </div>
-                        <p style={{ ...typography.bodySm, color: colors.textMuted }}>
-                          {split.description}
-                        </p>
-                      </div>
-                      <ChevronRight size={18} color={colors.textDisabled} style={{ marginLeft: spacing[3], flexShrink: 0 }} />
-                    </div>
-
-                    {/* Badges */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
-                      <Badge variant={isActive ? 'accent' : 'muted'}>
-                        {split.daysPerWeek}x / Woche
-                      </Badge>
-                      <Badge variant="default">
-                        {difficultyLabel[split.difficulty] ?? split.difficulty}
-                      </Badge>
-                    </div>
-                  </div>
-                </Link>
-
-                {/* Split Days Preview */}
-                <div
-                  style={{
-                    borderTop: `1px solid ${isActive ? colors.accent + '20' : colors.border}`,
-                    padding: `${spacing[3]} ${spacing[4]}`,
-                    display: 'flex',
-                    gap: spacing[2],
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  {split.days.map((day) => (
-                    <span
-                      key={day.id}
-                      style={{
-                        ...typography.label,
-                        fontSize: '10px',
-                        color: isActive ? colors.accent : colors.textMuted,
-                        backgroundColor: isActive ? `${colors.accent}15` : colors.bgHighest,
-                        padding: `${spacing[1]} ${spacing[2]}`,
-                        borderRadius: radius.full,
-                      }}
-                    >
-                      {day.name}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Activate Button */}
-                {!isActive && (
-                  <div style={{ padding: `0 ${spacing[4]} ${spacing[4]}` }}>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      fullWidth
-                      onClick={() => setActiveSplit(split.id)}
-                    >
-                      Als aktiv setzen
-                    </Button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {predefinedSplits.map(template => renderSplitCard(template, true))}
         </div>
-      )}
+      </div>
     </div>
   );
 }

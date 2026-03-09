@@ -43,13 +43,18 @@ export function useWorkout() {
       }
     }
 
+    // Übungen ohne abgeschlossene Sätze herausfiltern
+    const validExercises = activeWorkout.exercises.filter((ex) =>
+      ex.sets.some((s) => s.isCompleted)
+    );
+
     const session: WorkoutSession = {
       id: activeWorkout.id,
       date: new Date().toISOString().split('T')[0],
       startedAt: activeWorkout.startedAt,
       finishedAt: now,
       durationSeconds,
-      exercises: activeWorkout.exercises,
+      exercises: validExercises,
       totalVolume,
       totalSets,
       newPRs,
@@ -71,11 +76,30 @@ export function useWorkout() {
 
   const { activeWorkout } = store;
 
+  function moveExercise(exerciseId: string, direction: 'up' | 'down') {
+    if (!activeWorkout) return;
+    const exercises = [...activeWorkout.exercises];
+    const index = exercises.findIndex((e) => e.id === exerciseId);
+    if (index === -1) return;
+
+    if (direction === 'up' && index > 0) {
+      const temp = exercises[index - 1];
+      exercises[index - 1] = exercises[index];
+      exercises[index] = temp;
+      store.reorderExercises(exercises);
+    } else if (direction === 'down' && index < exercises.length - 1) {
+      const temp = exercises[index + 1];
+      exercises[index + 1] = exercises[index];
+      exercises[index] = temp;
+      store.reorderExercises(exercises);
+    }
+  }
+
   const completedSetsCount = activeWorkout
     ? activeWorkout.exercises.reduce(
-        (sum, e) => sum + e.sets.filter((s) => s.isCompleted).length,
-        0
-      )
+      (sum, e) => sum + e.sets.filter((s) => s.isCompleted).length,
+      0
+    )
     : 0;
 
   const totalSetsCount = activeWorkout
@@ -88,6 +112,7 @@ export function useWorkout() {
     totalSetsCount,
     completeWorkout,
     checkSetForPR,
+    moveExercise,
     addExercise: store.addExercise,
     removeExercise: store.removeExercise,
     addSet: store.addSet,
