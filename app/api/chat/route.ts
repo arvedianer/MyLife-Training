@@ -3,10 +3,10 @@ import OpenAI from 'openai';
 
 export const runtime = 'nodejs';
 
-// xAI Grok — OpenAI-compatible API
-const xai = new OpenAI({
-  apiKey: process.env.XAI_API_KEY ?? '',
-  baseURL: 'https://api.x.ai/v1',
+// Google Gemini — OpenAI-compatible API
+const gemini = new OpenAI({
+  apiKey: process.env.GEMINI_API_KEY ?? '',
+  baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
 });
 
 interface ChatMessage {
@@ -90,10 +90,10 @@ WICHTIG: Wenn der Nutzer nach spezifischen Daten aus seinem Training fragt (z.B.
 }
 
 const FALLBACK_REPLY =
-  'Hey! Ich bin gerade offline. Trag deinen XAI_API_KEY in der .env.local ein, dann bin ich für dich da. 💪';
+  'Hey! Ich bin gerade offline. Trag deinen GEMINI_API_KEY in der .env.local ein, dann bin ich für dich da. 💪';
 
 export async function POST(req: NextRequest) {
-  if (!process.env.XAI_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json({ reply: FALLBACK_REPLY });
   }
 
@@ -113,8 +113,8 @@ export async function POST(req: NextRequest) {
   const systemPrompt = buildSystemPrompt(userProfile, workoutHistory);
 
   try {
-    const completion = await xai.chat.completions.create({
-      model: 'grok-3-mini',
+    const completion = await gemini.chat.completions.create({
+      model: 'gemini-2.0-flash',
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages.map((m) => ({ role: m.role, content: m.content })),
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
     const reply = completion.choices[0]?.message?.content ?? FALLBACK_REPLY;
     return NextResponse.json({ reply });
   } catch (err) {
-    console.error('[chat] xAI error:', err);
+    console.error('[chat] Gemini error:', err);
     return NextResponse.json({ reply: FALLBACK_REPLY });
   }
 }

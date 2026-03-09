@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
-// xAI Grok — OpenAI-compatible API
-const xai = new OpenAI({
-  apiKey: process.env.XAI_API_KEY ?? '',
-  baseURL: 'https://api.x.ai/v1',
+// Google Gemini — OpenAI-compatible API
+const gemini = new OpenAI({
+  apiKey: process.env.GEMINI_API_KEY ?? '',
+  baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
 });
 
 type TriggerType = 'device_busy' | 'pain' | 'time_crunch' | 'post_workout';
@@ -100,7 +100,7 @@ const OFFLINE_FALLBACKS: Record<TriggerType, AiResponse> = {
 };
 
 export async function POST(req: NextRequest) {
-  if (!process.env.XAI_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json(OFFLINE_FALLBACKS.post_workout, { status: 200 });
   }
 
@@ -135,8 +135,8 @@ export async function POST(req: NextRequest) {
   let tokensUsed = 0;
 
   try {
-    const completion = await xai.chat.completions.create({
-      model: 'grok-3-mini',
+    const completion = await gemini.chat.completions.create({
+      model: 'gemini-2.0-flash',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 300,
       temperature: 0.7,
@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
         user_input: userInput,
         ai_response: aiResponse,
         tokens_used: tokensUsed,
-        model: 'grok-3-mini',
+        model: 'gemini-2.0-flash',
       })
       .then(() => {/* logged */}, () => {/* ignore errors */});
   }

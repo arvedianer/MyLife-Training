@@ -1,0 +1,66 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.bodies {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+}
+
+.bodyColumn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.viewLabel {
+    font-family: var(--font-manrope);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #48484A;
+}
+
+/* Muscle overlay hover & glow */
+.muscleOverlay {
+    transition: opacity 0.3s ease, filter 0.3s ease;
+    pointer-events: all;
+    cursor: default;
+}
+
+.muscleOverlay:hover {
+    opacity: 1 !important;
+    filter: brightness(1.25);
+}
+
+/* active (has data) muscles get a subtle glow */
+.muscleActive {
+    filter: drop-shadow(0 0 6px currentColor);
+}
+
+/* Scale legend */
+.scaleLegend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+}
+
+.scaleLabel {
+    font-family: var(--font-courier);
+    font-size: 10px;
+    line-height: 16px;
+    color: #48484A;
+}
+
+.scaleBlock {
+    width: 24px;
+    height: 8px;
+    border-radius: 3px;
+}
