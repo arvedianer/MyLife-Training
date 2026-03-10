@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const gemini = new OpenAI({
-  apiKey: process.env.GEMINI_API_KEY ?? '',
-  baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+const groq = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY ?? '',
+  baseURL: 'https://api.groq.com/openai/v1',
 });
 
 interface ParsedPlan {
@@ -12,7 +12,7 @@ interface ParsedPlan {
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return NextResponse.json({ error: 'No API key' }, { status: 503 });
   }
 
@@ -50,8 +50,8 @@ Regeln:
 - Falls kein klarer Plan erkennbar: {"name": "", "days": []}`;
 
   try {
-    const completion = await gemini.chat.completions.create({
-      model: 'gemini-2.0-flash-lite',
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 500,
       temperature: 0.2,

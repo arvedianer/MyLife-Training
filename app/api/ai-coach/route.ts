@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
-// Google Gemini — OpenAI-compatible API
-const gemini = new OpenAI({
-  apiKey: process.env.GEMINI_API_KEY ?? '',
-  baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+// Groq — OpenAI-compatible, free tier (console.groq.com)
+const groq = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY ?? '',
+  baseURL: 'https://api.groq.com/openai/v1',
 });
 
 type TriggerType = 'device_busy' | 'pain' | 'time_crunch' | 'post_workout';
@@ -146,7 +146,7 @@ const OFFLINE_FALLBACKS: Record<TriggerType, AiResponse> = {
 };
 
 export async function POST(req: NextRequest) {
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return NextResponse.json(OFFLINE_FALLBACKS.post_workout, { status: 200 });
   }
 
@@ -181,8 +181,8 @@ export async function POST(req: NextRequest) {
   let tokensUsed = 0;
 
   try {
-    const completion = await gemini.chat.completions.create({
-      model: 'gemini-2.0-flash-lite',
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: triggerType === 'device_busy' ? 500 : 300,
       temperature: 0.7,
@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
         user_input: userInput,
         ai_response: aiResponse,
         tokens_used: tokensUsed,
-        model: 'gemini-2.0-flash-lite',
+        model: 'llama-3.1-8b-instant',
       })
       .then(() => {/* logged */}, () => {/* ignore errors */});
   }

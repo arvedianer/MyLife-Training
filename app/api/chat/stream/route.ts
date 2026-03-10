@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 
 export const runtime = 'nodejs';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+// Groq — OpenAI-compatible, generous free tier (console.groq.com)
+const groq = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY || '',
+  baseURL: 'https://api.groq.com/openai/v1',
+});
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -128,11 +132,11 @@ ${historyBlock}
 RULE: Nutze echte Daten wenn vorhanden. Bleib IMMER Coach Arved — nie aus der Rolle fallen.`;
 }
 
-const NO_KEY_REPLY = 'Yo, kein API-Key gesetzt. GEMINI_API_KEY in .env.local eintragen.';
+const NO_KEY_REPLY = 'Yo, kein API-Key gesetzt. GROQ_API_KEY in .env.local eintragen — kostenlos auf console.groq.com.';
 const ERROR_REPLY = 'Moin, kurz überlastet — versuch es gleich nochmal, Bro.';
 
 export async function POST(req: NextRequest) {
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return new NextResponse(NO_KEY_REPLY, { status: 200, headers: { 'Content-Type': 'text/plain' } });
   }
 
@@ -152,32 +156,28 @@ export async function POST(req: NextRequest) {
   const systemPrompt = buildSystemPrompt(userProfile, workoutHistory, appContext);
 
   try {
-    // gemini-2.0-flash: stable, fast, no thinking overhead, no token cutoff issues
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      systemInstruction: systemPrompt,
-      generationConfig: {
-        maxOutputTokens: 2000,
-        temperature: 0.9,
-      },
+    const groqStream = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      stream: true,
+      max_tokens: 1024,
+      temperature: 0.9,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages.map((msg) => ({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+        })),
+      ],
     });
-
-    const history = messages.slice(0, -1).map(msg => ({
-      role: msg.role === 'user' ? 'user' as const : 'model' as const,
-      parts: [{ text: msg.content }],
-    }));
-
-    const latestMessage = messages[messages.length - 1].content;
-
-    const chat = model.startChat({ history });
-    const resultStream = await chat.sendMessageStream(latestMessage);
 
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          for await (const chunk of resultStream.stream) {
-            const chunkText = chunk.text();
-            controller.enqueue(new TextEncoder().encode(chunkText));
+          for await (const chunk of groqStream) {
+            const text = chunk.choices[0]?.delta?.content ?? '';
+            if (text) {
+              controller.enqueue(new TextEncoder().encode(text));
+            }
           }
           controller.close();
         } catch (error) {
@@ -195,7 +195,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
-    console.error('[chat stream] Gemini error:', err);
+    console.error('[chat stream] Groq error:', err);
     return new NextResponse(ERROR_REPLY, { status: 500, headers: { 'Content-Type': 'text/plain' } });
   }
 }

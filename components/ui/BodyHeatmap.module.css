@@ -16,6 +16,9 @@
     flex-direction: column;
     align-items: center;
     gap: 8px;
+    background: radial-gradient(ellipse 80% 90% at 50% 50%, #0D0D1A 0%, transparent 100%);
+    border-radius: 12px;
+    padding: 4px 8px;
 }
 
 .viewLabel {
