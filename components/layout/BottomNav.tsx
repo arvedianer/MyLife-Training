@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BarChart2, Layers, Plus, MessageCircle } from 'lucide-react';
+import { Home, BarChart2, Dumbbell, Plus, MessageCircle } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 
 export function BottomNav() {
@@ -31,7 +31,7 @@ export function BottomNav() {
     >
       {/* Left tabs */}
       <NavTab href="/dashboard" icon={<Home size={22} color={isActive('/dashboard') ? colors.accent : colors.textDisabled} />} label="Home"   active={isActive('/dashboard')} />
-      <NavTab href="/splits"    icon={<Layers size={22} color={isActive('/splits')    ? colors.accent : colors.textDisabled} />} label="Splits"  active={isActive('/splits')} />
+      <NavTab href="/exercises" icon={<Dumbbell size={22} color={isActive('/exercises') ? colors.accent : colors.textDisabled} />} label="Übungen" active={isActive('/exercises')} />
 
       {/* Center FAB */}
       <Link

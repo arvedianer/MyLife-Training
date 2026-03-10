@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { zustandStorage } from '@/utils/storage';
 import type { WorkoutSession } from '@/types/workout';
 import { supabase } from '@/lib/supabase';
+import { getExerciseById } from '@/constants/exercises';
 
 interface HistoryState {
   sessions: WorkoutSession[];
@@ -29,31 +30,35 @@ export const useHistoryStore = create<HistoryState>()(
           sessions: [session, ...state.sessions], // Neueste zuerst
         }));
 
-        // Fire-and-forget Supabase sync
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          try {
-            await supabase.from('sessions').insert({
-              id: session.id,
-              user_id: user.id,
-              date: session.date,
-              split_name: session.splitName ?? null,
-              duration: session.durationSeconds,
-              total_volume: session.totalVolume,
-              notes: session.note ?? null,
-            });
-            for (const ex of session.exercises) {
-              await supabase.from('session_exercises').insert({
-                session_id: session.id,
+        // Fire-and-forget Supabase sync (outer try/catch prevents auth errors from propagating)
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            try {
+              await supabase.from('sessions').insert({
+                id: session.id,
                 user_id: user.id,
-                exercise_id: ex.exercise.id,
-                exercise_name: ex.exercise.nameDE,
-                sets: ex.sets, // JSONB
+                date: session.date,
+                split_name: session.splitName ?? null,
+                duration: session.durationSeconds,
+                total_volume: session.totalVolume,
+                notes: session.note ?? null,
               });
+              for (const ex of session.exercises) {
+                await supabase.from('session_exercises').insert({
+                  session_id: session.id,
+                  user_id: user.id,
+                  exercise_id: ex.exercise.id,
+                  exercise_name: ex.exercise.nameDE,
+                  sets: ex.sets, // JSONB
+                });
+              }
+            } catch (e) {
+              console.error("Failed to sync session to Supabase:", e);
             }
-          } catch (e) {
-            console.error("Failed to sync session to Supabase:", e);
           }
+        } catch (e) {
+          console.error("historyStore.addSession auth error:", e);
         }
       },
 
@@ -147,18 +152,23 @@ export const useHistoryStore = create<HistoryState>()(
               newPRs: [],
               splitName: d.split_name || undefined,
               note: d.notes || undefined,
-              exercises: (d.session_exercises || []).map((se: any) => ({
-                exercise: {
-                  id: se.exercise_id,
-                  nameDE: se.exercise_name,
-                  nameEN: se.exercise_name,
-                  primaryMuscle: 'chest', // Dummy for loaded history
-                  secondaryMuscles: [],
-                  equipment: [],
-                  category: 'compound',
-                },
-                sets: se.sets || [],
-              })),
+              exercises: (d.session_exercises || []).map((se: any) => {
+                const exerciseData = getExerciseById(se.exercise_id);
+                return {
+                  id: `${d.id}-${se.exercise_id}`,
+                  exercise: exerciseData ?? {
+                    id: se.exercise_id,
+                    nameDE: se.exercise_name,
+                    nameEN: se.exercise_name,
+                    name: se.exercise_name,
+                    primaryMuscle: 'chest' as const,
+                    secondaryMuscles: [] as string[],
+                    equipment: [] as string[],
+                    category: 'compound' as const,
+                  },
+                  sets: se.sets || [],
+                };
+              }),
             }));
 
             set((state) => {

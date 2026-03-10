@@ -16,7 +16,6 @@ import { useUserStore } from '@/store/userStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { calculateOverloadSuggestion } from '@/utils/overload';
 import { formatDuration } from '@/utils/dates';
-import { requestNotificationPermission } from '@/utils/notifications';
 import styles from './page.module.css';
 
 export default function ActiveWorkoutPage() {
@@ -49,7 +48,6 @@ export default function ActiveWorkoutPage() {
   const [showCancel, setShowCancel] = useState(false);
   const [prExerciseName, setPRExerciseName] = useState('');
   const [prBannerName, setPRBannerName] = useState<string | null>(null); // inline banner during workout
-  const [hasNotifPermission, setHasNotifPermission] = useState(true); // Default true to avoid flash
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isFinishing = useRef(false); // prevents the "no workout" redirect from firing during completion
@@ -62,20 +60,6 @@ export default function ActiveWorkoutPage() {
     }
     return () => { lock?.release().catch(() => {}); };
   }, []);
-
-  useEffect(() => {
-    if ('Notification' in window) {
-      setHasNotifPermission(Notification.permission === 'granted');
-    }
-  }, []);
-
-  const handleRequestPush = async () => {
-    const granted = await requestNotificationPermission();
-    setHasNotifPermission(granted);
-    if (granted) {
-      alert("Coach is ready! Du bekommst jetzt Timer-Benachrichtigungen.");
-    }
-  };
 
   // Workout-Timer — clear before set to prevent accumulation
   useEffect(() => {
@@ -188,17 +172,6 @@ export default function ActiveWorkoutPage() {
               style={{ opacity: 0.8 }}
             >
               <RotateCcw size={16} color={colors.warning} />
-            </button>
-          )}
-
-          {/* Request Notifications (Optional) */}
-          {!hasNotifPermission && (
-            <button
-              onClick={handleRequestPush}
-              title="Benachrichtigungen für Workout-Timer aktivieren"
-              className={styles.coachAlertBtn}
-            >
-              Coach Alerts
             </button>
           )}
 

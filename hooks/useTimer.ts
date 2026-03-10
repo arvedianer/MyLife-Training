@@ -53,7 +53,7 @@ export function useRestTimer() {
       }
       stopSilentAudioLoop();
     };
-  }, [restTimerActive, restTimerSeconds]);
+  }, [restTimerActive]); // Only restart when timer starts/stops — restTimerSeconds intentionally excluded (internalSeconds tracks countdown locally)
 
   const progress = restTimerTotal > 0 ? restTimerSeconds / restTimerTotal : 0;
 

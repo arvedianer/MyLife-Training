@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import BodyHeatmap from '@/components/ui/BodyHeatmap';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { useHistoryStore } from '@/store/historyStore';
@@ -48,6 +48,28 @@ function getPeriodRange(period: Period): { start: Date; end: Date } {
     case 'lastMonth': {
       const lm = subMonths(now, 1);
       return { start: startOfMonth(lm), end: endOfMonth(lm) };
+    }
+  }
+}
+
+function getPreviousPeriodRange(period: Period): { start: Date; end: Date } {
+  const now = new Date();
+  switch (period) {
+    case 'thisWeek': {
+      const lw = subWeeks(now, 1);
+      return { start: startOfWeek(lw, { weekStartsOn: 1 }), end: endOfWeek(lw, { weekStartsOn: 1 }) };
+    }
+    case 'lastWeek': {
+      const tw = subWeeks(now, 2);
+      return { start: startOfWeek(tw, { weekStartsOn: 1 }), end: endOfWeek(tw, { weekStartsOn: 1 }) };
+    }
+    case 'thisMonth': {
+      const lm = subMonths(now, 1);
+      return { start: startOfMonth(lm), end: endOfMonth(lm) };
+    }
+    case 'lastMonth': {
+      const pm = subMonths(now, 2);
+      return { start: startOfMonth(pm), end: endOfMonth(pm) };
     }
   }
 }
@@ -125,6 +147,46 @@ export default function StatsPage() {
   const hasVolumeData = weeklyVolumeData.some(d => d.volumen > 0);
 
   const exercisesWithPRs = exercises.filter(e => prs[e.id]).slice(0, 10);
+
+  // Previous period (for comparison strip)
+  const { start: prevStart, end: prevEnd } = useMemo(() => getPreviousPeriodRange(period), [period]);
+  const prevPeriodSessions = useMemo(
+    () => sessions.filter(s => { const d = parseISO(s.date); return d >= prevStart && d <= prevEnd; }),
+    [sessions, prevStart, prevEnd],
+  );
+  const prevWorkouts = prevPeriodSessions.length;
+  const prevVolume = prevPeriodSessions.reduce((sum, s) => sum + s.totalVolume, 0);
+  const prevDurSec = prevPeriodSessions.reduce((sum, s) => sum + s.durationSeconds, 0);
+
+  // Strength progression: top 5 most-trained exercises with max-weight history
+  const strengthData = useMemo(() => {
+    const counts: Record<string, { name: string; count: number }> = {};
+    for (const session of sessions) {
+      for (const ex of session.exercises) {
+        const id = ex.exercise.id;
+        if (!counts[id]) counts[id] = { name: ex.exercise.nameDE, count: 0 };
+        counts[id].count += 1;
+      }
+    }
+    const top5 = Object.entries(counts)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5);
+
+    return top5.map(([exerciseId, { name }]) => {
+      const history = sessions
+        .filter(s => s.exercises.some(e => e.exercise.id === exerciseId))
+        .map(s => {
+          const ex = s.exercises.find(e => e.exercise.id === exerciseId)!;
+          const done = ex.sets.filter(st => st.isCompleted && st.weight > 0);
+          const maxWeight = done.length > 0 ? Math.max(...done.map(st => st.weight)) : 0;
+          return { datum: format(parseISO(s.date), 'dd.MM', { locale: de }), maxWeight };
+        })
+        .reverse()
+        .slice(0, 12)
+        .filter(d => d.maxWeight > 0);
+      return { exerciseId, name, history };
+    }).filter(({ history }) => history.length >= 2);
+  }, [sessions]);
 
 
   return (
@@ -231,6 +293,24 @@ export default function StatsPage() {
         />
       </div>
 
+      {/* ── PERIOD COMPARISON STRIP ── */}
+      {(prevWorkouts > 0 || periodWorkouts > 0) && (
+        <div style={{
+          backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
+          borderRadius: radius.lg, padding: `${spacing[3]} ${spacing[4]}`,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: spacing[2],
+        }}>
+          <span style={{ ...typography.bodySm, color: colors.textMuted, flexShrink: 0 }}>
+            vs. Vorherige Periode
+          </span>
+          <div style={{ display: 'flex', gap: spacing[3] }}>
+            <CompareChip current={periodWorkouts} prev={prevWorkouts} unit="" suffix="WO" />
+            <CompareChip current={Math.round(periodVolume / 100) / 10} prev={Math.round(prevVolume / 100) / 10} unit="t" suffix="Vol" />
+            <CompareChip current={Math.round(periodDurSec / 60)} prev={Math.round(prevDurSec / 60)} unit="min" suffix="Zeit" />
+          </div>
+        </div>
+      )}
+
       {/* ── TRAINING CALENDAR ── */}
       <div>
         <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>
@@ -318,6 +398,83 @@ export default function StatsPage() {
           )}
         </div>
       </div>
+
+      {/* ── KRAFTENTWICKLUNG ── */}
+      {strengthData.length > 0 && (
+        <div>
+          <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[1] }}>
+            Kraftentwicklung
+          </h2>
+          <p style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[3] }}>
+            Max. Gewicht deiner meisttrainierten Übungen
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
+            {strengthData.map(({ exerciseId, name, history }) => {
+              const prWeight = prs[exerciseId]?.weight ?? 0;
+              const firstW = history[0]?.maxWeight ?? 0;
+              const lastW = history[history.length - 1]?.maxWeight ?? 0;
+              const gainKg = lastW - firstW;
+              return (
+                <Link key={exerciseId} href={`/stats/exercise/${exerciseId}`}>
+                  <div
+                    style={{
+                      backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
+                      borderRadius: radius.lg, padding: spacing[4], cursor: 'pointer',
+                    }}
+                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.backgroundColor = colors.bgElevated}
+                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.backgroundColor = colors.bgCard}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[2] }}>
+                      <span style={{ ...typography.body, color: colors.textPrimary, fontWeight: 600 }}>{name}</span>
+                      <div style={{ display: 'flex', gap: spacing[2], alignItems: 'center' }}>
+                        {gainKg !== 0 && (
+                          <span style={{
+                            ...typography.monoSm, fontSize: '10px',
+                            color: gainKg > 0 ? colors.success : colors.danger,
+                          }}>
+                            {gainKg > 0 ? '+' : ''}{gainKg} kg
+                          </span>
+                        )}
+                        {prWeight > 0 && (
+                          <span style={{
+                            ...typography.monoSm, color: colors.prColor,
+                            backgroundColor: `${colors.prColor}20`,
+                            padding: '2px 8px', borderRadius: radius.full, fontSize: '10px',
+                          }}>
+                            PR {prWeight} kg
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={70}>
+                      <LineChart data={history} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                        <XAxis
+                          dataKey="datum"
+                          tick={{ fill: colors.textFaint, fontSize: 9, fontFamily: 'monospace' }}
+                          axisLine={false} tickLine={false} interval="preserveStartEnd"
+                        />
+                        <YAxis hide domain={['auto', 'auto']} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: colors.bgElevated, border: `1px solid ${colors.border}`, borderRadius: radius.sm, fontSize: '11px' }}
+                          labelStyle={{ color: colors.textMuted }}
+                          itemStyle={{ color: colors.volumeColor }}
+                          formatter={(v: number) => [`${v} kg`, 'Max. Gewicht']}
+                        />
+                        <Line
+                          type="monotone" dataKey="maxWeight"
+                          stroke={colors.volumeColor} strokeWidth={2}
+                          dot={{ fill: colors.volumeColor, r: 2, strokeWidth: 0 }}
+                          activeDot={{ fill: colors.accent, r: 4, strokeWidth: 0 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── PERSONAL RECORDS ── */}
       <div>
@@ -408,6 +565,20 @@ function MetricCard({ label, value, sub }: { label: string; value: string; sub: 
     }}>
       <div style={{ ...typography.monoLg, color: colors.textPrimary, lineHeight: 1, fontSize: '18px' }}>{value}</div>
       <div style={{ ...typography.label, color: colors.textFaint, marginTop: '2px' }}>{label}</div>
+    </div>
+  );
+}
+
+function CompareChip({ current, prev, unit, suffix }: { current: number; prev: number; unit: string; suffix: string }) {
+  const delta = current - prev;
+  const sign = delta > 0 ? '+' : '';
+  const color = delta > 0 ? colors.success : delta < 0 ? colors.danger : colors.textMuted;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+      <span style={{ ...typography.monoSm, color: delta !== 0 ? color : colors.textMuted, fontSize: '11px' }}>
+        {delta !== 0 ? `${sign}${delta}${unit}` : `—`}
+      </span>
+      <span style={{ ...typography.label, color: colors.textDisabled, fontSize: '9px' }}>{suffix}</span>
     </div>
   );
 }

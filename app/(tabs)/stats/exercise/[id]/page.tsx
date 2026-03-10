@@ -3,6 +3,8 @@
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -82,6 +84,27 @@ export default function ExerciseDetailPage({
   const hasProgressionData = progressionData.length >= 2;
   const prWeight = pr?.weight ?? 0;
 
+  // Volume per session
+  const volumeData = sessions
+    .map(session => {
+      const ex = session.exercises.find(e => e.exercise.id === id);
+      if (!ex) return null;
+      const vol = ex.sets
+        .filter(s => s.isCompleted && s.weight > 0 && s.reps > 0)
+        .reduce((sum, s) => sum + s.weight * s.reps, 0);
+      return vol > 0 ? { datum: formatShortDate(session.date), volumen: vol } : null;
+    })
+    .filter((d): d is { datum: string; volumen: number } => d !== null)
+    .reverse()
+    .slice(0, 12);
+
+  // Summary stats
+  const totalSetsAll = sessions.reduce((sum, s) => {
+    const ex = s.exercises.find(e => e.exercise.id === id);
+    return sum + (ex?.sets.filter(st => st.isCompleted).length ?? 0);
+  }, 0);
+  const bestVolSession = Math.max(0, ...volumeData.map(d => d.volumen));
+
   return (
     <div style={{ backgroundColor: colors.bgPrimary, minHeight: '100dvh' }}>
       <PageHeader title={exercise.nameDE} subtitle={exercise.primaryMuscle} />
@@ -114,6 +137,37 @@ export default function ExerciseDetailPage({
             </div>
           </div>
         )}
+
+        {/* Summary Stats Row */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+          backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
+          borderRadius: radius.lg, overflow: 'hidden',
+        }}>
+          <div style={{ padding: spacing[3], textAlign: 'center' }}>
+            <div style={{ ...typography.monoLg, color: colors.textPrimary, fontSize: '20px', lineHeight: 1 }}>
+              {prWeight > 0 ? `${prWeight}` : '—'}
+            </div>
+            <div style={{ ...typography.label, color: colors.textFaint, marginTop: spacing[1] }}>
+              {prWeight > 0 ? 'kg PR' : 'Kein PR'}
+            </div>
+          </div>
+          <div style={{
+            padding: spacing[3], textAlign: 'center',
+            borderLeft: `1px solid ${colors.borderLight}`, borderRight: `1px solid ${colors.borderLight}`,
+          }}>
+            <div style={{ ...typography.monoLg, color: colors.textPrimary, fontSize: '20px', lineHeight: 1 }}>
+              {bestVolSession > 0 ? `${Math.round(bestVolSession)}` : '—'}
+            </div>
+            <div style={{ ...typography.label, color: colors.textFaint, marginTop: spacing[1] }}>kg Top-Vol.</div>
+          </div>
+          <div style={{ padding: spacing[3], textAlign: 'center' }}>
+            <div style={{ ...typography.monoLg, color: colors.textPrimary, fontSize: '20px', lineHeight: 1 }}>
+              {totalSetsAll}
+            </div>
+            <div style={{ ...typography.label, color: colors.textFaint, marginTop: spacing[1] }}>Sätze Total</div>
+          </div>
+        </div>
 
         {/* Progression Chart */}
         <div>
@@ -233,6 +287,45 @@ export default function ExerciseDetailPage({
             )}
           </div>
         </div>
+
+        {/* Volume Chart */}
+        {volumeData.length >= 2 && (
+          <div>
+            <h3 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[1] }}>
+              Volumen pro Einheit
+            </h3>
+            <p style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[3] }}>
+              Gesamtvolumen (kg × Wdh.) der letzten {volumeData.length} Einheiten
+            </p>
+            <div style={{
+              backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
+              borderRadius: radius.lg, padding: spacing[4],
+            }}>
+              <ResponsiveContainer width="100%" height={140}>
+                <BarChart data={volumeData} barSize={16}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={colors.borderLight} vertical={false} />
+                  <XAxis
+                    dataKey="datum"
+                    tick={{ fill: colors.textFaint, fontSize: 9, fontFamily: 'monospace' }}
+                    axisLine={false} tickLine={false} interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    tick={{ fill: colors.textFaint, fontSize: 10, fontFamily: 'monospace' }}
+                    axisLine={false} tickLine={false} width={36}
+                  />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: colors.bgElevated, border: `1px solid ${colors.border}`, borderRadius: radius.md, fontSize: '12px' }}
+                    labelStyle={{ color: colors.textMuted }}
+                    itemStyle={{ color: colors.volumeColor }}
+                    formatter={(v: number) => [`${v} kg`, 'Volumen']}
+                    cursor={{ fill: colors.bgHighest }}
+                  />
+                  <Bar dataKey="volumen" fill={colors.volumeColor} fillOpacity={0.85} radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
 
         {/* Exercise Info */}
         <div>
