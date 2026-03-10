@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target } from 'lucide-react';
+import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target, MessageCircle } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -248,6 +248,42 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* MAX Coach Card */}
+      <Link href="/chat" style={{ display: 'block' }}>
+        <div
+          style={{
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.xl,
+            padding: spacing[4],
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+            transition: 'border-color 0.2s',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = `${colors.accent}40`; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = colors.border; }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
+            <div style={{
+              width: '42px', height: '42px', borderRadius: radius.lg,
+              backgroundColor: colors.accentBg, border: `1px solid ${colors.accent}30`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <MessageCircle size={20} color={colors.accent} />
+            </div>
+            <div>
+              <p style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>MAX Coach</p>
+              <p style={{ ...typography.bodySm, color: colors.textMuted, marginTop: '2px' }}>
+                Frag deinen persönlichen Trainer
+              </p>
+            </div>
+          </div>
+          <ChevronRight size={18} color={colors.textDisabled} />
+        </div>
+      </Link>
     </div>
   );
 }

@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const completion = await gemini.chat.completions.create({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.0-flash-lite',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 300,
       temperature: 0.7,
@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
         user_input: userInput,
         ai_response: aiResponse,
         tokens_used: tokensUsed,
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.0-flash-lite',
       })
       .then(() => {/* logged */}, () => {/* ignore errors */});
   }

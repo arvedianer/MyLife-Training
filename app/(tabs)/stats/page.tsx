@@ -85,6 +85,7 @@ function heatBarColor(r: number): string {
 
 export default function StatsPage() {
   const [period, setPeriod] = useState<Period>('thisWeek');
+  const [muscleFilter, setMuscleFilter] = useState<string | null>(null);
   const { sessions, getPersonalRecords } = useHistoryStore();
   const prs = getPersonalRecords();
 
@@ -132,18 +133,45 @@ export default function StatsPage() {
   const totalDurH = Math.floor(totalDurSec / 3600);
   const currentStreak = calculateStreak(sessions.map(s => s.date));
 
-  // 8-week volume chart
-  const weeklyVolumeData = Array.from({ length: 8 }, (_, i) => {
+  // Available muscles for filter (from all sessions)
+  const availableMuscles = useMemo(() => {
+    const ms = new Set<string>();
+    for (const s of sessions) {
+      for (const ex of s.exercises) {
+        if (ex.exercise.primaryMuscle) ms.add(ex.exercise.primaryMuscle as string);
+      }
+    }
+    return Array.from(ms).sort();
+  }, [sessions]);
+
+  // 8-week volume chart — supports muscle group filter
+  const weeklyVolumeData = useMemo(() => Array.from({ length: 8 }, (_, i) => {
     const wStart = subWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 7 - i);
     const wEnd = addWeeks(wStart, 1);
-    const vol = sessions
-      .filter(s => { const d = parseISO(s.date); return d >= wStart && d < wEnd; })
-      .reduce((sum, s) => sum + s.totalVolume, 0);
+    const weekSessions = sessions.filter(s => { const d = parseISO(s.date); return d >= wStart && d < wEnd; });
+    let vol: number;
+    if (muscleFilter === null) {
+      vol = weekSessions.reduce((sum, s) => sum + s.totalVolume, 0);
+    } else {
+      vol = weekSessions.reduce((sum, s) =>
+        sum + s.exercises
+          .filter(ex => (ex.exercise.primaryMuscle as string) === muscleFilter)
+          .reduce((eSum, ex) =>
+            eSum + ex.sets
+              .filter(st => st.isCompleted && st.weight > 0 && st.reps > 0)
+              .reduce((sSum, st) => sSum + st.weight * st.reps, 0),
+          0),
+      0);
+    }
     return {
       week: format(wStart, 'dd.MM', { locale: de }),
-      volumen: Math.round((vol / 1000) * 10) / 10,
+      volumen: muscleFilter === null
+        ? Math.round((vol / 1000) * 10) / 10  // tonnes
+        : Math.round(vol),                      // kg
     };
-  });
+  }), [sessions, muscleFilter]);
+
+  const volumeUnit = muscleFilter === null ? 't' : 'kg';
   const hasVolumeData = weeklyVolumeData.some(d => d.volumen > 0);
 
   const exercisesWithPRs = exercises.filter(e => prs[e.id]).slice(0, 10);
@@ -358,19 +386,58 @@ export default function StatsPage() {
 
       {/* ── VOLUME PROGRESS CHART ── */}
       <div>
-        <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[1] }}>
-          Volumen-Entwicklung
-        </h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: spacing[1] }}>
+          <h2 style={{ ...typography.h3, color: colors.textPrimary }}>
+            Volumen-Entwicklung
+          </h2>
+        </div>
         <p style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[3] }}>
-          Trainingsvolumen der letzten 8 Wochen
+          {muscleFilter ? `${MUSCLE_LABELS[muscleFilter] ?? muscleFilter} — letzte 8 Wochen` : 'Gesamtvolumen der letzten 8 Wochen'}
         </p>
+
+        {/* Muscle filter pills */}
+        {availableMuscles.length > 0 && (
+          <div style={{
+            display: 'flex', gap: spacing[2], overflowX: 'auto', scrollbarWidth: 'none',
+            paddingBottom: spacing[2], marginBottom: spacing[3],
+          }}>
+            <button
+              onClick={() => setMuscleFilter(null)}
+              style={{
+                flexShrink: 0, padding: `4px ${spacing[3]}`, borderRadius: radius.full,
+                border: `1px solid ${muscleFilter === null ? colors.volumeColor : colors.border}`,
+                backgroundColor: muscleFilter === null ? `${colors.volumeColor}20` : 'transparent',
+                ...typography.label, color: muscleFilter === null ? colors.volumeColor : colors.textMuted,
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+            >
+              Alle
+            </button>
+            {availableMuscles.map(m => (
+              <button
+                key={m}
+                onClick={() => setMuscleFilter(m === muscleFilter ? null : m)}
+                style={{
+                  flexShrink: 0, padding: `4px ${spacing[3]}`, borderRadius: radius.full,
+                  border: `1px solid ${muscleFilter === m ? colors.volumeColor : colors.border}`,
+                  backgroundColor: muscleFilter === m ? `${colors.volumeColor}20` : 'transparent',
+                  ...typography.label, color: muscleFilter === m ? colors.volumeColor : colors.textMuted,
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+              >
+                {MUSCLE_LABELS[m] ?? m}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div style={{
           backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
           borderRadius: radius.lg, padding: spacing[4],
         }}>
           {hasVolumeData ? (
-            <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={weeklyVolumeData} barSize={18}>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={weeklyVolumeData} barSize={20}>
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.borderLight} vertical={false} />
                 <XAxis
                   dataKey="week"
@@ -379,20 +446,20 @@ export default function StatsPage() {
                 />
                 <YAxis
                   tick={{ fill: colors.textFaint, fontSize: 10, fontFamily: 'monospace' }}
-                  axisLine={false} tickLine={false} unit="t" width={28}
+                  axisLine={false} tickLine={false} unit={volumeUnit} width={32}
                 />
                 <Tooltip
                   contentStyle={{ backgroundColor: colors.bgElevated, border: `1px solid ${colors.border}`, borderRadius: radius.md, fontSize: '12px' }}
                   labelStyle={{ color: colors.textMuted }}
                   itemStyle={{ color: colors.volumeColor }}
                   cursor={{ fill: colors.bgHighest }}
-                  formatter={(v: number) => [`${v} t`, 'Volumen']}
+                  formatter={(v: number) => [`${v} ${volumeUnit}`, muscleFilter ? (MUSCLE_LABELS[muscleFilter] ?? muscleFilter) : 'Gesamt']}
                 />
                 <Bar dataKey="volumen" fill={colors.volumeColor} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div style={{ height: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <p style={{ ...typography.bodySm, color: colors.textMuted }}>Noch keine Workouts in den letzten 8 Wochen</p>
             </div>
           )}

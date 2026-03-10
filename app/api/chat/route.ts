@@ -89,12 +89,15 @@ ${historySection}
 WICHTIG: Wenn der Nutzer nach spezifischen Daten aus seinem Training fragt (z.B. "Was hab ich letzte Woche gemacht?"), nutze die obigen Workout-Daten. Wenn keine Daten vorhanden, sag das ehrlich.`;
 }
 
-const FALLBACK_REPLY =
+const NO_KEY_REPLY =
   'Hey! Ich bin gerade offline. Trag deinen GEMINI_API_KEY in der .env.local ein, dann bin ich für dich da. 💪';
+
+const RATE_LIMIT_REPLY =
+  'Ich bin gerade kurz überlastet — zu viele Anfragen auf einmal. Versuch es in ein paar Sekunden nochmal! 💪';
 
 export async function POST(req: NextRequest) {
   if (!process.env.GEMINI_API_KEY) {
-    return NextResponse.json({ reply: FALLBACK_REPLY });
+    return NextResponse.json({ reply: NO_KEY_REPLY });
   }
 
   let body: ChatRequest;
@@ -114,7 +117,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const completion = await gemini.chat.completions.create({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.0-flash-lite',
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages.map((m) => ({ role: m.role, content: m.content })),
@@ -123,10 +126,10 @@ export async function POST(req: NextRequest) {
       temperature: 0.8,
     });
 
-    const reply = completion.choices[0]?.message?.content ?? FALLBACK_REPLY;
+    const reply = completion.choices[0]?.message?.content ?? RATE_LIMIT_REPLY;
     return NextResponse.json({ reply });
   } catch (err) {
     console.error('[chat] Gemini error:', err);
-    return NextResponse.json({ reply: FALLBACK_REPLY });
+    return NextResponse.json({ reply: RATE_LIMIT_REPLY });
   }
 }

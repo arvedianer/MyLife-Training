@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BarChart2, Dumbbell, Plus, MessageCircle } from 'lucide-react';
+import { Home, BarChart2, Dumbbell, Layers, Plus } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 
 export function BottomNav() {
@@ -31,7 +31,7 @@ export function BottomNav() {
     >
       {/* Left tabs */}
       <NavTab href="/dashboard" icon={<Home size={22} color={isActive('/dashboard') ? colors.accent : colors.textDisabled} />} label="Home"   active={isActive('/dashboard')} />
-      <NavTab href="/exercises" icon={<Dumbbell size={22} color={isActive('/exercises') ? colors.accent : colors.textDisabled} />} label="Übungen" active={isActive('/exercises')} />
+      <NavTab href="/splits"    icon={<Layers  size={22} color={isActive('/splits')    ? colors.accent : colors.textDisabled} />} label="Splits"  active={isActive('/splits')} />
 
       {/* Center FAB */}
       <Link
@@ -60,8 +60,8 @@ export function BottomNav() {
       </Link>
 
       {/* Right tabs */}
-      <NavTab href="/chat"  icon={<MessageCircle size={22} color={isActive('/chat')  ? colors.accent : colors.textDisabled} />} label="Coach"   active={isActive('/chat')} />
-      <NavTab href="/stats" icon={<BarChart2     size={22} color={isActive('/stats') ? colors.accent : colors.textDisabled} />} label="Stats"   active={isActive('/stats')} />
+      <NavTab href="/exercises" icon={<Dumbbell size={22} color={isActive('/exercises') ? colors.accent : colors.textDisabled} />} label="Übungen" active={isActive('/exercises')} />
+      <NavTab href="/stats"     icon={<BarChart2 size={22} color={isActive('/stats')     ? colors.accent : colors.textDisabled} />} label="Stats"   active={isActive('/stats')} />
     </nav>
   );
 }
