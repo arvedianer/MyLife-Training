@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Target, Timer, TrendingUp, Check, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Target, Timer, TrendingUp, Check, ArrowUp, ArrowDown, ArrowLeftRight, Loader2, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { SetRow } from './SetRow';
@@ -50,6 +50,29 @@ export function ExerciseCard({
   const [scienceExpanded, setScienceExpanded] = useState(false);
   const [customRest, setCustomRest] = useState<number | null>(null);
   const [isEditingRest, setIsEditingRest] = useState(false);
+  const [busyLoading, setBusyLoading] = useState(false);
+  const [busyAlt, setBusyAlt] = useState<{ alternative: string; reason: string; weightNote?: string } | null>(null);
+
+  const handleDeviceBusy = async () => {
+    setBusyLoading(true);
+    setBusyAlt(null);
+    try {
+      const res = await fetch('/api/ai-coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          triggerType: 'device_busy',
+          userInput: exercise.nameDE,
+        }),
+      });
+      const data = await res.json();
+      if (data.alternative) setBusyAlt(data);
+    } catch {
+      setBusyAlt({ alternative: 'Kurzhantel-Variante', reason: 'Gleiche Muskelgruppe, überall verfügbar' });
+    } finally {
+      setBusyLoading(false);
+    }
+  };
 
   const { exercise, sets } = workoutExercise;
   const completedSets = sets.filter((s) => s.isCompleted).length;
@@ -217,6 +240,21 @@ export function ExerciseCard({
             </div>
           )}
 
+          {/* Device Busy — AI Alternative */}
+          <button
+            onClick={handleDeviceBusy}
+            disabled={busyLoading}
+            aria-label="Gerät besetzt — Alternative vorschlagen"
+            title="Gerät besetzt? KI schlägt Alternative vor"
+            className={`${styles.hoverBtn} ${styles.opacityHover}`}
+            style={{ padding: '6px' }}
+          >
+            {busyLoading
+              ? <Loader2 size={15} color={colors.accent} style={{ animation: 'spin 1s linear infinite' }} />
+              : <ArrowLeftRight size={15} color={colors.textMuted} />
+            }
+          </button>
+
           {/* Delete Exercise */}
           <button
             onClick={onRemoveExercise}
@@ -240,6 +278,41 @@ export function ExerciseCard({
           </button>
         </div>
       </div>
+
+      {/* Device Busy Alternative Card */}
+      {busyAlt && (
+        <div
+          style={{
+            margin: `0 ${spacing[4]} ${spacing[3]}`,
+            padding: spacing[3],
+            backgroundColor: `${colors.accent}10`,
+            border: `1px solid ${colors.accent}30`,
+            borderRadius: radius.lg,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing[2] }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginBottom: '4px' }}>
+                <ArrowLeftRight size={13} color={colors.accent} />
+                <span style={{ ...typography.label, color: colors.accent, fontSize: '10px' }}>ALTERNATIVE VORSCHLAG</span>
+              </div>
+              <p style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600', marginBottom: '2px' }}>
+                {busyAlt.alternative}
+              </p>
+              <p style={{ ...typography.bodySm, color: colors.textMuted }}>{busyAlt.reason}</p>
+              {busyAlt.weightNote && (
+                <p style={{ ...typography.bodySm, color: colors.textFaint, marginTop: '2px' }}>{busyAlt.weightNote}</p>
+              )}
+            </div>
+            <button
+              onClick={() => setBusyAlt(null)}
+              style={{ padding: '2px', flexShrink: 0 }}
+            >
+              <X size={14} color={colors.textFaint} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Sets */}
       {!collapsed && (

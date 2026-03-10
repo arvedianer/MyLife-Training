@@ -27,6 +27,14 @@ function SummaryContent() {
   const session = useHistoryStore((state) =>
     sessionId ? state.sessions.find(s => s.id === sessionId) : null
   );
+  // For AI comparison: get 5 previous sessions (excluding current)
+  const previousSessions = useHistoryStore((state) =>
+    state.sessions.filter(s => s.id !== sessionId).slice(0, 5).map(s => ({
+      totalVolume: s.totalVolume,
+      durationSeconds: s.durationSeconds,
+      totalSets: s.totalSets,
+    }))
+  );
 
   const [aiSummary, setAiSummary] = useState<AiSummary | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
@@ -50,6 +58,7 @@ function SummaryContent() {
           newPRs: session.newPRs,
           splitName: session.splitName,
         },
+        previousSessions,
         userProfile: {
           goal: profile?.goal,
           level: profile?.level,

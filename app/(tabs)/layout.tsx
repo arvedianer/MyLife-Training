@@ -5,6 +5,7 @@ import { useSync } from '@/hooks/useSync';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { AppShell } from '@/components/layout/AppShell';
 import { ActiveWorkoutBanner } from '@/components/workout/ActiveWorkoutBanner';
+import { CoachBubble } from '@/components/ui/CoachBubble';
 import { colors, spacing, typography } from '@/constants/tokens';
 import { WifiOff } from 'lucide-react';
 
@@ -58,6 +59,7 @@ export default function TabsLayout({
         </main>
         <ActiveWorkoutBanner />
         <BottomNav />
+        <CoachBubble />
       </div>
     </AppShell>
   );

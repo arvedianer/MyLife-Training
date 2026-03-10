@@ -1,53 +1,87 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, Sparkles, Dumbbell, TrendingUp, Zap, RotateCcw } from 'lucide-react';
+import { Send, Bot, Sparkles, Dumbbell, TrendingUp, Zap, Plus, Menu, Mic, MicOff, BookOpen, Trash2, X } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { useHistoryStore } from '@/store/historyStore';
 import { useUserStore } from '@/store/userStore';
+import { useChatStore } from '@/store/chatStore';
+import { usePlanStore } from '@/store/planStore';
+import { useWorkoutStore } from '@/store/workoutStore';
 import { calculateStreak } from '@/utils/dates';
 import { getExerciseById } from '@/constants/exercises';
 import { motion, AnimatePresence } from 'framer-motion';
-
-interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: number;
-}
-
-const STARTER_PROMPTS = [
-  { icon: '💪', text: 'Wie verbessere ich meinen Bench Press?' },
-  { icon: '📊', text: 'Analysiere mein letztes Workout' },
-  { icon: '🥩', text: 'Wie viel Protein brauche ich täglich?' },
-  { icon: '😴', text: 'Warum bin ich immer noch so müde?' },
-  { icon: '🔥', text: 'Welche Muskeln habe ich vernachlässigt?' },
-  { icon: '📈', text: 'Wie steigere ich am schnellsten mein Volumen?' },
-];
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { usePathname } from 'next/navigation';
+import type { TrainingSplit, SplitDay } from '@/types/splits';
+import type { ChatMessage } from '@/store/chatStore';
 
 function generateId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+// Detect if AI message likely contains a training plan
+function detectTrainingPlan(text: string): boolean {
+  const headingCount = (text.match(/###/g) ?? []).length;
+  const hasPattern = /\d+\s*[xX×]\s*\d+|\d+\s*Sätze/i.test(text);
+  return headingCount >= 2 && hasPattern;
+}
+
+const STARTER_PROMPTS = [
+  { icon: <Dumbbell size={14} color={colors.accent} />, text: 'Analysiere mein letztes Workout' },
+  { icon: <TrendingUp size={14} color={colors.prColor} />, text: 'Erstell mir einen Trainingsplan' },
+  { icon: <Zap size={14} color={colors.volumeColor} />, text: 'Wie viel Protein brauche ich?' },
+  { icon: <Sparkles size={14} color={colors.success} />, text: 'Was habe ich diese Woche trainiert?' },
+];
+
 export default function ChatPage() {
   const { sessions } = useHistoryStore();
   const { profile } = useUserStore();
+  const { activeWorkout } = useWorkoutStore();
+  const { addSplit } = usePlanStore();
+  const pathname = usePathname();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const {
+    conversations,
+    activeConversationId,
+    newConversation,
+    setActiveConversation,
+    addMessage,
+    updateLastMessage,
+    deleteConversation,
+    getActiveConversation,
+  } = useChatStore();
+
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [savingPlan, setSavingPlan] = useState<string | null>(null); // msgId being saved
+  const [savedPlanIds, setSavedPlanIds] = useState<Set<string>>(new Set());
+  const [planToast, setPlanToast] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Scroll to bottom on new message
+  // Init active conversation
+  useEffect(() => {
+    if (!activeConversationId) {
+      newConversation();
+    }
+  }, [activeConversationId, newConversation]);
+
+  const activeConv = getActiveConversation();
+  const messages = activeConv?.messages ?? [];
+  const isEmpty = messages.length === 0;
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  // Build workout history context (last 10 sessions)
+  // --- Context builders ---
   const buildWorkoutHistory = useCallback(() => {
     return sessions.slice(0, 10).map((s) => ({
       date: s.date,
@@ -64,15 +98,12 @@ export default function ChatPage() {
     }));
   }, [sessions]);
 
-  // Build user profile context
   const buildUserProfile = useCallback(() => {
-    const streak = calculateStreak(sessions.map(s => s.date));
+    const streak = calculateStreak(sessions.map((s) => s.date));
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const weekSessions = sessions.filter(
-      (s) => new Date(s.date).getTime() >= weekAgo
-    );
-    const weeklyVolume = weekSessions.reduce((sum, s) => sum + s.totalVolume, 0);
-
+    const weeklyVolume = sessions
+      .filter((s) => new Date(s.date).getTime() >= weekAgo)
+      .reduce((sum, s) => sum + s.totalVolume, 0);
     return {
       name: profile?.name,
       goal: profile?.goal,
@@ -84,12 +115,22 @@ export default function ChatPage() {
     };
   }, [sessions, profile]);
 
+  const buildAppContext = useCallback(() => ({
+    page: pathname,
+    isWorkoutActive: !!activeWorkout,
+    activeWorkoutName: activeWorkout?.plannedSplit,
+    exerciseCount: activeWorkout?.exercises.length,
+  }), [pathname, activeWorkout]);
+
+  // --- Send message ---
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
 
     setInput('');
     setError(null);
+
+    const convId = activeConversationId ?? newConversation();
 
     const userMsg: ChatMessage = {
       id: generateId(),
@@ -98,39 +139,116 @@ export default function ChatPage() {
       timestamp: Date.now(),
     };
 
-    const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
+    addMessage(convId, userMsg);
     setIsLoading(true);
 
-    // Abort previous request
     abortRef.current?.abort();
     abortRef.current = new AbortController();
 
+    // Build messages for API: include full history
+    const conv = useChatStore.getState().getActiveConversation();
+    const apiMessages = (conv?.messages ?? []).map((m) => ({ role: m.role, content: m.content }));
+
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: abortRef.current.signal,
         body: JSON.stringify({
-          messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
+          messages: apiMessages,
           workoutHistory: buildWorkoutHistory(),
           userProfile: buildUserProfile(),
+          appContext: buildAppContext(),
         }),
       });
 
-      const data = await res.json() as { reply?: string; error?: string };
-      const reply = data.reply ?? 'Ups, da ist was schiefgelaufen. Versuch es nochmal!';
+      if (!res.body) throw new Error('No response body');
 
-      setMessages((prev) => [
-        ...prev,
-        { id: generateId(), role: 'assistant', content: reply, timestamp: Date.now() },
-      ]);
+      const aiMsgId = generateId();
+      const aiMsg: ChatMessage = { id: aiMsgId, role: 'assistant', content: '', timestamp: Date.now() };
+      addMessage(convId, aiMsg);
+      setIsLoading(false);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantText = '';
+      let done = false;
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        if (value) {
+          assistantText += decoder.decode(value, { stream: true });
+          updateLastMessage(convId, assistantText);
+        }
+      }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
         setError('Verbindungsfehler. Prüfe deine Internetverbindung.');
+        setIsLoading(false);
       }
+    }
+  };
+
+  // --- Voice input ---
+  const startListening = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      setError('Spracheingabe wird von deinem Browser nicht unterstützt.');
+      return;
+    }
+    const recognition = new SR();
+    recognition.lang = 'de-DE';
+    recognition.interimResults = false;
+    recognition.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript as string;
+      setInput((prev) => prev + (prev ? ' ' : '') + transcript);
+    };
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    recognition.start();
+    setListening(true);
+  };
+
+  // --- Save AI plan ---
+  const saveAIPlan = async (msgId: string, text: string) => {
+    if (savedPlanIds.has(msgId) || savingPlan) return;
+    setSavingPlan(msgId);
+    try {
+      const res = await fetch('/api/chat/parse-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+      if (data.name && Array.isArray(data.days)) {
+        const split: TrainingSplit = {
+          id: generateId(),
+          name: data.name,
+          type: 'custom',
+          description: 'Von Coach Arved erstellt',
+          scienceNote: '',
+          days: data.days.map((d: { name: string; exercises: string[] }, i: number): SplitDay => ({
+            id: generateId(),
+            name: d.name,
+            muscleGroups: [],
+            exerciseIds: [],
+            restDay: false,
+          })),
+          daysPerWeek: data.days.length,
+          difficulty: profile?.level === 'fortgeschritten' ? 'advanced' : 'intermediate',
+          isActive: false,
+          createdAt: Date.now(),
+        };
+        addSplit(split);
+        setSavedPlanIds((prev) => new Set([...prev, msgId]));
+        setPlanToast(true);
+        setTimeout(() => setPlanToast(false), 3000);
+      }
+    } catch {
+      setError('Plan konnte nicht gespeichert werden.');
     } finally {
-      setIsLoading(false);
+      setSavingPlan(null);
     }
   };
 
@@ -141,22 +259,156 @@ export default function ChatPage() {
     }
   };
 
-  const clearChat = () => {
-    setMessages([]);
+  const startNewConversation = () => {
+    newConversation();
+    setHistoryOpen(false);
     setError(null);
   };
 
-  const isEmpty = messages.length === 0;
-
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        backgroundColor: colors.bgPrimary,
-      }}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: colors.bgPrimary, position: 'relative' }}>
+      {/* Plan saved toast */}
+      <AnimatePresence>
+        {planToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            style={{
+              position: 'absolute',
+              top: '70px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: colors.successBg,
+              border: `1px solid ${colors.success}40`,
+              borderRadius: radius.lg,
+              padding: `${spacing[2]} ${spacing[4]}`,
+              ...typography.bodySm,
+              color: colors.success,
+              zIndex: 100,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ✓ Plan gespeichert! Unter Splits verfügbar.
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* History Drawer */}
+      <AnimatePresence>
+        {historyOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setHistoryOpen(false)}
+              style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 60 }}
+            />
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                bottom: 0,
+                width: '280px',
+                backgroundColor: colors.bgSecondary,
+                borderRight: `1px solid ${colors.border}`,
+                zIndex: 70,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: `${spacing[4]} ${spacing[4]}`,
+                  paddingTop: `calc(${spacing[4]} + env(safe-area-inset-top))`,
+                  borderBottom: `1px solid ${colors.border}`,
+                  flexShrink: 0,
+                }}
+              >
+                <span style={{ ...typography.h3, color: colors.textPrimary }}>Verlauf</span>
+                <button onClick={() => setHistoryOpen(false)} style={{ padding: spacing[2] }}>
+                  <X size={18} color={colors.textMuted} />
+                </button>
+              </div>
+
+              <button
+                onClick={startNewConversation}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing[2],
+                  margin: spacing[3],
+                  padding: `${spacing[3]} ${spacing[4]}`,
+                  backgroundColor: colors.accentBg,
+                  border: `1px solid ${colors.accent}30`,
+                  borderRadius: radius.lg,
+                  cursor: 'pointer',
+                }}
+              >
+                <Plus size={16} color={colors.accent} />
+                <span style={{ ...typography.body, color: colors.accent }}>Neues Gespräch</span>
+              </button>
+
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {conversations.length === 0 && (
+                  <p style={{ ...typography.bodySm, color: colors.textFaint, padding: spacing[4], textAlign: 'center' }}>
+                    Noch keine Gespräche.
+                  </p>
+                )}
+                {conversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing[2],
+                      padding: `${spacing[3]} ${spacing[4]}`,
+                      backgroundColor: conv.id === activeConversationId ? colors.bgElevated : 'transparent',
+                      borderLeft: conv.id === activeConversationId ? `2px solid ${colors.accent}` : '2px solid transparent',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.15s',
+                    }}
+                    onClick={() => {
+                      setActiveConversation(conv.id);
+                      setHistoryOpen(false);
+                    }}
+                  >
+                    <BookOpen size={14} color={conv.id === activeConversationId ? colors.accent : colors.textFaint} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ ...typography.bodySm, color: colors.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {conv.title}
+                      </p>
+                      <p style={{ ...typography.label, fontSize: '9px', color: colors.textFaint }}>
+                        {new Date(conv.updatedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteConversation(conv.id);
+                      }}
+                      style={{ padding: '4px', flexShrink: 0, opacity: 0.5 }}
+                    >
+                      <Trash2 size={12} color={colors.danger} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div
         style={{
@@ -171,60 +423,53 @@ export default function ChatPage() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
-          {/* Avatar */}
-          <div
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: radius.full,
-              background: `linear-gradient(135deg, ${colors.accent} 0%, ${colors.prColor} 100%)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              boxShadow: `0 0 12px ${colors.accent}40`,
-            }}
+          {/* History toggle */}
+          <button
+            onClick={() => setHistoryOpen(true)}
+            style={{ padding: spacing[2] }}
+            title="Gesprächsverlauf"
           >
-            <Bot size={22} color={colors.bgPrimary} />
-          </div>
-          <div>
-            <div style={{ ...typography.h3, color: colors.textPrimary }}>MAX</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: spacing[1] }}>
-              <div
-                style={{
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  backgroundColor: colors.success,
-                }}
-              />
-              <span style={{ ...typography.label, fontSize: '10px', color: colors.success }}>
-                Personal Trainer · Online
-              </span>
+            <Menu size={20} color={colors.textMuted} />
+          </button>
+
+          {/* Avatar + title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
+            <div
+              style={{
+                width: '36px', height: '36px', borderRadius: radius.full,
+                background: `linear-gradient(135deg, ${colors.accent} 0%, ${colors.prColor} 100%)`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                boxShadow: `0 0 12px ${colors.accent}40`,
+              }}
+            >
+              <Bot size={20} color={colors.bgPrimary} />
+            </div>
+            <div>
+              <div style={{ ...typography.h3, color: colors.textPrimary }}>Coach Arved</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[1] }}>
+                <div style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: colors.success }} />
+                <span style={{ ...typography.label, fontSize: '10px', color: colors.success }}>Online</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {!isEmpty && (
-          <button
-            onClick={clearChat}
-            style={{ padding: spacing[2], color: colors.textMuted }}
-            title="Chat leeren"
-          >
-            <RotateCcw size={16} />
-          </button>
-        )}
+        {/* New conversation */}
+        <button
+          onClick={startNewConversation}
+          style={{ padding: spacing[2] }}
+          title="Neues Gespräch"
+        >
+          <Plus size={20} color={colors.textMuted} />
+        </button>
       </div>
 
       {/* Messages area */}
       <div
         style={{
-          flex: 1,
-          overflowY: 'auto',
+          flex: 1, overflowY: 'auto',
           padding: `${spacing[4]} ${spacing[4]}`,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: spacing[3],
+          display: 'flex', flexDirection: 'column', gap: spacing[3],
         }}
       >
         {/* Empty state */}
@@ -234,25 +479,16 @@ export default function ChatPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
             style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              paddingTop: spacing[8],
-              paddingBottom: spacing[4],
-              gap: spacing[4],
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              paddingTop: spacing[8], paddingBottom: spacing[4], gap: spacing[4],
             }}
           >
-            {/* Big avatar */}
             <div
               style={{
-                width: '72px',
-                height: '72px',
-                borderRadius: radius.full,
+                width: '72px', height: '72px', borderRadius: radius.full,
                 background: `linear-gradient(135deg, ${colors.accent}22 0%, ${colors.prColor}22 100%)`,
                 border: `1px solid ${colors.accent}30`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
               <Sparkles size={32} color={colors.accent} />
@@ -260,32 +496,22 @@ export default function ChatPage() {
 
             <div style={{ textAlign: 'center' }}>
               <h2 style={{ ...typography.h2, color: colors.textPrimary, marginBottom: spacing[2] }}>
-                Ich bin MAX
+                Coach Arved
               </h2>
               <p style={{ ...typography.body, color: colors.textMuted, maxWidth: '260px', lineHeight: '22px' }}>
-                Dein KI Personal Trainer. Ich kenne deine Workout-History und helfe dir schneller voranzukommen.
+                Dein persönlicher KI Trainer — direkt, kritisch, datenbasiert.
               </p>
             </div>
 
-            {/* Stats pills */}
             {sessions.length > 0 && (
               <div style={{ display: 'flex', gap: spacing[2], flexWrap: 'wrap', justifyContent: 'center' }}>
                 <StatPill icon={<Dumbbell size={12} color={colors.accent} />} label={`${sessions.length} Workouts`} />
                 <StatPill icon={<TrendingUp size={12} color={colors.prColor} />} label={`${calculateStreak(sessions.map(s => s.date))} Tage Streak`} />
-                <StatPill icon={<Zap size={12} color={colors.volumeColor} />} label="History geladen" />
               </div>
             )}
 
             {/* Starter prompts */}
-            <div
-              style={{
-                width: '100%',
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: spacing[2],
-                marginTop: spacing[2],
-              }}
-            >
+            <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing[2], marginTop: spacing[2] }}>
               {STARTER_PROMPTS.map((p) => (
                 <button
                   key={p.text}
@@ -299,17 +525,13 @@ export default function ChatPage() {
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: spacing[1],
+                    gap: spacing[2],
                     transition: 'background-color 0.15s',
                   }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgElevated;
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgCard;
-                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgElevated; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgCard; }}
                 >
-                  <span style={{ fontSize: '16px' }}>{p.icon}</span>
+                  {p.icon}
                   <span style={{ ...typography.bodySm, color: colors.textSecondary, lineHeight: '16px' }}>
                     {p.text}
                   </span>
@@ -321,62 +543,91 @@ export default function ChatPage() {
 
         {/* Message list */}
         <AnimatePresence initial={false}>
-          {messages.map((msg) => (
+          {messages.map((msg, idx) => (
             <motion.div
               key={msg.id}
               initial={{ opacity: 0, y: 8, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
-              style={{
-                display: 'flex',
-                flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-                gap: spacing[2],
-                alignItems: 'flex-end',
-              }}
+              style={{ display: 'flex', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row', gap: spacing[2], alignItems: 'flex-end' }}
             >
-              {/* Avatar for assistant */}
               {msg.role === 'assistant' && (
                 <div
                   style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: radius.full,
+                    width: '28px', height: '28px', borderRadius: radius.full,
                     background: `linear-gradient(135deg, ${colors.accent} 0%, ${colors.prColor} 100%)`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}
                 >
                   <Bot size={14} color={colors.bgPrimary} />
                 </div>
               )}
 
-              {/* Bubble */}
-              <div
-                style={{
-                  maxWidth: '78%',
-                  padding: `${spacing[3]} ${spacing[4]}`,
-                  borderRadius: msg.role === 'user'
-                    ? `${radius.xl} ${radius.xl} ${spacing[1]} ${radius.xl}`
-                    : `${radius.xl} ${radius.xl} ${radius.xl} ${spacing[1]}`,
-                  backgroundColor: msg.role === 'user'
-                    ? colors.accent
-                    : colors.bgCard,
-                  border: msg.role === 'assistant' ? `1px solid ${colors.border}` : 'none',
-                }}
-              >
-                <p
+              <div style={{ maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
+                <div
                   style={{
-                    ...typography.body,
-                    color: msg.role === 'user' ? colors.bgPrimary : colors.textPrimary,
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: '22px',
-                    margin: 0,
+                    padding: `${spacing[3]} ${spacing[4]}`,
+                    borderRadius: msg.role === 'user'
+                      ? `${radius.xl} ${radius.xl} ${spacing[1]} ${radius.xl}`
+                      : `${radius.xl} ${radius.xl} ${radius.xl} ${spacing[1]}`,
+                    backgroundColor: msg.role === 'user' ? colors.accent : colors.bgCard,
+                    border: msg.role === 'assistant' ? `1px solid ${colors.border}` : 'none',
                   }}
                 >
-                  {msg.content}
-                </p>
+                  {msg.role === 'user' ? (
+                    <p style={{ ...typography.body, color: colors.bgPrimary, whiteSpace: 'pre-wrap', lineHeight: '22px', margin: 0 }}>
+                      {msg.content}
+                    </p>
+                  ) : (
+                    <div style={{ ...typography.body, color: colors.textPrimary, lineHeight: '24px', wordBreak: 'break-word' }}>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({ node, ...props }) => <p style={{ margin: '0 0 10px 0', lineHeight: '1.6' }} {...(props as any)} />,
+                          ul: ({ node, ...props }) => <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }} {...(props as any)} />,
+                          ol: ({ node, ...props }) => <ol style={{ margin: '0 0 10px 0', paddingLeft: '20px' }} {...(props as any)} />,
+                          li: ({ node, ...props }) => <li style={{ marginBottom: '4px' }} {...(props as any)} />,
+                          h3: ({ node, ...props }) => <h3 style={{ ...typography.h3, marginTop: '14px', marginBottom: '8px', color: colors.textPrimary }} {...(props as any)} />,
+                          h4: ({ node, ...props }) => <h4 style={{ fontWeight: 600, marginTop: '12px', marginBottom: '6px' }} {...(props as any)} />,
+                          strong: ({ node, ...props }) => <strong style={{ color: colors.textPrimary }} {...(props as any)} />,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+
+                {/* Plan save button — only for completed assistant messages with plan content */}
+                {msg.role === 'assistant' && idx < messages.length - 1 && detectTrainingPlan(msg.content) && !savedPlanIds.has(msg.id) && (
+                  <button
+                    onClick={() => saveAIPlan(msg.id, msg.content)}
+                    disabled={savingPlan === msg.id}
+                    style={{
+                      alignSelf: 'flex-start',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing[2],
+                      padding: `${spacing[2]} ${spacing[3]}`,
+                      backgroundColor: colors.accentBg,
+                      border: `1px solid ${colors.accent}40`,
+                      borderRadius: radius.lg,
+                      cursor: 'pointer',
+                      transition: 'background-color 0.15s',
+                    }}
+                  >
+                    <BookOpen size={13} color={colors.accent} />
+                    <span style={{ ...typography.bodySm, color: colors.accent }}>
+                      {savingPlan === msg.id ? 'Wird gespeichert…' : 'Plan in App speichern'}
+                    </span>
+                  </button>
+                )}
+
+                {msg.role === 'assistant' && savedPlanIds.has(msg.id) && (
+                  <span style={{ ...typography.bodySm, color: colors.success, paddingLeft: spacing[1] }}>
+                    ✓ Plan gespeichert
+                  </span>
+                )}
               </div>
             </motion.div>
           ))}
@@ -392,14 +643,9 @@ export default function ChatPage() {
           >
             <div
               style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: radius.full,
+                width: '28px', height: '28px', borderRadius: radius.full,
                 background: `linear-gradient(135deg, ${colors.accent} 0%, ${colors.prColor} 100%)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}
             >
               <Bot size={14} color={colors.bgPrimary} />
@@ -410,18 +656,14 @@ export default function ChatPage() {
                 backgroundColor: colors.bgCard,
                 border: `1px solid ${colors.border}`,
                 borderRadius: `${radius.xl} ${radius.xl} ${radius.xl} ${spacing[1]}`,
-                display: 'flex',
-                gap: spacing[1],
-                alignItems: 'center',
+                display: 'flex', gap: spacing[1], alignItems: 'center',
               }}
             >
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
                   style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
+                    width: '6px', height: '6px', borderRadius: '50%',
                     backgroundColor: colors.textMuted,
                     animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
                   }}
@@ -477,7 +719,7 @@ export default function ChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Frag MAX..."
+            placeholder="Frag Coach Arved..."
             rows={1}
             style={{
               flex: 1,
@@ -498,21 +740,33 @@ export default function ChatPage() {
             }}
           />
 
+          {/* Mic button */}
+          <button
+            onClick={startListening}
+            disabled={listening}
+            style={{
+              width: '36px', height: '36px', borderRadius: radius.full,
+              backgroundColor: listening ? `${colors.danger}20` : 'transparent',
+              border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', flexShrink: 0, transition: 'background-color 0.15s',
+            }}
+          >
+            {listening
+              ? <MicOff size={18} color={colors.danger} style={{ animation: 'pulse 1s infinite' }} />
+              : <Mic size={18} color={colors.textMuted} />
+            }
+          </button>
+
+          {/* Send button */}
           <button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || isLoading}
             style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: radius.full,
+              width: '36px', height: '36px', borderRadius: radius.full,
               backgroundColor: input.trim() && !isLoading ? colors.accent : colors.bgElevated,
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: input.trim() && !isLoading ? 'pointer' : 'default',
-              flexShrink: 0,
-              transition: 'background-color 0.15s',
+              flexShrink: 0, transition: 'background-color 0.15s',
             }}
           >
             <Send size={16} color={input.trim() && !isLoading ? colors.bgPrimary : colors.textDisabled} />
@@ -520,18 +774,15 @@ export default function ChatPage() {
         </div>
         <p
           style={{
-            ...typography.label,
-            fontSize: '9px',
-            color: colors.textFaint,
-            textAlign: 'center',
-            marginTop: spacing[2],
+            ...typography.label, fontSize: '9px', color: colors.textFaint,
+            textAlign: 'center', marginTop: spacing[2],
           }}
         >
-          MAX kann Fehler machen — wichtige Entscheidungen immer mit einem Arzt absprechen.
+          Coach Arved kann Fehler machen — wichtige Entscheidungen stets doppelt prüfen.
         </p>
       </div>
 
-      {/* Bounce animation keyframes */}
+      {/* Animations */}
       <style>{`
         @keyframes bounce {
           0%, 60%, 100% { transform: translateY(0); }
@@ -546,9 +797,7 @@ function StatPill({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <div
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: spacing[1],
+        display: 'flex', alignItems: 'center', gap: spacing[1],
         padding: `${spacing[1]} ${spacing[3]}`,
         backgroundColor: colors.bgCard,
         border: `1px solid ${colors.border}`,

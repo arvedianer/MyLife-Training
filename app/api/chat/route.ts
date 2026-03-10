@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const runtime = 'nodejs';
 
-// Google Gemini — OpenAI-compatible API
-const gemini = new OpenAI({
-  apiKey: process.env.GEMINI_API_KEY ?? '',
-  baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
-});
+// Initialize the Gemini AI SDK
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -64,16 +61,16 @@ function buildSystemPrompt(
     ? `\nLETZTE WORKOUTS DES NUTZERS (neueste zuerst):\n${recentSessions}`
     : '';
 
-  return `Du bist MAX — ein direkter, motivierender Personal Trainer und Fitness-Coach in einer Trainings-App.
+  return `Du bist Coach Arved — ein direkter, motivierender Personal Trainer und Fitness-Coach in einer Trainings-App.
 
 DEIN STIL:
 - Kurz und präzise. Keine langen Romane. Max 3-4 Absätze pro Antwort.
 - Deutsch sprechen. Locker, aber professionell — wie ein guter Kumpel der auch PT ist.
-- Konkret und datenbasiert: Du nutzt die echten Workout-Daten des Nutzers wenn relevant.
+- Konkret und datenbasiert: Du nutzt die echten Workout-Daten des Nutzers, wenn relevant.
 - Motivierend, aber realistisch — kein leeres Gerede.
 - Du weißt was du sagst: Evidenzbasiertes Training, keine Broscience.
 - Du verwendest gelegentlich Emojis, aber sparsam (1-2 pro Nachricht).
-- Du fragst nach wenn dir Infos fehlen.
+- Du fragst nach, wenn dir Infos fehlen.
 
 DEINE EXPERTISE:
 - Progressive Overload, Periodisierung, Split-Programmierung
@@ -86,14 +83,14 @@ NUTZER-PROFIL:
 ${name} ${goal} ${level} ${equipment} ${streak} ${sessions} ${weekVol}
 ${historySection}
 
-WICHTIG: Wenn der Nutzer nach spezifischen Daten aus seinem Training fragt (z.B. "Was hab ich letzte Woche gemacht?"), nutze die obigen Workout-Daten. Wenn keine Daten vorhanden, sag das ehrlich.`;
+WICHTIG: Wenn der Nutzer nach spezifischen Daten aus seinem Training fragt (z.B. "Was hab ich letzte Woche gemacht?"), lies unbedingt die obigen Workout-Daten aus der History. Wenn keine Daten vorhanden, sag das ehrlich. Formatiere deine Antworten sauber (Bullet points, bold text) für gute Lesbarkeit.`;
 }
 
 const NO_KEY_REPLY =
   'Hey! Ich bin gerade offline. Trag deinen GEMINI_API_KEY in der .env.local ein, dann bin ich für dich da. 💪';
 
 const RATE_LIMIT_REPLY =
-  'Ich bin gerade kurz überlastet — zu viele Anfragen auf einmal. Versuch es in ein paar Sekunden nochmal! 💪';
+  'Ich bin gerade kurz überlastet oder es gab ein Problem — versuch es gleich noch einmal! 💪';
 
 export async function POST(req: NextRequest) {
   if (!process.env.GEMINI_API_KEY) {
@@ -116,20 +113,31 @@ export async function POST(req: NextRequest) {
   const systemPrompt = buildSystemPrompt(userProfile, workoutHistory);
 
   try {
-    const completion = await gemini.chat.completions.create({
-      model: 'gemini-2.0-flash-lite',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages.map((m) => ({ role: m.role, content: m.content })),
-      ],
-      max_tokens: 600,
-      temperature: 0.8,
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      systemInstruction: systemPrompt,
+      generationConfig: {
+        maxOutputTokens: 2000,
+        temperature: 0.8,
+      }
     });
 
-    const reply = completion.choices[0]?.message?.content ?? RATE_LIMIT_REPLY;
+    // Format history for Gemini API natively
+    // Note: The new @google/generative-ai SDK requires 'user' or 'model' roles.
+    const history = messages.slice(0, -1).map((msg) => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }],
+    }));
+
+    const latestMessage = messages[messages.length - 1].content;
+
+    const chat = model.startChat({ history });
+    const result = await chat.sendMessage(latestMessage);
+    const reply = result.response.text() || RATE_LIMIT_REPLY;
+
     return NextResponse.json({ reply });
-  } catch (err) {
+  } catch (err: any) {
     console.error('[chat] Gemini error:', err);
-    return NextResponse.json({ reply: RATE_LIMIT_REPLY });
+    return NextResponse.json({ reply: RATE_LIMIT_REPLY, error: err.message, stack: err.stack });
   }
 }
