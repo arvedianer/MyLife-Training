@@ -33,10 +33,13 @@ interface AiCoachRequest {
   };
 }
 
-interface DeviceBusyResponse {
-  alternative: string;
+interface DeviceBusyAlternative {
+  name: string;
   reason: string;
-  weightNote?: string;
+}
+
+interface DeviceBusyResponse {
+  alternatives: DeviceBusyAlternative[];
 }
 
 interface PostWorkoutResponse {
@@ -49,15 +52,17 @@ type AiResponse = DeviceBusyResponse | PostWorkoutResponse;
 function buildDeviceBusyPrompt(input: string, profile: AiCoachRequest['userProfile']): string {
   const equipment = profile?.equipment ?? 'Fitnessstudio';
   const goal = profile?.goal ?? 'Muskelaufbau';
-  return `Du bist ein Fitness-Coach der kurze, direkte Antworten gibt. Ein Nutzer kann die folgende Übung nicht ausführen, weil das Gerät besetzt ist: "${input}".
+  return `Du bist ein Fitness-Coach. Ein Nutzer kann die Übung "${input}" nicht ausführen, weil das Gerät besetzt ist.
 
 Ziel: ${goal}, Equipment: ${equipment}.
 
-Schlage EINE alternative Übung vor, die ähnliche Muskelgruppen trainiert. Antworte NUR mit diesem JSON:
+Schlage DREI verschiedene Alternativen vor, die dieselbe Muskelgruppe trainieren (unterschiedliche Geräte/Varianten). Antworte NUR mit diesem JSON:
 {
-  "alternative": "Name der Alternativübung",
-  "reason": "Kurze Begründung (max. 15 Wörter)",
-  "weightNote": "Gewichtshinweis falls nötig, sonst leerer String"
+  "alternatives": [
+    { "name": "Name der 1. Alternative", "reason": "Kurz (max 10 Wörter)" },
+    { "name": "Name der 2. Alternative", "reason": "Kurz (max 10 Wörter)" },
+    { "name": "Name der 3. Alternative", "reason": "Kurz (max 10 Wörter)" }
+  ]
 }`;
 }
 
@@ -114,19 +119,25 @@ Regeln: highlights müssen echte Daten aus dem Workout nutzen. Wenn Volumen/Daue
 
 const OFFLINE_FALLBACKS: Record<TriggerType, AiResponse> = {
   device_busy: {
-    alternative: 'Kurzhantel-Variante',
-    reason: 'Gleiche Muskelgruppe, überall verfügbar',
-    weightNote: '',
+    alternatives: [
+      { name: 'Kurzhantel-Variante', reason: 'Gleiche Muskelgruppe, überall verfügbar' },
+      { name: 'Kabelzug-Variante', reason: 'Konstanter Widerstand über ganzen Bewegungsumfang' },
+      { name: 'Körpergewicht-Variante', reason: 'Keine Geräte benötigt' },
+    ],
   },
   pain: {
-    alternative: 'Leichtere Variante',
-    reason: 'Schonender für das Gelenk',
-    weightNote: '',
+    alternatives: [
+      { name: 'Leichtere Variante', reason: 'Schonender für das Gelenk' },
+      { name: 'Dehnübung', reason: 'Mobilisierung ohne Belastung' },
+      { name: 'Isolationsübung', reason: 'Weniger Gelenk-Stress' },
+    ],
   },
   time_crunch: {
-    alternative: 'Supersatz-Kombination',
-    reason: 'Spart Zeit durch kombinierte Übungen',
-    weightNote: '',
+    alternatives: [
+      { name: 'Supersatz-Kombination', reason: 'Spart Zeit durch kombinierte Übungen' },
+      { name: 'Dropset-Variante', reason: 'Mehr Volumen in weniger Zeit' },
+      { name: 'Kurzhantel-Schnellversion', reason: 'Setup-Zeit entfällt' },
+    ],
   },
   post_workout: {
     highlights: ['Workout abgeschlossen!', 'Konsistenz ist der Schlüssel.', 'Bleib auf Kurs.'],
@@ -173,7 +184,7 @@ export async function POST(req: NextRequest) {
     const completion = await gemini.chat.completions.create({
       model: 'gemini-2.0-flash-lite',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 300,
+      max_tokens: triggerType === 'device_busy' ? 500 : 300,
       temperature: 0.7,
     });
 

@@ -65,6 +65,7 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Init active conversation
   useEffect(() => {
@@ -190,24 +191,50 @@ export default function ChatPage() {
     }
   };
 
-  // --- Voice input ---
-  const startListening = () => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      setError('Spracheingabe wird von deinem Browser nicht unterstützt.');
+  // --- Voice input (toggle: click once to start, again to stop) ---
+  const toggleListening = () => {
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
       return;
     }
-    const recognition = new SR();
-    recognition.lang = 'de-DE';
-    recognition.interimResults = false;
-    recognition.onresult = (e: any) => {
-      const transcript = e.results[0][0].transcript as string;
-      setInput((prev) => prev + (prev ? ' ' : '') + transcript);
-    };
-    recognition.onend = () => setListening(false);
-    recognition.onerror = () => setListening(false);
-    recognition.start();
-    setListening(true);
+
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      setError('Spracheingabe nicht unterstützt. Bitte Chrome oder Edge verwenden.');
+      return;
+    }
+
+    try {
+      const recognition = new SR();
+      recognitionRef.current = recognition;
+      recognition.lang = 'de-DE';
+      recognition.interimResults = false;
+      recognition.continuous = false;
+
+      recognition.onresult = (e: any) => {
+        const transcript = e.results[0][0].transcript as string;
+        setInput((prev) => prev + (prev ? ' ' : '') + transcript);
+      };
+      recognition.onend = () => {
+        setListening(false);
+        recognitionRef.current = null;
+      };
+      recognition.onerror = (e: any) => {
+        setListening(false);
+        recognitionRef.current = null;
+        if (e.error === 'not-allowed') {
+          setError('Mikrofon-Zugriff verweigert — bitte in den Browser-Einstellungen erlauben.');
+        } else if (e.error !== 'no-speech') {
+          setError('Spracheingabe fehlgeschlagen. Bitte erneut versuchen.');
+        }
+      };
+
+      recognition.start();
+      setListening(true);
+    } catch {
+      setError('Spracheingabe konnte nicht gestartet werden.');
+    }
   };
 
   // --- Save AI plan ---
@@ -740,19 +767,20 @@ export default function ChatPage() {
             }}
           />
 
-          {/* Mic button */}
+          {/* Mic button — click to start, click again to stop */}
           <button
-            onClick={startListening}
-            disabled={listening}
+            onClick={toggleListening}
+            title={listening ? 'Aufnahme stoppen' : 'Spracheingabe starten'}
             style={{
               width: '36px', height: '36px', borderRadius: radius.full,
               backgroundColor: listening ? `${colors.danger}20` : 'transparent',
-              border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', flexShrink: 0, transition: 'background-color 0.15s',
+              border: listening ? `1px solid ${colors.danger}40` : 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
             }}
           >
             {listening
-              ? <MicOff size={18} color={colors.danger} style={{ animation: 'pulse 1s infinite' }} />
+              ? <MicOff size={18} color={colors.danger} />
               : <Mic size={18} color={colors.textMuted} />
             }
           </button>

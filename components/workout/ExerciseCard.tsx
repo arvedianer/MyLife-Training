@@ -1,12 +1,13 @@
 'use client';
 
-import { Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Target, Timer, TrendingUp, Check, ArrowUp, ArrowDown, ArrowLeftRight, Loader2, X } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Target, Timer, TrendingUp, Check, ArrowUp, ArrowDown, ArrowLeftRight, Loader2, X, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { SetRow } from './SetRow';
 import { Badge } from '@/components/ui/Badge';
 import type { WorkoutExercise } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
+import { exercises as exerciseDb } from '@/constants/exercises';
 import styles from './ExerciseCard.module.css';
 
 interface OverloadSuggestion {
@@ -51,11 +52,11 @@ export function ExerciseCard({
   const [customRest, setCustomRest] = useState<number | null>(null);
   const [isEditingRest, setIsEditingRest] = useState(false);
   const [busyLoading, setBusyLoading] = useState(false);
-  const [busyAlt, setBusyAlt] = useState<{ alternative: string; reason: string; weightNote?: string } | null>(null);
+  const [busyAlts, setBusyAlts] = useState<{ name: string; reason: string }[] | null>(null);
 
   const handleDeviceBusy = async () => {
     setBusyLoading(true);
-    setBusyAlt(null);
+    setBusyAlts(null);
     try {
       const res = await fetch('/api/ai-coach', {
         method: 'POST',
@@ -66,11 +67,32 @@ export function ExerciseCard({
         }),
       });
       const data = await res.json();
-      if (data.alternative) setBusyAlt(data);
+      if (Array.isArray(data.alternatives) && data.alternatives.length > 0) {
+        setBusyAlts(data.alternatives);
+      }
     } catch {
-      setBusyAlt({ alternative: 'Kurzhantel-Variante', reason: 'Gleiche Muskelgruppe, überall verfügbar' });
+      setBusyAlts([
+        { name: 'Kurzhantel-Variante', reason: 'Gleiche Muskelgruppe, überall verfügbar' },
+        { name: 'Kabelzug-Variante', reason: 'Konstanter Widerstand' },
+        { name: 'Körpergewicht-Variante', reason: 'Kein Gerät nötig' },
+      ]);
     } finally {
       setBusyLoading(false);
+    }
+  };
+
+  const handleSelectAlternative = (altName: string) => {
+    // Try to find the exercise in the DB (case-insensitive name match)
+    const needle = altName.toLowerCase().trim();
+    const found = exerciseDb.find(
+      (e) => e.nameDE.toLowerCase() === needle || e.name.toLowerCase() === needle,
+    );
+    if (found && onReplaceExercise) {
+      onReplaceExercise(found);
+      setBusyAlts(null);
+    } else {
+      // Exercise not in DB — just dismiss (coach suggested custom name)
+      setBusyAlts(null);
     }
   };
 
@@ -280,36 +302,68 @@ export function ExerciseCard({
       </div>
 
       {/* Device Busy Alternative Card */}
-      {busyAlt && (
+      {busyAlts && (
         <div
           style={{
             margin: `0 ${spacing[4]} ${spacing[3]}`,
             padding: spacing[3],
-            backgroundColor: `${colors.accent}10`,
-            border: `1px solid ${colors.accent}30`,
+            backgroundColor: `${colors.accent}08`,
+            border: `1px solid ${colors.accent}25`,
             borderRadius: radius.lg,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing[2] }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginBottom: '4px' }}>
-                <ArrowLeftRight size={13} color={colors.accent} />
-                <span style={{ ...typography.label, color: colors.accent, fontSize: '10px' }}>ALTERNATIVE VORSCHLAG</span>
-              </div>
-              <p style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600', marginBottom: '2px' }}>
-                {busyAlt.alternative}
-              </p>
-              <p style={{ ...typography.bodySm, color: colors.textMuted }}>{busyAlt.reason}</p>
-              {busyAlt.weightNote && (
-                <p style={{ ...typography.bodySm, color: colors.textFaint, marginTop: '2px' }}>{busyAlt.weightNote}</p>
-              )}
+          {/* Header row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[2] }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
+              <RefreshCw size={12} color={colors.accent} />
+              <span style={{ ...typography.label, color: colors.accent, fontSize: '10px' }}>ALTERNATIVE AUSWÄHLEN</span>
             </div>
-            <button
-              onClick={() => setBusyAlt(null)}
-              style={{ padding: '2px', flexShrink: 0 }}
-            >
+            <button onClick={() => setBusyAlts(null)} style={{ padding: '2px' }}>
               <X size={14} color={colors.textFaint} />
             </button>
+          </div>
+
+          {/* Alternative buttons */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
+            {busyAlts.map((alt, i) => {
+              const inDb = exerciseDb.some(
+                (e) => e.nameDE.toLowerCase() === alt.name.toLowerCase() || e.name.toLowerCase() === alt.name.toLowerCase(),
+              );
+              return (
+                <button
+                  key={i}
+                  onClick={() => handleSelectAlternative(alt.name)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: `${spacing[2]} ${spacing[3]}`,
+                    backgroundColor: colors.bgCard,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: radius.md,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'border-color 0.15s',
+                    gap: spacing[2],
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = colors.accent; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = colors.border; }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing[1] }}>
+                      <span style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600', fontSize: '13px' }}>
+                        {alt.name}
+                      </span>
+                      {!inDb && (
+                        <span style={{ ...typography.label, color: colors.textFaint, fontSize: '9px' }}>custom</span>
+                      )}
+                    </div>
+                    <span style={{ ...typography.bodySm, color: colors.textMuted, fontSize: '11px' }}>{alt.reason}</span>
+                  </div>
+                  <ArrowLeftRight size={13} color={inDb ? colors.accent : colors.textDisabled} />
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

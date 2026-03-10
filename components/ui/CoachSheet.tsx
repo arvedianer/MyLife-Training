@@ -36,9 +36,11 @@ export function CoachSheet({ isOpen, onClose }: CoachSheetProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [listening, setListening] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Ensure there's an active conversation when sheet opens
   useEffect(() => {
@@ -157,20 +159,48 @@ export function CoachSheet({ isOpen, onClose }: CoachSheetProps) {
     }
   };
 
-  const startListening = () => {
+  const toggleListening = () => {
+    setMicError(null);
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) return;
-    const recognition = new SR();
-    recognition.lang = 'de-DE';
-    recognition.interimResults = false;
-    recognition.onresult = (e: any) => {
-      const transcript = e.results[0][0].transcript as string;
-      setInput((prev) => prev + (prev ? ' ' : '') + transcript);
-    };
-    recognition.onend = () => setListening(false);
-    recognition.onerror = () => setListening(false);
-    recognition.start();
-    setListening(true);
+    if (!SR) {
+      setMicError('Spracheingabe nicht unterstützt (Chrome/Edge)');
+      return;
+    }
+
+    try {
+      const recognition = new SR();
+      recognitionRef.current = recognition;
+      recognition.lang = 'de-DE';
+      recognition.interimResults = false;
+      recognition.continuous = false;
+
+      recognition.onresult = (e: any) => {
+        const transcript = e.results[0][0].transcript as string;
+        setInput((prev) => prev + (prev ? ' ' : '') + transcript);
+      };
+      recognition.onend = () => {
+        setListening(false);
+        recognitionRef.current = null;
+      };
+      recognition.onerror = (e: any) => {
+        setListening(false);
+        recognitionRef.current = null;
+        if (e.error === 'not-allowed') {
+          setMicError('Mikrofon-Zugriff verweigert');
+        }
+      };
+
+      recognition.start();
+      setListening(true);
+    } catch {
+      setMicError('Spracheingabe konnte nicht gestartet werden.');
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -420,19 +450,20 @@ export function CoachSheet({ isOpen, onClose }: CoachSheetProps) {
                     el.style.height = `${Math.min(el.scrollHeight, 80)}px`;
                   }}
                 />
-                {/* Mic button */}
+                {/* Mic button — click to start, again to stop */}
                 <button
-                  onClick={startListening}
-                  disabled={listening}
+                  onClick={toggleListening}
+                  title={listening ? 'Aufnahme stoppen' : 'Spracheingabe starten'}
                   style={{
                     width: '32px', height: '32px', borderRadius: radius.full,
                     backgroundColor: listening ? `${colors.danger}20` : 'transparent',
-                    border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', flexShrink: 0, transition: 'background-color 0.15s',
+                    border: listening ? `1px solid ${colors.danger}40` : 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
                   }}
                 >
                   {listening
-                    ? <MicOff size={16} color={colors.danger} style={{ animation: 'pulse 1s infinite' }} />
+                    ? <MicOff size={16} color={colors.danger} />
                     : <Mic size={16} color={colors.textMuted} />
                   }
                 </button>
@@ -451,6 +482,11 @@ export function CoachSheet({ isOpen, onClose }: CoachSheetProps) {
                   <Send size={14} color={input.trim() && !isLoading ? colors.bgPrimary : colors.textDisabled} />
                 </button>
               </div>
+              {micError && (
+                <p style={{ ...typography.label, fontSize: '10px', color: colors.danger, marginTop: spacing[1], paddingLeft: spacing[1] }}>
+                  {micError}
+                </p>
+              )}
             </div>
           </motion.div>
         </>

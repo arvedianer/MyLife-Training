@@ -30,8 +30,8 @@ export function BottomNav() {
       }}
     >
       {/* Left tabs */}
-      <NavTab href="/dashboard" icon={<Home size={22} color={isActive('/dashboard') ? colors.accent : colors.textDisabled} />} label="Home"   active={isActive('/dashboard')} />
-      <NavTab href="/splits"    icon={<Layers  size={22} color={isActive('/splits')    ? colors.accent : colors.textDisabled} />} label="Splits"  active={isActive('/splits')} />
+      <NavTab href="/dashboard" icon={<Home size={22} color={isActive('/dashboard') ? colors.accent : colors.textDisabled} />} label="Home" active={isActive('/dashboard')} />
+      <NavTab href="/splits" icon={<Layers size={22} color={isActive('/splits') ? colors.accent : colors.textDisabled} />} label="Splits" active={isActive('/splits')} />
 
       {/* Center FAB */}
       <Link
@@ -61,7 +61,7 @@ export function BottomNav() {
 
       {/* Right tabs */}
       <NavTab href="/exercises" icon={<Dumbbell size={22} color={isActive('/exercises') ? colors.accent : colors.textDisabled} />} label="Übungen" active={isActive('/exercises')} />
-      <NavTab href="/stats"     icon={<BarChart2 size={22} color={isActive('/stats')     ? colors.accent : colors.textDisabled} />} label="Stats"   active={isActive('/stats')} />
+      <NavTab href="/stats" icon={<BarChart2 size={22} color={isActive('/stats') ? colors.accent : colors.textDisabled} />} label="Stats" active={isActive('/stats')} />
     </nav>
   );
 }
