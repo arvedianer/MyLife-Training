@@ -7,7 +7,7 @@ import { SetRow } from './SetRow';
 import { Badge } from '@/components/ui/Badge';
 import type { WorkoutExercise } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
-import { exercises as exerciseDb } from '@/constants/exercises';
+import { exercises as exerciseDb, findExerciseByName } from '@/constants/exercises';
 import styles from './ExerciseCard.module.css';
 
 interface OverloadSuggestion {
@@ -57,6 +57,13 @@ export function ExerciseCard({
   const handleDeviceBusy = async () => {
     setBusyLoading(true);
     setBusyAlts(null);
+
+    // Same-muscle exercises from DB (excluding current) — sent to AI so it picks exact names
+    const sameMusclExercises = exerciseDb
+      .filter((e) => e.primaryMuscle === exercise.primaryMuscle && e.id !== exercise.id)
+      .map((e) => e.nameDE)
+      .slice(0, 15);
+
     try {
       const res = await fetch('/api/ai-coach', {
         method: 'POST',
@@ -64,36 +71,41 @@ export function ExerciseCard({
         body: JSON.stringify({
           triggerType: 'device_busy',
           userInput: exercise.nameDE,
+          availableExercises: sameMusclExercises,
         }),
       });
       const data = await res.json();
       if (Array.isArray(data.alternatives) && data.alternatives.length > 0) {
         setBusyAlts(data.alternatives);
+      } else {
+        // Fallback: use real DB exercises if AI returned nothing useful
+        setBusyAlts(
+          sameMusclExercises.slice(0, 3).map((name) => ({
+            name,
+            reason: 'Alternative aus der Übungsdatenbank',
+          })),
+        );
       }
     } catch {
-      setBusyAlts([
-        { name: 'Kurzhantel-Variante', reason: 'Gleiche Muskelgruppe, überall verfügbar' },
-        { name: 'Kabelzug-Variante', reason: 'Konstanter Widerstand' },
-        { name: 'Körpergewicht-Variante', reason: 'Kein Gerät nötig' },
-      ]);
+      // Offline fallback: real DB exercises, not generic placeholder strings
+      setBusyAlts(
+        sameMusclExercises.slice(0, 3).map((name) => ({
+          name,
+          reason: 'Alternative aus der Übungsdatenbank',
+        })),
+      );
     } finally {
       setBusyLoading(false);
     }
   };
 
   const handleSelectAlternative = (altName: string) => {
-    // Try to find the exercise in the DB (case-insensitive name match)
-    const needle = altName.toLowerCase().trim();
-    const found = exerciseDb.find(
-      (e) => e.nameDE.toLowerCase() === needle || e.name.toLowerCase() === needle,
-    );
+    // Use fuzzy matching so AI names like "Kniebeugen" match "Langhantel Kniebeugen"
+    const found = findExerciseByName(altName);
     if (found && onReplaceExercise) {
       onReplaceExercise(found);
-      setBusyAlts(null);
-    } else {
-      // Exercise not in DB — just dismiss (coach suggested custom name)
-      setBusyAlts(null);
     }
+    setBusyAlts(null);
   };
 
   const { exercise, sets } = workoutExercise;
@@ -326,9 +338,7 @@ export function ExerciseCard({
           {/* Alternative buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
             {busyAlts.map((alt, i) => {
-              const inDb = exerciseDb.some(
-                (e) => e.nameDE.toLowerCase() === alt.name.toLowerCase() || e.name.toLowerCase() === alt.name.toLowerCase(),
-              );
+              const inDb = !!findExerciseByName(alt.name);
               return (
                 <button
                   key={i}

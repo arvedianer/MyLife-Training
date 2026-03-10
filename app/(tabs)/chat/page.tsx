@@ -9,7 +9,7 @@ import { useChatStore } from '@/store/chatStore';
 import { usePlanStore } from '@/store/planStore';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { calculateStreak } from '@/utils/dates';
-import { getExerciseById } from '@/constants/exercises';
+import { getExerciseById, findExerciseByName } from '@/constants/exercises';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -255,11 +255,16 @@ export default function ChatPage() {
           type: 'custom',
           description: 'Von Coach Arved erstellt',
           scienceNote: '',
-          days: data.days.map((d: { name: string; exercises: string[] }, i: number): SplitDay => ({
+          days: data.days.map((d: { name: string; exercises: string[] }): SplitDay => ({
             id: generateId(),
             name: d.name,
             muscleGroups: [],
-            exerciseIds: [],
+            // Map AI exercise names → real DB exercise IDs via fuzzy matching
+            exerciseIds: Array.isArray(d.exercises)
+              ? d.exercises
+                  .map((name: string) => findExerciseByName(name)?.id)
+                  .filter((id): id is string => !!id)
+              : [],
             restDay: false,
           })),
           daysPerWeek: data.days.length,
@@ -625,8 +630,8 @@ export default function ChatPage() {
                   )}
                 </div>
 
-                {/* Plan save button — only for completed assistant messages with plan content */}
-                {msg.role === 'assistant' && idx < messages.length - 1 && detectTrainingPlan(msg.content) && !savedPlanIds.has(msg.id) && (
+                {/* Plan save button — for completed assistant messages with plan content */}
+                {msg.role === 'assistant' && (idx < messages.length - 1 || !isLoading) && detectTrainingPlan(msg.content) && !savedPlanIds.has(msg.id) && (
                   <button
                     onClick={() => saveAIPlan(msg.id, msg.content)}
                     disabled={savingPlan === msg.id}
