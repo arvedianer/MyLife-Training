@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, X, Check, Clock, RotateCcw, Star } from 'lucide-react';
+import { Plus, X, Check, Clock, RotateCcw, Star, Mic, MicOff, Loader2 } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { ExerciseCard } from '@/components/workout/ExerciseCard';
 import { Button } from '@/components/ui/Button';
@@ -16,6 +16,9 @@ import { useUserStore } from '@/store/userStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { calculateOverloadSuggestion } from '@/utils/overload';
 import { formatDuration } from '@/utils/dates';
+import { findExerciseByName } from '@/constants/exercises';
+import { useExerciseStore } from '@/store/exerciseStore';
+import { useWorkoutStore } from '@/store/workoutStore';
 import styles from './page.module.css';
 
 export default function ActiveWorkoutPage() {
@@ -52,13 +55,31 @@ export default function ActiveWorkoutPage() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isFinishing = useRef(false); // prevents the "no workout" redirect from firing during completion
 
+  const [isListening, setIsListening] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const manualStopRef = useRef(false);
+
+  // Pending confirmation: KI hat etwas verstanden, User muss bestätigen
+  interface PendingConfirm {
+    exerciseId?: string;
+    exerciseName: string;
+    isNew: boolean;       // Übung noch nicht im Workout
+    weight: number;
+    reps: number;
+    resolvedExercise?: ReturnType<typeof findExerciseByName>; // für isNew-Fall
+  }
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
+
   // Wake Lock — keep screen on during active workout
   useEffect(() => {
     let lock: WakeLockSentinel | null = null;
     if ('wakeLock' in navigator) {
-      navigator.wakeLock.request('screen').then(l => { lock = l; }).catch(() => {});
+      navigator.wakeLock.request('screen').then(l => { lock = l; }).catch(() => { });
     }
-    return () => { lock?.release().catch(() => {}); };
+    return () => { lock?.release().catch(() => { }); };
   }, []);
 
   // Workout-Timer — clear before set to prevent accumulation
@@ -136,6 +157,202 @@ export default function ActiveWorkoutPage() {
 
     toggleSetComplete(exerciseId, setId);
     // Rest-Timer wird von SetRow → ExerciseCard → onStartTimer gehandelt
+  };
+
+  // Step 1: Parse voice → set pendingConfirm (don't execute yet)
+  const handleParseSet = async (text: string) => {
+    if (!text.trim() || !activeWorkout) return;
+    setIsParsing(true);
+    setVoiceError(null);
+    setPendingConfirm(null);
+    try {
+      const res = await fetch('/api/chat/parse-set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          exercises: activeWorkout.exercises.map(e => ({ id: e.id, name: e.exercise.nameDE || e.exercise.name }))
+        })
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        setVoiceError('Konnte Eingabe nicht verstehen. Bitte nochmal versuchen.');
+        setTimeout(() => setVoiceError(null), 3500);
+        return;
+      }
+
+      if (data.exerciseId) {
+        // Existing exercise in workout — show confirmation
+        const exItem = activeWorkout.exercises.find(e => e.id === data.exerciseId);
+        if (exItem) {
+          setPendingConfirm({
+            exerciseId: exItem.id,
+            exerciseName: exItem.exercise.nameDE || exItem.exercise.name,
+            isNew: false,
+            weight: data.weight ?? 0,
+            reps: data.reps ?? 0,
+          });
+        }
+      } else if (data.newExerciseName) {
+        // New exercise — resolve from DB, then show confirmation
+        const resolved = findExerciseByName(data.newExerciseName)
+          ?? useExerciseStore.getState().customExercises.find(
+            (e) => e.nameDE.toLowerCase().includes(data.newExerciseName.toLowerCase())
+              || e.name.toLowerCase().includes(data.newExerciseName.toLowerCase())
+          );
+
+        setPendingConfirm({
+          exerciseName: resolved?.nameDE ?? data.newExerciseName,
+          isNew: true,
+          weight: data.weight ?? 0,
+          reps: data.reps ?? 0,
+          resolvedExercise: resolved ?? undefined,
+        });
+      }
+    } catch {
+      setVoiceError('Fehler bei der Spracheingabe.');
+      setTimeout(() => setVoiceError(null), 3500);
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  // Step 2: User confirms → execute the action
+  const handleConfirmVoice = () => {
+    if (!pendingConfirm || !activeWorkout) return;
+    const { exerciseId, isNew, weight, reps, resolvedExercise, exerciseName } = pendingConfirm;
+    setPendingConfirm(null);
+
+    if (!isNew && exerciseId) {
+      // Update existing exercise set
+      const exItem = activeWorkout.exercises.find(e => e.id === exerciseId);
+      if (exItem) {
+        const uncompleted = exItem.sets.filter(s => !s.isCompleted);
+        if (uncompleted.length > 0) {
+          updateSet(exItem.id, uncompleted[0].id, { weight, reps });
+          handleToggleSet(exItem.id, uncompleted[0].id);
+        } else {
+          setVoiceError(`${exerciseName} hat keine offenen Sätze mehr.`);
+          setTimeout(() => setVoiceError(null), 3000);
+          return;
+        }
+      }
+    } else {
+      // Add new exercise to workout
+      let globalEx = resolvedExercise;
+
+      if (!globalEx) {
+        // Create custom exercise on the fly
+        const newId = `custom-ai-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        globalEx = {
+          id: newId,
+          name: exerciseName,
+          nameDE: exerciseName,
+          primaryMuscle: 'core',
+          secondaryMuscles: [],
+          equipment: [],
+          category: 'compound',
+          defaultSets: 3,
+          defaultReps: 10,
+          defaultWeight: 0,
+          repRange: { min: 8, max: 12 },
+          restSeconds: 90,
+          scienceNote: 'Manuell per Sprache hinzugefügt',
+          createdBy: 'coach',
+        } as NonNullable<ReturnType<typeof findExerciseByName>>;
+        useExerciseStore.getState().addCustomExercise(globalEx);
+      }
+
+      useWorkoutStore.getState().addExercise(globalEx);
+
+      setTimeout(() => {
+        const state = useWorkoutStore.getState().activeWorkout;
+        if (!state) return;
+        const newExItem = state.exercises[state.exercises.length - 1];
+        if (newExItem && newExItem.exercise.id === globalEx!.id) {
+          const uncomp = newExItem.sets.filter(s => !s.isCompleted);
+          if (uncomp.length > 0 && (weight > 0 || reps > 0)) {
+            useWorkoutStore.getState().updateSet(newExItem.id, uncomp[0].id, { weight, reps });
+            useWorkoutStore.getState().toggleSetComplete(newExItem.id, uncomp[0].id);
+          }
+        }
+      }, 80);
+    }
+
+    const wText = weight > 0 ? `${weight}kg` : 'Eigengewicht';
+    setVoiceMessage(`✓ Eingetragen: ${exerciseName}\n${wText} × ${reps} Wdh.`);
+    setTimeout(() => setVoiceMessage(null), 3500);
+  };
+
+  const toggleListening = () => {
+    setVoiceError(null);
+    setVoiceMessage(null);
+    if (isListening) {
+      manualStopRef.current = true;
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      setVoiceError('Spracheingabe nicht unterstützt.');
+      return;
+    }
+
+    try {
+      manualStopRef.current = false;
+      const recognition = new SR();
+      recognitionRef.current = recognition;
+      recognition.lang = 'de-DE';
+      recognition.interimResults = false;
+      recognition.continuous = true;
+
+      recognition.onresult = (e: any) => {
+        let finalTranscript = '';
+        for (let i = e.resultIndex; i < e.results.length; ++i) {
+          if (e.results[i].isFinal) {
+            finalTranscript += e.results[i][0].transcript;
+          }
+        }
+        if (finalTranscript.trim()) {
+          handleParseSet(finalTranscript);
+        }
+      };
+
+      recognition.onend = () => {
+        if (!manualStopRef.current) {
+          try {
+            recognition.start();
+          } catch {
+            setIsListening(false);
+          }
+        } else {
+          setIsListening(false);
+          recognitionRef.current = null;
+        }
+      };
+
+      recognition.onerror = (e: any) => {
+        if (e.error === 'not-allowed') {
+          manualStopRef.current = true;
+          setVoiceError('Mikrofon-Zugriff verweigert.');
+          setIsListening(false);
+          recognitionRef.current = null;
+        } else if (e.error !== 'no-speech') {
+          manualStopRef.current = true;
+          setVoiceError('Fehler bei der Aufnahme.');
+          setIsListening(false);
+          recognitionRef.current = null;
+        }
+      };
+
+      recognition.start();
+      setIsListening(true);
+    } catch {
+      setVoiceError('Aufnahme konnte nicht gestartet werden.');
+    }
   };
 
   const progress = totalSetsCount > 0 ? completedSetsCount / totalSetsCount : 0;
@@ -263,6 +480,126 @@ export default function ActiveWorkoutPage() {
             </div>
           </>
         )}
+      </div>
+
+      {/* Voice Tracking FAB */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '100px',
+          right: spacing[4],
+          zIndex: 40,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: spacing[2],
+        }}
+      >
+          {/* KI Confirmation Card — "Was hat die KI verstanden?" */}
+        {pendingConfirm && (
+          <div style={{
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${colors.accent}50`,
+            borderRadius: radius.lg,
+            padding: spacing[3],
+            minWidth: '220px',
+            maxWidth: '280px',
+            boxShadow: `0 8px 24px ${colors.accent}25`,
+          }}>
+            <p style={{ ...typography.label, color: colors.accent, fontSize: '9px', marginBottom: spacing[1] }}>
+              {pendingConfirm.isNew ? 'NEUE ÜBUNG ERKANNT' : 'KI HAT VERSTANDEN'}
+            </p>
+            <p style={{ ...typography.body, color: colors.textPrimary, fontWeight: '700', marginBottom: '2px' }}>
+              {pendingConfirm.exerciseName}
+            </p>
+            <p style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[3] }}>
+              {pendingConfirm.weight > 0 ? `${pendingConfirm.weight} kg` : 'Eigengewicht'} × {pendingConfirm.reps} Wdh.
+              {!pendingConfirm.resolvedExercise && pendingConfirm.isNew && (
+                <span style={{ color: colors.warning, display: 'block', fontSize: '10px', marginTop: '2px' }}>
+                  ⚠ Nicht in DB — wird als Custom angelegt
+                </span>
+              )}
+            </p>
+            <div style={{ display: 'flex', gap: spacing[2] }}>
+              <button
+                onClick={handleConfirmVoice}
+                style={{
+                  flex: 1, padding: `${spacing[2]} ${spacing[2]}`,
+                  backgroundColor: colors.accent, border: 'none',
+                  borderRadius: radius.md, cursor: 'pointer',
+                  ...typography.label, color: colors.bgPrimary, fontWeight: '700',
+                }}
+              >
+                ✓ Eintragen
+              </button>
+              <button
+                onClick={() => setPendingConfirm(null)}
+                style={{
+                  flex: 1, padding: `${spacing[2]} ${spacing[2]}`,
+                  backgroundColor: colors.bgElevated, border: `1px solid ${colors.border}`,
+                  borderRadius: radius.md, cursor: 'pointer',
+                  ...typography.label, color: colors.textMuted,
+                }}
+              >
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        )}
+
+        {voiceMessage && (
+          <div style={{
+            ...typography.label,
+            color: colors.textPrimary,
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${colors.accent}40`,
+            padding: `${spacing[2]} ${spacing[3]}`,
+            borderRadius: radius.md,
+            boxShadow: `0 4px 12px ${colors.accent}20`,
+            whiteSpace: 'pre-wrap',
+            textAlign: 'right'
+          }}>
+            {voiceMessage}
+          </div>
+        )}
+        {voiceError && (
+          <div style={{
+            ...typography.label,
+            color: colors.bgPrimary,
+            backgroundColor: colors.danger,
+            padding: `${spacing[1]} ${spacing[3]}`,
+            borderRadius: radius.md,
+            boxShadow: `0 2px 8px ${colors.danger}40`,
+          }}>
+            {voiceError}
+          </div>
+        )}
+        <button
+          onClick={toggleListening}
+          disabled={isParsing}
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: radius.full,
+            backgroundColor: isListening ? colors.danger : colors.accent,
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: `0 4px 16px ${isListening ? colors.danger : colors.accent}80`,
+            cursor: isParsing ? 'wait' : 'pointer',
+            opacity: isParsing ? 0.8 : 1,
+            transition: 'background-color 0.2s',
+          }}
+        >
+          {isParsing ? (
+            <Loader2 size={24} color={colors.bgPrimary} style={{ animation: 'spin 1s linear infinite' }} />
+          ) : isListening ? (
+            <MicOff size={24} color={colors.bgPrimary} />
+          ) : (
+            <Mic size={24} color={colors.bgPrimary} />
+          )}
+        </button>
       </div>
 
 

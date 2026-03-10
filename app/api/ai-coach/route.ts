@@ -13,6 +13,7 @@ type TriggerType = 'device_busy' | 'pain' | 'time_crunch' | 'post_workout';
 interface AiCoachRequest {
   triggerType: TriggerType;
   userInput?: string;
+  availableExercises?: string[];  // Same-muscle exercises from DB for device_busy
   workoutContext?: {
     exercises: { name: string; sets: number; totalVolume: number }[];
     durationSeconds: number;
@@ -49,19 +50,29 @@ interface PostWorkoutResponse {
 
 type AiResponse = DeviceBusyResponse | PostWorkoutResponse;
 
-function buildDeviceBusyPrompt(input: string, profile: AiCoachRequest['userProfile']): string {
+function buildDeviceBusyPrompt(
+  input: string,
+  profile: AiCoachRequest['userProfile'],
+  availableExercises?: string[],
+): string {
   const equipment = profile?.equipment ?? 'Fitnessstudio';
   const goal = profile?.goal ?? 'Muskelaufbau';
+
+  // If we have DB exercises, instruct AI to pick from them → guaranteed match
+  const dbBlock = availableExercises && availableExercises.length > 0
+    ? `\n\nÜBUNGEN AUS DER APP-DATENBANK (gleiche Muskelgruppe, wähle bevorzugt aus dieser Liste):\n${availableExercises.slice(0, 15).map((e) => `- ${e}`).join('\n')}\n\nWICHTIG: Verwende die Übungsnamen EXAKT wie in der Liste — damit die Übung direkt in der App ersetzt wird.`
+    : '';
+
   return `Du bist ein Fitness-Coach. Ein Nutzer kann die Übung "${input}" nicht ausführen, weil das Gerät besetzt ist.
 
-Ziel: ${goal}, Equipment: ${equipment}.
+Ziel: ${goal}, Equipment: ${equipment}.${dbBlock}
 
-Schlage DREI verschiedene Alternativen vor, die dieselbe Muskelgruppe trainieren (unterschiedliche Geräte/Varianten). Antworte NUR mit diesem JSON:
+Schlage DREI verschiedene Alternativen vor, die dieselbe Muskelgruppe trainieren. Antworte NUR mit diesem JSON:
 {
   "alternatives": [
-    { "name": "Name der 1. Alternative", "reason": "Kurz (max 10 Wörter)" },
-    { "name": "Name der 2. Alternative", "reason": "Kurz (max 10 Wörter)" },
-    { "name": "Name der 3. Alternative", "reason": "Kurz (max 10 Wörter)" }
+    { "name": "Exakter Übungsname", "reason": "Kurz (max 10 Wörter)" },
+    { "name": "Exakter Übungsname", "reason": "Kurz (max 10 Wörter)" },
+    { "name": "Exakter Übungsname", "reason": "Kurz (max 10 Wörter)" }
   ]
 }`;
 }
@@ -170,12 +181,12 @@ export async function POST(req: NextRequest) {
     userId = data.user?.id ?? null;
   }
 
-  const { triggerType, userInput, workoutContext, userProfile, previousSessions } = body;
+  const { triggerType, userInput, availableExercises, workoutContext, userProfile, previousSessions } = body;
 
   const prompt =
     triggerType === 'post_workout'
       ? buildPostWorkoutPrompt(workoutContext, userProfile, previousSessions)
-      : buildDeviceBusyPrompt(userInput ?? '', userProfile);
+      : buildDeviceBusyPrompt(userInput ?? '', userProfile, availableExercises);
 
   let aiResponse: AiResponse;
   let tokensUsed = 0;

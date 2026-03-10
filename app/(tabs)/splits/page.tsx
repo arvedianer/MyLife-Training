@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronRight, CheckCircle2, Plus } from 'lucide-react';
+import { ChevronRight, CheckCircle2, Plus, Trash2 } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -10,7 +10,7 @@ import { predefinedSplits } from '@/constants/splits';
 import type { TrainingSplit } from '@/types/splits';
 
 export default function SplitsPage() {
-  const { splits, activeSplitId, setActiveSplit, addSplit } = usePlanStore();
+  const { splits, activeSplitId, setActiveSplit, addSplit, deleteSplit } = usePlanStore();
 
   const difficultyLabel: Record<string, string> = {
     beginner: 'Anfänger',
@@ -56,6 +56,28 @@ export default function SplitsPage() {
                   </h3>
                   {isActive && (
                     <CheckCircle2 size={16} color={colors.accent} />
+                  )}
+                  {!isTemplate && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (confirm(`Möchtest du den Plan "${split.name}" wirklich löschen?`)) {
+                          deleteSplit(split.id);
+                        }
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: spacing[1],
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title="Plan löschen"
+                    >
+                      <Trash2 size={16} color={colors.danger} />
+                    </button>
                   )}
                 </div>
                 <p style={{ ...typography.bodySm, color: colors.textMuted }}>

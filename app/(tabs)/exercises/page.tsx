@@ -10,6 +10,9 @@ import { useWorkoutStore } from '@/store/workoutStore';
 import { useExerciseStore } from '@/store/exerciseStore';
 import type { MuscleGroup, Equipment, Exercise } from '@/types/exercises';
 import { supabase } from '@/lib/supabase';
+import { useExerciseDatabase } from '@/hooks/useExerciseDatabase';
+import { DatabaseExerciseModal } from '@/components/exercises/DatabaseExerciseModal';
+import type { Exercise as DatabaseExercise } from '@/types/exercise';
 
 const muscleLabels: Record<MuscleGroup, string> = {
   chest: 'Brust',
@@ -81,8 +84,12 @@ export default function ExercisesPage() {
   const [selectedOrigin, setSelectedOrigin] = useState<'all' | 'builtin' | 'community' | 'private'>('all');
   const [showFilters, setShowFilters] = useState(false);
 
+  const { exercises: dbExercises, loading: dbLoading } = useExerciseDatabase();
+  const [selectedDbExercise, setSelectedDbExercise] = useState<DatabaseExercise | null>(null);
+
   const filtered = useMemo(() => {
-    return allExercises.filter((ex) => {
+    // Local Filter
+    const localFiltered = allExercises.filter((ex) => {
       if (search) {
         const q = search.toLowerCase();
         if (
@@ -91,13 +98,8 @@ export default function ExercisesPage() {
         )
           return false;
       }
-      if (
-        selectedMuscle &&
-        ex.primaryMuscle !== selectedMuscle
-      )
-        return false;
-      if (selectedEquipment && !ex.equipment.includes(selectedEquipment))
-        return false;
+      if (selectedMuscle && ex.primaryMuscle !== selectedMuscle) return false;
+      if (selectedEquipment && !ex.equipment.includes(selectedEquipment)) return false;
 
       const isCustom = (ex as Exercise & { isCustom?: boolean }).isCustom;
       const isPublic = (ex as Exercise & { isPublic?: boolean }).isPublic ?? true;
@@ -108,7 +110,57 @@ export default function ExercisesPage() {
 
       return true;
     });
-  }, [search, selectedMuscle, selectedEquipment, selectedOrigin, allExercises]);
+
+    // DB Filter
+    const dbFiltered = dbExercises.filter((ex) => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (!ex.name.toLowerCase().includes(q)) return false;
+      }
+
+      if (selectedMuscle) {
+        const m = selectedMuscle;
+        const map: Record<string, string[]> = {
+          chest: ['chest'],
+          back: ['middle back', 'lower back', 'lats', 'traps'],
+          shoulders: ['shoulders'],
+          biceps: ['biceps'],
+          triceps: ['triceps'],
+          legs: ['quadriceps', 'hamstrings', 'adductors', 'abductors'],
+          glutes: ['glutes'],
+          core: ['abdominals'],
+          calves: ['calves'],
+          forearms: ['forearms']
+        };
+        const allowed = map[m] || [m];
+        const hasPrimary = ex.primaryMuscles.some(pm => allowed.includes(pm.toLowerCase()));
+        const hasSecondary = ex.secondaryMuscles.some(sm => allowed.includes(sm.toLowerCase()));
+        if (!hasPrimary && !hasSecondary) return false;
+      }
+
+      if (selectedEquipment) {
+        const eq = selectedEquipment;
+        const map: Record<string, string[]> = {
+          barbell: ['barbell', 'e-z curl bar'],
+          dumbbell: ['dumbbell'],
+          cable: ['cable'],
+          machine: ['machine'],
+          bodyweight: ['body only'],
+          kettlebell: ['kettlebells'],
+          band: ['bands'],
+          smith: ['machine']
+        };
+        const allowed = map[eq] || [eq];
+        if (!ex.equipment || !allowed.includes(ex.equipment.toLowerCase())) return false;
+      }
+
+      if (selectedOrigin === 'private' || selectedOrigin === 'community') return false;
+
+      return true;
+    });
+
+    return [...localFiltered, ...dbFiltered];
+  }, [search, selectedMuscle, selectedEquipment, selectedOrigin, allExercises, dbExercises]);
 
   const handleAddToWorkout = (exerciseId: string) => {
     const ex = allExercises.find((e) => e.id === exerciseId);
@@ -124,7 +176,6 @@ export default function ExercisesPage() {
         backgroundColor: colors.bgPrimary,
       }}
     >
-      {/* Header */}
       <div
         style={{
           padding: `${spacing[6]} ${spacing[5]} ${spacing[4]}`,
@@ -146,7 +197,7 @@ export default function ExercisesPage() {
                 color: colors.textMuted,
               }}
             >
-              {filtered.length} von {allExercises.length}
+              {filtered.length} Übungen {dbLoading ? '(lädt...)' : ''}
             </span>
             <button
               onClick={() => router.push('/workout/custom-exercise')}
@@ -224,7 +275,6 @@ export default function ExercisesPage() {
         {showFilters && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[4], padding: `0 ${spacing[1]}` }}>
 
-            {/* Herkunft / Typ Filter */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
               <span style={{ ...typography.label, color: colors.textMuted }}>KATEGORIE / HERKUNFT</span>
               <div
@@ -240,7 +290,7 @@ export default function ExercisesPage() {
                   Alle Übungen
                 </button>
                 <button style={chipStyle(selectedOrigin === 'builtin')} onClick={() => setSelectedOrigin('builtin')}>
-                  Von MyLife
+                  Von MyLife / Datenbank
                 </button>
                 <button style={chipStyle(selectedOrigin === 'community')} onClick={() => setSelectedOrigin('community')}>
                   Von Community
@@ -253,7 +303,6 @@ export default function ExercisesPage() {
 
             <div style={{ width: '100%', height: '1px', backgroundColor: colors.borderLight }} />
 
-            {/* Muscle filter chips */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
               <span style={{ ...typography.label, color: colors.textMuted }}>MUSKELGRUPPEN</span>
               <div
@@ -282,7 +331,6 @@ export default function ExercisesPage() {
 
             <div style={{ width: '100%', height: '1px', backgroundColor: colors.borderLight }} />
 
-            {/* Equipment filter chips */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
               <span style={{ ...typography.label, color: colors.textMuted }}>ART & GERÄT</span>
               <div
@@ -332,7 +380,61 @@ export default function ExercisesPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
-            {filtered.map((exercise) => {
+            {filtered.map((mixedEx) => {
+              const isDbEx = 'instructions' in mixedEx;
+
+              if (isDbEx) {
+                const dbEx = mixedEx as DatabaseExercise;
+                return (
+                  <div
+                    key={dbEx.id}
+                    style={{
+                      backgroundColor: colors.bgCard,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: radius.xl,
+                      padding: `${spacing[4]}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing[3],
+                      cursor: 'pointer',
+                      transition: 'background-color 0.15s',
+                    }}
+                    onClick={() => setSelectedDbExercise(dbEx)}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLDivElement).style.backgroundColor = colors.bgElevated;
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLDivElement).style.backgroundColor = colors.bgCard;
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
+                        <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: 600 }}>
+                          {dbEx.name}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: spacing[2],
+                          marginTop: spacing[1],
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        {dbEx.primaryMuscles.map(m => (
+                          <Badge key={m} variant="muted">{m}</Badge>
+                        ))}
+                        {dbEx.equipment && <Badge variant="muted">{dbEx.equipment}</Badge>}
+                        {dbEx.category && <Badge variant="accent">{dbEx.category}</Badge>}
+                      </div>
+                    </div>
+                    <ChevronRight size={16} color={colors.textFaint} />
+                  </div>
+                );
+              }
+
+              // Local Exercise Render
+              const exercise = mixedEx as Exercise;
               const exerciseCreatedBy = (exercise as Exercise & { createdBy?: string }).createdBy;
               const isCustom = (exercise as Exercise & { isCustom?: boolean }).isCustom;
               const isCreator = isCustom && (!exerciseCreatedBy || exerciseCreatedBy === currentUserId);
@@ -360,7 +462,6 @@ export default function ExercisesPage() {
                     (e.currentTarget as HTMLDivElement).style.backgroundColor = colors.bgCard;
                   }}
                 >
-                  {/* Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
                       <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: 600 }}>
@@ -391,7 +492,7 @@ export default function ExercisesPage() {
                     >
                       <Badge variant="muted">{muscleLabels[exercise.primaryMuscle]}</Badge>
                       <Badge variant="muted">
-                        {exercise.equipment.map((e) => equipmentLabels[e] ?? e).join(', ')}
+                        {exercise.equipment?.map((e) => equipmentLabels[e as Equipment] ?? e).join(', ')}
                       </Badge>
                       <Badge variant={exercise.category === 'compound' ? 'accent' : 'default'}>
                         {exercise.category === 'compound'
@@ -403,7 +504,6 @@ export default function ExercisesPage() {
                     </div>
                   </div>
 
-                  {/* Add to Workout button (only if workout is active) */}
                   {activeWorkout && (
                     <button
                       onClick={(e) => {
@@ -429,7 +529,6 @@ export default function ExercisesPage() {
                     </button>
                   )}
 
-                  {/* Edit & Delete Buttons */}
                   {isCreator && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: spacing[1], marginRight: spacing[1] }}>
                       <button
@@ -482,6 +581,10 @@ export default function ExercisesPage() {
           </div>
         )}
       </div>
+
+      {selectedDbExercise && (
+        <DatabaseExerciseModal exercise={selectedDbExercise} onClose={() => setSelectedDbExercise(null)} />
+      )}
     </div>
   );
 }

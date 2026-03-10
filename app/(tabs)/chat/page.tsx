@@ -8,6 +8,7 @@ import { useUserStore } from '@/store/userStore';
 import { useChatStore } from '@/store/chatStore';
 import { usePlanStore } from '@/store/planStore';
 import { useWorkoutStore } from '@/store/workoutStore';
+import { useExerciseStore } from '@/store/exerciseStore';
 import { calculateStreak } from '@/utils/dates';
 import { getExerciseById, findExerciseByName } from '@/constants/exercises';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,16 +24,30 @@ function generateId() {
 
 // Detect if AI message likely contains a training plan
 function detectTrainingPlan(text: string): boolean {
-  const headingCount = (text.match(/###/g) ?? []).length;
-  const hasPattern = /\d+\s*[xX×]\s*\d+|\d+\s*Sätze/i.test(text);
-  return headingCount >= 2 && hasPattern;
+  const hasSetRepPattern = /\d+\s*[xX×]\s*\d+|\d+\s*Sätze/i.test(text);
+  if (!hasSetRepPattern) return false;
+  // Strong signals: multiple ### headings or structured day/muscle pattern
+  const headingCount = (text.match(/###|##/g) ?? []).length;
+  const hasDayPattern = /Tag\s*\d|Day\s*\d|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Brust\s*\+|Push|Pull|Legs/i.test(text);
+  const hasBulletList = (text.match(/^[-*]\s/m) !== null);
+  return headingCount >= 2 || (hasDayPattern && hasBulletList);
 }
 
 const STARTER_PROMPTS = [
-  { icon: <Dumbbell size={14} color={colors.accent} />, text: 'Analysiere mein letztes Workout' },
-  { icon: <TrendingUp size={14} color={colors.prColor} />, text: 'Erstell mir einen Trainingsplan' },
-  { icon: <Zap size={14} color={colors.volumeColor} />, text: 'Wie viel Protein brauche ich?' },
-  { icon: <Sparkles size={14} color={colors.success} />, text: 'Was habe ich diese Woche trainiert?' },
+  { icon: <Dumbbell size={14} color={colors.accent} />, text: 'Erstell mir den Arnold Split' },
+  { icon: <TrendingUp size={14} color={colors.prColor} />, text: 'Analysiere mein letztes Workout' },
+  { icon: <Zap size={14} color={colors.volumeColor} />, text: 'Was ist meine schwächste Übung?' },
+  { icon: <Sparkles size={14} color={colors.success} />, text: 'Erkläre mir die perfekte Kniebeugen-Technik' },
+];
+
+// What Coach Arved can do — shown in empty state
+const CAPABILITIES = [
+  { emoji: '📊', text: 'Workouts analysieren & auswerten' },
+  { emoji: '🏋️', text: 'Trainingspläne erstellen (Arnold, PPL, Upper/Lower)' },
+  { emoji: '🎯', text: 'Übungstechnik & Science-based Tipps' },
+  { emoji: '📈', text: 'Progressive Overload berechnen' },
+  { emoji: '🎤', text: 'Sprachsteuerung während dem Workout' },
+  { emoji: '💾', text: 'Pläne direkt in die App speichern' },
 ];
 
 export default function ChatPage() {
@@ -66,6 +81,7 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<any>(null);
+  const manualStopRef = useRef(false);
 
   // Init active conversation
   useEffect(() => {
@@ -194,6 +210,7 @@ export default function ChatPage() {
   // --- Voice input (toggle: click once to start, again to stop) ---
   const toggleListening = () => {
     if (listening) {
+      manualStopRef.current = true;
       recognitionRef.current?.stop();
       setListening(false);
       return;
@@ -206,26 +223,54 @@ export default function ChatPage() {
     }
 
     try {
+      manualStopRef.current = false;
       const recognition = new SR();
       recognitionRef.current = recognition;
       recognition.lang = 'de-DE';
       recognition.interimResults = false;
-      recognition.continuous = false;
+      recognition.continuous = true;
 
       recognition.onresult = (e: any) => {
-        const transcript = e.results[0][0].transcript as string;
-        setInput((prev) => prev + (prev ? ' ' : '') + transcript);
+        let newTranscript = '';
+        for (let i = e.resultIndex; i < e.results.length; ++i) {
+          if (e.results[i].isFinal) {
+            newTranscript += e.results[i][0].transcript + ' ';
+          }
+        }
+        if (newTranscript.trim()) {
+          setInput((prev) => {
+            const trimmedPrev = prev.trim();
+            return trimmedPrev ? trimmedPrev + ' ' + newTranscript.trim() : newTranscript.trim();
+          });
+        }
       };
+
       recognition.onend = () => {
-        setListening(false);
-        recognitionRef.current = null;
+        if (!manualStopRef.current && recognitionRef.current) {
+          try {
+            recognition.start();
+          } catch {
+            setListening(false);
+            recognitionRef.current = null;
+          }
+        } else {
+          setListening(false);
+          recognitionRef.current = null;
+        }
       };
+
       recognition.onerror = (e: any) => {
-        setListening(false);
-        recognitionRef.current = null;
         if (e.error === 'not-allowed') {
+          manualStopRef.current = true;
+          setListening(false);
+          recognitionRef.current = null;
           setError('Mikrofon-Zugriff verweigert — bitte in den Browser-Einstellungen erlauben.');
-        } else if (e.error !== 'no-speech') {
+        } else if (e.error === 'no-speech') {
+          // ignore, onend will restart
+        } else {
+          manualStopRef.current = true;
+          setListening(false);
+          recognitionRef.current = null;
           setError('Spracheingabe fehlgeschlagen. Bitte erneut versuchen.');
         }
       };
@@ -249,6 +294,51 @@ export default function ChatPage() {
       });
       const data = await res.json();
       if (data.name && Array.isArray(data.days)) {
+
+        let dbExercises: any[] = [];
+        try {
+          const fetchRes = await fetch('/data/exercises.json');
+          if (fetchRes.ok) {
+            dbExercises = (await fetchRes.json()).exercises || [];
+          }
+        } catch { }
+
+        const findGlobal = (name: string): string => {
+          const nameLower = name.toLowerCase();
+          const local = findExerciseByName(name);
+          if (local) return local.id;
+
+          const custom = useExerciseStore.getState().customExercises.find(
+            (e) => e.name.toLowerCase().includes(nameLower) || e.nameDE.toLowerCase().includes(nameLower)
+          );
+          if (custom) return custom.id;
+
+          const dbFound = dbExercises.find(
+            (e) => e.name.toLowerCase().includes(nameLower) || e.name_de.toLowerCase().includes(nameLower)
+          );
+          if (dbFound) return `db-${dbFound.id}`;
+
+          // If still not found, create a new custom exercise automatically
+          const newId = `custom-ai-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+          useExerciseStore.getState().addCustomExercise({
+            id: newId,
+            name: name,
+            nameDE: name,
+            primaryMuscle: 'core',
+            secondaryMuscles: [],
+            equipment: [],
+            category: 'compound',
+            defaultSets: 3,
+            defaultReps: 10,
+            defaultWeight: 0,
+            repRange: { min: 8, max: 12 },
+            restSeconds: 90,
+            scienceNote: 'Von AI generiert',
+            createdBy: 'coach'
+          });
+          return newId;
+        };
+
         const split: TrainingSplit = {
           id: generateId(),
           name: data.name,
@@ -259,11 +349,9 @@ export default function ChatPage() {
             id: generateId(),
             name: d.name,
             muscleGroups: [],
-            // Map AI exercise names → real DB exercise IDs via fuzzy matching
+            // Map AI exercise names via global fuzzy matching & auto-creation
             exerciseIds: Array.isArray(d.exercises)
-              ? d.exercises
-                  .map((name: string) => findExerciseByName(name)?.id)
-                  .filter((id): id is string => !!id)
+              ? d.exercises.map((name: string) => findGlobal(name)).filter((id): id is string => !!id)
               : [],
             restDay: false,
           })),

@@ -249,7 +249,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* MAX Coach Card */}
+      {/* Arved Coach Card */}
       <Link href="/chat" style={{ display: 'block' }}>
         <div
           style={{
@@ -275,9 +275,9 @@ export default function DashboardPage() {
               <MessageCircle size={20} color={colors.accent} />
             </div>
             <div>
-              <p style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>MAX Coach</p>
+              <p style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>Coach Arved</p>
               <p style={{ ...typography.bodySm, color: colors.textMuted, marginTop: '2px' }}>
-                Frag deinen persönlichen Trainer
+                Dein persönlicher KI Trainer
               </p>
             </div>
           </div>

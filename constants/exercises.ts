@@ -1395,3 +1395,41 @@ export function getExercisesByMuscle(muscle: MuscleGroup): Exercise[] {
 export function getExercisesByEquipment(equipment: Equipment): Exercise[] {
   return exercises.filter((e) => e.equipment.includes(equipment));
 }
+
+// Helper: Übung nach Name finden (fuzzy — für AI-Vorschläge)
+// Sucht erst exakt (DE + EN), dann partial, dann Wort-Overlap
+export function findExerciseByName(query: string): Exercise | undefined {
+  const needle = query.toLowerCase().trim();
+  if (!needle) return undefined;
+
+  // 1. Exakter Match (DE oder EN)
+  const exact = exercises.find(
+    (e) => e.nameDE.toLowerCase() === needle || e.name.toLowerCase() === needle,
+  );
+  if (exact) return exact;
+
+  // 2. Eines enthält das andere vollständig
+  const contained = exercises.find(
+    (e) =>
+      e.nameDE.toLowerCase().includes(needle) ||
+      needle.includes(e.nameDE.toLowerCase()) ||
+      e.name.toLowerCase().includes(needle) ||
+      needle.includes(e.name.toLowerCase()),
+  );
+  if (contained) return contained;
+
+  // 3. Signifikante Wort-Überschneidung (≥50% der Suchwörter ≥4 Zeichen matchen)
+  const needleWords = needle.split(/\s+/).filter((w) => w.length >= 4);
+  if (needleWords.length > 0) {
+    const byWords = exercises.find((e) => {
+      const deWords = e.nameDE.toLowerCase().split(/\s+/);
+      const matched = needleWords.filter((w) =>
+        deWords.some((dw) => dw.includes(w) || w.includes(dw)),
+      );
+      return matched.length >= Math.ceil(needleWords.length * 0.5);
+    });
+    if (byWords) return byWords;
+  }
+
+  return undefined;
+}

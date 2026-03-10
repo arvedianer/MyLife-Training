@@ -41,6 +41,7 @@ export function CoachSheet({ isOpen, onClose }: CoachSheetProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<any>(null);
+  const manualStopRef = useRef(false);
 
   // Ensure there's an active conversation when sheet opens
   useEffect(() => {
@@ -162,6 +163,7 @@ export function CoachSheet({ isOpen, onClose }: CoachSheetProps) {
   const toggleListening = () => {
     setMicError(null);
     if (listening) {
+      manualStopRef.current = true;
       recognitionRef.current?.stop();
       setListening(false);
       return;
@@ -174,25 +176,54 @@ export function CoachSheet({ isOpen, onClose }: CoachSheetProps) {
     }
 
     try {
+      manualStopRef.current = false;
       const recognition = new SR();
       recognitionRef.current = recognition;
       recognition.lang = 'de-DE';
       recognition.interimResults = false;
-      recognition.continuous = false;
+      recognition.continuous = true;
 
       recognition.onresult = (e: any) => {
-        const transcript = e.results[0][0].transcript as string;
-        setInput((prev) => prev + (prev ? ' ' : '') + transcript);
+        let newTranscript = '';
+        for (let i = e.resultIndex; i < e.results.length; ++i) {
+          if (e.results[i].isFinal) {
+            newTranscript += e.results[i][0].transcript + ' ';
+          }
+        }
+        if (newTranscript.trim()) {
+          setInput((prev) => {
+            const trimmedPrev = prev.trim();
+            return trimmedPrev ? trimmedPrev + ' ' + newTranscript.trim() : newTranscript.trim();
+          });
+        }
       };
+
       recognition.onend = () => {
-        setListening(false);
-        recognitionRef.current = null;
+        if (!manualStopRef.current && recognitionRef.current) {
+          try {
+            recognition.start();
+          } catch {
+            setListening(false);
+            recognitionRef.current = null;
+          }
+        } else {
+          setListening(false);
+          recognitionRef.current = null;
+        }
       };
+
       recognition.onerror = (e: any) => {
-        setListening(false);
-        recognitionRef.current = null;
         if (e.error === 'not-allowed') {
+          manualStopRef.current = true;
+          setListening(false);
+          recognitionRef.current = null;
           setMicError('Mikrofon-Zugriff verweigert');
+        } else if (e.error === 'no-speech') {
+          // ignore, onend will restart
+        } else {
+          manualStopRef.current = true;
+          setListening(false);
+          recognitionRef.current = null;
         }
       };
 
