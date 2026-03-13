@@ -18,9 +18,10 @@ export type Equipment =
   | 'bodyweight'
   | 'kettlebell'
   | 'band'
-  | 'smith';
+  | 'smith'
+  | 'cardio_machine';
 
-export type ExerciseCategory = 'compound' | 'isolation' | 'cardio';
+export type ExerciseCategory = 'compound' | 'isolation' | 'cardio' | 'functional' | 'stretching';
 
 export interface Exercise {
   id: string;
@@ -39,4 +40,5 @@ export interface Exercise {
   scienceNote: string;                      // Form cue + evidence-based rationale
   isPublic?: boolean;
   createdBy?: string;
+  isCardio?: boolean;  // If true: track km + duration instead of weight/reps
 }

@@ -37,6 +37,7 @@ interface WorkoutState {
   removeExercise: (exerciseId: string) => void;
   replaceExercise: (exerciseId: string, newExercise: Exercise) => void;
   reorderExercises: (exercises: WorkoutExercise[]) => void;
+  toggleUnilateral: (exerciseId: string) => void;
 
   // Actions — Sets
   addSet: (exerciseId: string) => void;
@@ -44,6 +45,7 @@ interface WorkoutState {
   removeSet: (exerciseId: string, setId: string) => void;
   toggleSetComplete: (exerciseId: string, setId: string) => void;
   markSetAsPR: (exerciseId: string, setId: string) => void;
+  changeSetType: (exerciseId: string, setId: string, type: SetEntry['type']) => void;
   undoLastSet: () => void;
 
   // Actions — Timer
@@ -56,13 +58,15 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function createDefaultSet(initialWeight = 0, initialReps = 0): SetEntry {
+function createDefaultSet(initialWeight = 0, initialReps = 0, type: SetEntry['type'] = 'normal', side: SetEntry['side'] = 'both'): SetEntry {
   return {
     id: generateId(),
     weight: initialWeight,
     reps: initialReps,
     isCompleted: false,
     isPR: false,
+    type,
+    side,
   };
 }
 
@@ -90,7 +94,9 @@ export const useWorkoutStore = create<WorkoutState>()(
             return {
               id: generateId(),
               exercise: ex,
-              // Always create exactly 2 sets as default, overrides ex.defaultSets per user request
+              isUnilateral: false,
+              unilateralSync: true,
+              // Always create exactly 2 sets as default
               sets: Array.from({ length: 2 }, () => createDefaultSet(w, r)),
             };
           });
@@ -130,6 +136,8 @@ export const useWorkoutStore = create<WorkoutState>()(
           const newExercise: WorkoutExercise = {
             id: generateId(),
             exercise,
+            isUnilateral: false,
+            unilateralSync: true,
             // Always create exactly 2 sets as default
             sets: [createDefaultSet(w, r), createDefaultSet(w, r)],
           };
@@ -195,14 +203,63 @@ export const useWorkoutStore = create<WorkoutState>()(
               exercises: state.activeWorkout.exercises.map((e) => {
                 if (e.id !== exerciseId) return e;
                 const lastSet = e.sets[e.sets.length - 1];
+                const weight = lastSet?.weight ?? 0;
+                const reps = lastSet?.reps ?? 0;
+                const type = lastSet?.type ?? 'normal';
 
-                // Letzten Satz als exakte Vorlage für Gewicht & Reps des neuen Satzes
-                const newSet: SetEntry = createDefaultSet(
-                  lastSet?.weight ?? 0,
-                  lastSet?.reps ?? 0
-                );
+                if (e.isUnilateral) {
+                  // If unilateral, add a pair (L and R)
+                  return {
+                    ...e,
+                    sets: [
+                      ...e.sets,
+                      createDefaultSet(weight, reps, type, 'left'),
+                      createDefaultSet(weight, reps, type, 'right'),
+                    ],
+                  };
+                }
 
-                return { ...e, sets: [...e.sets, newSet] };
+                return {
+                  ...e,
+                  sets: [...e.sets, createDefaultSet(weight, reps, type, 'both')],
+                };
+              }),
+            },
+          };
+        }),
+
+      changeSetType: (exerciseId, setId, type) =>
+        set((state) => {
+          if (!state.activeWorkout) return state;
+          return {
+            activeWorkout: {
+              ...state.activeWorkout,
+              exercises: state.activeWorkout.exercises.map((e) => {
+                if (e.id !== exerciseId) return e;
+                return {
+                  ...e,
+                  sets: e.sets.map((s) => (s.id === setId ? { ...s, type } : s)),
+                };
+              }),
+            },
+          };
+        }),
+
+      toggleUnilateral: (exerciseId) =>
+        set((state) => {
+          if (!state.activeWorkout) return state;
+          return {
+            activeWorkout: {
+              ...state.activeWorkout,
+              exercises: state.activeWorkout.exercises.map((e) => {
+                if (e.id !== exerciseId) return e;
+                const nowUnilateral = !e.isUnilateral;
+
+                // If switching TO unilateral, we might want to split existing sets
+                // But for now, let's just update the flag. 
+                // Any NEW sets added after this will be L/R pairs.
+
+                return { ...e, isUnilateral: nowUnilateral };
               }),
             },
           };

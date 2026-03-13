@@ -41,6 +41,8 @@ export default function ActiveWorkoutPage() {
     startRestTimer,
     undoLastSet,
     undoStack,
+    toggleUnilateral,
+    changeSetType,
   } = useWorkout();
 
   const restTimer = useRestTimer();
@@ -456,6 +458,8 @@ export default function ActiveWorkoutPage() {
                   onMoveDown={index < activeWorkout.exercises.length - 1 ? () => moveExercise(workoutExercise.id, 'down') : undefined}
                   onStartTimer={(seconds) => startRestTimer(seconds)}
                   onApplySuggestion={(w, r) => handleApplySuggestion(workoutExercise.id, w, r)}
+                  onToggleUnilateral={() => toggleUnilateral(workoutExercise.id)}
+                  onChangeSetType={(setId, type) => changeSetType(workoutExercise.id, setId, type as any)}
                 />
               );
             })}
@@ -495,7 +499,7 @@ export default function ActiveWorkoutPage() {
           gap: spacing[2],
         }}
       >
-          {/* KI Confirmation Card — "Was hat die KI verstanden?" */}
+        {/* KI Confirmation Card — "Was hat die KI verstanden?" */}
         {pendingConfirm && (
           <div style={{
             backgroundColor: colors.bgCard,

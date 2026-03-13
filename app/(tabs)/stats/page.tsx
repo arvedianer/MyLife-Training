@@ -81,11 +81,20 @@ function heatBarColor(r: number): string {
   return 'rgba(138, 43, 200, 0.97)';
 }
 
+const RANGE_WEEKS: Record<string, number> = { '4w': 4, '8w': 8, '3m': 13, '6m': 26, '1y': 52 };
+const RANGE_KEYS = ['4w', '8w', '3m', '6m', '1y'] as const;
+type VolumeRange = '4w' | '8w' | '3m' | '6m' | '1y';
 
+const PUSH_MUSCLES = new Set(['chest', 'shoulders', 'triceps']);
+const PULL_MUSCLES = new Set(['back', 'biceps', 'forearms']);
+const LEGS_MUSCLES = new Set(['legs', 'quads', 'hamstrings', 'glutes', 'calves', 'adductors', 'abductors']);
+const CORE_MUSCLES = new Set(['core', 'abs']);
 
 export default function StatsPage() {
   const [period, setPeriod] = useState<Period>('thisWeek');
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null);
+  const [volumeView, setVolumeView] = useState<'weekly' | 'session'>('weekly');
+  const [volumeRange, setVolumeRange] = useState<VolumeRange>('8w');
   const { sessions, getPersonalRecords } = useHistoryStore();
   const prs = getPersonalRecords();
 

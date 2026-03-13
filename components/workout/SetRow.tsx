@@ -18,6 +18,7 @@ interface SetRowProps {
   onRemove: () => void;
   restTimerDefault?: number;
   onStartTimer?: () => void;
+  isCardio?: boolean;
 }
 
 function getRepsColor(reps: number, repRange?: { min: number; max: number }): string {
@@ -36,25 +37,57 @@ export function SetRow({
   onToggleComplete,
   onRemove,
   onStartTimer,
+  isCardio,
 }: SetRowProps) {
   const repsColor = getRepsColor(set.reps, repRange);
   const repsInRange = repRange && set.reps > 0 && set.reps >= repRange.min && set.reps <= repRange.max;
 
+  const getSetTypeChar = () => {
+    switch (set.type) {
+      case 'warmup': return 'W';
+      case 'dropset': return 'D';
+      case 'fail': return 'F';
+      case 'superset': return 'S';
+      default: return setNumber;
+    }
+  };
+
+  const getSetTypeClass = () => {
+    if (set.type === 'warmup') return styles.setNumberBoxWarmup;
+    if (set.type === 'dropset') return styles.setNumberBoxDropset;
+    if (set.isPR) return styles.setNumberBoxPR;
+    return '';
+  };
+
+  const getSetTypeTextClass = () => {
+    if (set.type === 'warmup') return styles.setNumberTextWarmup;
+    if (set.type === 'dropset') return styles.setNumberTextDropset;
+    if (set.isPR) return styles.setNumberTextPR;
+    return '';
+  };
+
   return (
     <div className={`${styles.setRowContainer} ${set.isCompleted ? styles.setRowCompleted : ''}`}>
-      {/* Set Number */}
-      <div className={`${styles.setNumberBox} ${set.isPR ? styles.setNumberBoxPR : ''}`}>
-        <span className={`${styles.setNumberText} ${set.isPR ? styles.setNumberTextPR : ''}`}>
-          {set.isPR ? '★' : setNumber}
-        </span>
+      {/* Set Number & Side Indicator */}
+      <div style={{ display: 'flex', alignItems: 'center', width: 44 }}>
+        {set.side && set.side !== 'both' && (
+          <div className={`${styles.sideIndicator} ${styles.sideIndicatorActive}`}>
+            {set.side === 'left' ? 'L' : 'R'}
+          </div>
+        )}
+        <div className={`${styles.setNumberBox} ${getSetTypeClass()}`}>
+          <span className={`${styles.setNumberText} ${getSetTypeTextClass()}`}>
+            {set.isPR ? '★' : getSetTypeChar()}
+          </span>
+        </div>
       </div>
 
       {/* Gewicht */}
       <NumericInput
         value={set.weight}
         onChange={onUpdateWeight}
-        step={2.5}
-        placeholder={isBodyweight ? 'BW' : '0'}
+        step={isCardio ? 0.5 : 2.5}
+        placeholder={isCardio ? 'km' : (isBodyweight ? 'BW' : '0')}
         style={{
           flex: 1,
           opacity: set.isCompleted ? 0.55 : 1,
@@ -66,20 +99,20 @@ export function SetRow({
       <NumericInput
         value={set.reps}
         onChange={onUpdateReps}
-        step={1}
-        placeholder="0"
+        step={isCardio ? 1 : 1}
+        placeholder={isCardio ? 'min' : '0'}
         style={{
           flex: 1,
           opacity: set.isCompleted ? 0.55 : 1,
           transition: 'opacity 0.2s ease',
           borderColor:
-            set.reps > 0 && repRange
+            !isCardio && set.reps > 0 && repRange
               ? repsInRange
                 ? `${colors.success}70`
                 : '#FF950070'
               : undefined,
           color:
-            set.reps > 0 && repRange
+            !isCardio && set.reps > 0 && repRange
               ? repsColor
               : colors.textPrimary,
         }}

@@ -2,10 +2,12 @@ import type { Exercise } from './exercises';
 
 export interface SetEntry {
   id: string;
-  weight: number;   // kg
-  reps: number;
+  weight: number;   // kg or km for cardio
+  reps: number;     // reps or minutes for cardio
   isCompleted: boolean;
   isPR: boolean;
+  type?: 'normal' | 'warmup' | 'dropset' | 'superset' | 'fail';
+  side?: 'both' | 'left' | 'right';
   rpe?: number;     // 1-10, optional
   note?: string;
 }
@@ -14,6 +16,9 @@ export interface WorkoutExercise {
   id: string;
   exercise: Exercise;
   sets: SetEntry[];
+  isUnilateral: boolean;
+  unilateralSync: boolean; // if true, weight/reps are kept in sync between L/R
+  restSecondsCustom?: number;
   note?: string;
 }
 

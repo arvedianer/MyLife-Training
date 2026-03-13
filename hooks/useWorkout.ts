@@ -124,5 +124,7 @@ export function useWorkout() {
     startRestTimer: store.startRestTimer,
     undoLastSet: store.undoLastSet,
     undoStack: store.undoStack,
+    toggleUnilateral: store.toggleUnilateral,
+    changeSetType: store.changeSetType,
   };
 }

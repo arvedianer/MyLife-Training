@@ -30,6 +30,8 @@ interface ExerciseCardProps {
   onApplySuggestion?: (weight: number, reps: number) => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  onToggleUnilateral?: () => void;
+  onChangeSetType?: (setId: string, type: string) => void;
 }
 
 export function ExerciseCard({
@@ -46,6 +48,8 @@ export function ExerciseCard({
   onApplySuggestion,
   onMoveUp,
   onMoveDown,
+  onToggleUnilateral,
+  onChangeSetType,
 }: ExerciseCardProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [scienceExpanded, setScienceExpanded] = useState(false);
@@ -112,6 +116,7 @@ export function ExerciseCard({
   const completedSets = sets.filter((s) => s.isCompleted).length;
   const isFullyCompleted = sets.length > 0 && completedSets === sets.length;
   const isBodyweight = exercise.equipment?.includes('bodyweight') || exercise.defaultWeight === 0;
+  const isCardio = !!exercise.isCardio;
 
   useEffect(() => {
     if (isFullyCompleted) {
@@ -141,6 +146,14 @@ export function ExerciseCard({
             <Badge variant="muted">
               {completedSets}/{sets.length} Sätze
             </Badge>
+
+            {/* Unilateral Toggle */}
+            <button
+              onClick={onToggleUnilateral}
+              className={`${styles.unilateralBtn} ${workoutExercise.isUnilateral ? styles.unilateralActive : ''}`}
+            >
+              {workoutExercise.isUnilateral ? 'Unilateral ON' : 'Unilateral OFF'}
+            </button>
 
             {/* Rep range target */}
             {exercise.repRange && (
@@ -384,9 +397,9 @@ export function ExerciseCard({
           {/* Column Headers */}
           <div className={styles.tableHeader}>
             <div style={{ width: '28px' }} />
-            <div className={styles.headerCell}>{isBodyweight ? '+KG' : 'KG'}</div>
-            <div className={styles.headerCell}>WDH</div>
-            <div className={styles.headerCellRight}>VOL</div>
+            <div className={styles.headerCell}>{isCardio ? 'KM' : (isBodyweight ? '+KG' : 'KG')}</div>
+            <div className={styles.headerCell}>{isCardio ? 'MIN' : 'WDH'}</div>
+            <div className={styles.headerCellRight}>{isCardio ? 'PACE' : 'VOL'}</div>
             <div style={{ width: '68px' }} />
           </div>
 
@@ -404,6 +417,7 @@ export function ExerciseCard({
               onToggleComplete={() => onToggleSet(set.id)}
               onRemove={() => onRemoveSet(set.id)}
               onStartTimer={() => onStartTimer(restSeconds)}
+              isCardio={isCardio}
             />
           ))}
 

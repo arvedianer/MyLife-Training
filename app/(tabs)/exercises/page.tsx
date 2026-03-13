@@ -10,9 +10,6 @@ import { useWorkoutStore } from '@/store/workoutStore';
 import { useExerciseStore } from '@/store/exerciseStore';
 import type { MuscleGroup, Equipment, Exercise } from '@/types/exercises';
 import { supabase } from '@/lib/supabase';
-import { useExerciseDatabase } from '@/hooks/useExerciseDatabase';
-import { DatabaseExerciseModal } from '@/components/exercises/DatabaseExerciseModal';
-import type { Exercise as DatabaseExercise } from '@/types/exercise';
 
 const muscleLabels: Record<MuscleGroup, string> = {
   chest: 'Brust',
@@ -36,6 +33,7 @@ const equipmentLabels: Record<Equipment, string> = {
   kettlebell: 'Kettlebell',
   band: 'Band',
   smith: 'Smith',
+  cardio_machine: 'Cardio',
 };
 
 const muscleOrder: MuscleGroup[] = [
@@ -44,7 +42,7 @@ const muscleOrder: MuscleGroup[] = [
 ];
 
 const equipmentOrder: Equipment[] = [
-  'barbell', 'dumbbell', 'cable', 'machine', 'bodyweight', 'kettlebell', 'band',
+  'barbell', 'dumbbell', 'cable', 'machine', 'smith', 'bodyweight', 'kettlebell', 'band', 'cardio_machine',
 ];
 
 function chipStyle(active: boolean): React.CSSProperties {
@@ -84,12 +82,8 @@ export default function ExercisesPage() {
   const [selectedOrigin, setSelectedOrigin] = useState<'all' | 'builtin' | 'community' | 'private'>('all');
   const [showFilters, setShowFilters] = useState(false);
 
-  const { exercises: dbExercises, loading: dbLoading } = useExerciseDatabase();
-  const [selectedDbExercise, setSelectedDbExercise] = useState<DatabaseExercise | null>(null);
-
   const filtered = useMemo(() => {
-    // Local Filter
-    const localFiltered = allExercises.filter((ex) => {
+    return allExercises.filter((ex) => {
       if (search) {
         const q = search.toLowerCase();
         if (
@@ -110,57 +104,7 @@ export default function ExercisesPage() {
 
       return true;
     });
-
-    // DB Filter
-    const dbFiltered = dbExercises.filter((ex) => {
-      if (search) {
-        const q = search.toLowerCase();
-        if (!ex.name.toLowerCase().includes(q)) return false;
-      }
-
-      if (selectedMuscle) {
-        const m = selectedMuscle;
-        const map: Record<string, string[]> = {
-          chest: ['chest'],
-          back: ['middle back', 'lower back', 'lats', 'traps'],
-          shoulders: ['shoulders'],
-          biceps: ['biceps'],
-          triceps: ['triceps'],
-          legs: ['quadriceps', 'hamstrings', 'adductors', 'abductors'],
-          glutes: ['glutes'],
-          core: ['abdominals'],
-          calves: ['calves'],
-          forearms: ['forearms']
-        };
-        const allowed = map[m] || [m];
-        const hasPrimary = ex.primaryMuscles.some(pm => allowed.includes(pm.toLowerCase()));
-        const hasSecondary = ex.secondaryMuscles.some(sm => allowed.includes(sm.toLowerCase()));
-        if (!hasPrimary && !hasSecondary) return false;
-      }
-
-      if (selectedEquipment) {
-        const eq = selectedEquipment;
-        const map: Record<string, string[]> = {
-          barbell: ['barbell', 'e-z curl bar'],
-          dumbbell: ['dumbbell'],
-          cable: ['cable'],
-          machine: ['machine'],
-          bodyweight: ['body only'],
-          kettlebell: ['kettlebells'],
-          band: ['bands'],
-          smith: ['machine']
-        };
-        const allowed = map[eq] || [eq];
-        if (!ex.equipment || !allowed.includes(ex.equipment.toLowerCase())) return false;
-      }
-
-      if (selectedOrigin === 'private' || selectedOrigin === 'community') return false;
-
-      return true;
-    });
-
-    return [...localFiltered, ...dbFiltered];
-  }, [search, selectedMuscle, selectedEquipment, selectedOrigin, allExercises, dbExercises]);
+  }, [search, selectedMuscle, selectedEquipment, selectedOrigin, allExercises]);
 
   const handleAddToWorkout = (exerciseId: string) => {
     const ex = allExercises.find((e) => e.id === exerciseId);
@@ -197,7 +141,7 @@ export default function ExercisesPage() {
                 color: colors.textMuted,
               }}
             >
-              {filtered.length} Übungen {dbLoading ? '(lädt...)' : ''}
+              {filtered.length} Übungen
             </span>
             <button
               onClick={() => router.push('/workout/custom-exercise')}
@@ -290,7 +234,7 @@ export default function ExercisesPage() {
                   Alle Übungen
                 </button>
                 <button style={chipStyle(selectedOrigin === 'builtin')} onClick={() => setSelectedOrigin('builtin')}>
-                  Von MyLife / Datenbank
+                  Von MyLife
                 </button>
                 <button style={chipStyle(selectedOrigin === 'community')} onClick={() => setSelectedOrigin('community')}>
                   Von Community
@@ -381,58 +325,6 @@ export default function ExercisesPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
             {filtered.map((mixedEx) => {
-              const isDbEx = 'instructions' in mixedEx;
-
-              if (isDbEx) {
-                const dbEx = mixedEx as DatabaseExercise;
-                return (
-                  <div
-                    key={dbEx.id}
-                    style={{
-                      backgroundColor: colors.bgCard,
-                      border: `1px solid ${colors.border}`,
-                      borderRadius: radius.xl,
-                      padding: `${spacing[4]}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: spacing[3],
-                      cursor: 'pointer',
-                      transition: 'background-color 0.15s',
-                    }}
-                    onClick={() => setSelectedDbExercise(dbEx)}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.backgroundColor = colors.bgElevated;
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.backgroundColor = colors.bgCard;
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
-                        <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: 600 }}>
-                          {dbEx.name}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: spacing[2],
-                          marginTop: spacing[1],
-                          flexWrap: 'wrap',
-                        }}
-                      >
-                        {dbEx.primaryMuscles.map(m => (
-                          <Badge key={m} variant="muted">{m}</Badge>
-                        ))}
-                        {dbEx.equipment && <Badge variant="muted">{dbEx.equipment}</Badge>}
-                        {dbEx.category && <Badge variant="accent">{dbEx.category}</Badge>}
-                      </div>
-                    </div>
-                    <ChevronRight size={16} color={colors.textFaint} />
-                  </div>
-                );
-              }
-
               // Local Exercise Render
               const exercise = mixedEx as Exercise;
               const exerciseCreatedBy = (exercise as Exercise & { createdBy?: string }).createdBy;
@@ -582,9 +474,7 @@ export default function ExercisesPage() {
         )}
       </div>
 
-      {selectedDbExercise && (
-        <DatabaseExerciseModal exercise={selectedDbExercise} onClose={() => setSelectedDbExercise(null)} />
-      )}
+      {/* Modal removed as external database integration is disabled */}
     </div>
   );
 }
