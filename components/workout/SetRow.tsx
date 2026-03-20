@@ -21,11 +21,7 @@ interface SetRowProps {
   isCardio?: boolean;
 }
 
-function getRepsColor(reps: number, repRange?: { min: number; max: number }): string {
-  if (!repRange || reps === 0) return colors.textDisabled;
-  if (reps >= repRange.min && reps <= repRange.max) return colors.success;
-  return '#FF9500'; // orange — outside range
-}
+// Removed getRepsColor — rep-range color highlighting removed
 
 export function SetRow({
   set,
@@ -39,8 +35,6 @@ export function SetRow({
   onStartTimer,
   isCardio,
 }: SetRowProps) {
-  const repsColor = getRepsColor(set.reps, repRange);
-  const repsInRange = repRange && set.reps > 0 && set.reps >= repRange.min && set.reps <= repRange.max;
 
   const getSetTypeChar = () => {
     switch (set.type) {
@@ -95,7 +89,7 @@ export function SetRow({
         }}
       />
 
-      {/* Wiederholungen — colored by in/out of rep range */}
+      {/* Wiederholungen */}
       <NumericInput
         value={set.reps}
         onChange={onUpdateReps}
@@ -105,16 +99,6 @@ export function SetRow({
           flex: 1,
           opacity: set.isCompleted ? 0.55 : 1,
           transition: 'opacity 0.2s ease',
-          borderColor:
-            !isCardio && set.reps > 0 && repRange
-              ? repsInRange
-                ? `${colors.success}70`
-                : '#FF950070'
-              : undefined,
-          color:
-            !isCardio && set.reps > 0 && repRange
-              ? repsColor
-              : colors.textPrimary,
         }}
       />
 

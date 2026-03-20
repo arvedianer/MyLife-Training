@@ -44,6 +44,10 @@ export const colors = {
   borderLight: 'rgba(255, 255, 255, 0.05)',
   borderGlass: 'rgba(255, 255, 255, 0.10)',
 
+  // Ghost — faded values in inputs
+  ghost:       '#FFFFFF22',   // verblasste Ghost-Values in Inputs
+  ghostText:   '#FFFFFF35',   // Ghost-Text Farbe
+
   // Shadows (Titan Pro signature depth)
   shadowCard:      'var(--shadow-card, 0 0 0 1px rgba(255,255,255,0.06), 0 4px 20px rgba(0,0,0,0.5))',
   shadowCardHover: 'var(--shadow-card-hover, 0 0 0 1px rgba(255,255,255,0.09), 0 8px 32px rgba(0,0,0,0.6))',
