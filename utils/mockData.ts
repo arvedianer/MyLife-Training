@@ -89,6 +89,8 @@ export function loadMockData() {
                 id: generateId(),
                 exercise: ex,
                 sets,
+                isUnilateral: false,
+                unilateralSync: false,
             });
         }
 

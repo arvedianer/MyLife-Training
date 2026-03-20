@@ -1,4 +1,13 @@
 import type { Exercise } from './exercises';
+import type { WorkoutScore } from './score';
+
+export type ExerciseEquipment =
+  | 'barbell'
+  | 'dumbbell'
+  | 'cable'
+  | 'machine'
+  | 'bodyweight'
+  | 'other';
 
 export interface SetEntry {
   id: string;
@@ -10,6 +19,7 @@ export interface SetEntry {
   side?: 'both' | 'left' | 'right';
   rpe?: number;     // 1-10, optional
   note?: string;
+  variationKey?: string;
 }
 
 export interface WorkoutExercise {
@@ -20,6 +30,19 @@ export interface WorkoutExercise {
   unilateralSync: boolean; // if true, weight/reps are kept in sync between L/R
   restSecondsCustom?: number;
   note?: string;
+  equipment?: ExerciseEquipment;
+  gymId?: string;
+  warmupSetsCount?: number;
+  warmupEnabled?: boolean;
+}
+
+export interface PRRecord {
+  variationKey: string;    // "{exerciseId}::{equipment}::{gymId}"
+  weight: number;
+  reps: number;
+  estimated1RM: number;    // Epley: weight * (1 + reps/30)
+  date: string;
+  sessionId: string;
 }
 
 export interface ActiveWorkout {
@@ -43,6 +66,9 @@ export interface WorkoutSession {
   newPRs: string[];        // exercise IDs with new PRs
   splitName?: string;
   note?: string;
+  score?: WorkoutScore;
+  rpe?: number;
+  shareToken?: string;
 }
 
 export type WorkoutGoal =
