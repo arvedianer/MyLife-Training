@@ -38,3 +38,9 @@ Thumbs.db
 next-env.d.ts
 
 .vercel
+
+# Git Worktrees
+.worktrees/
+
+# Superpowers
+.superpowers/
