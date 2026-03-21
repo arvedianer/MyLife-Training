@@ -278,3 +278,70 @@
   font-weight: 400;
   color: var(--accent);
 }
+
+.dragHandle {
+  cursor: grab;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+.dragHandle:active { cursor: grabbing; }
+
+.exerciseTitleDone {
+  text-decoration: line-through;
+  color: #555555;
+}
+
+.subInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.muscleLabel, .setsLabel, .equipLabel {
+  font-size: 11px;
+  color: #888888;
+}
+
+.dot { font-size: 11px; color: #555555; }
+
+.settingsBtn {
+  padding: 8px;
+  border-radius: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s;
+}
+.settingsBtn:hover { background-color: #1E1E1E; }
+
+.overloadChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 4px 10px;
+  background: #0A1F1A;
+  border: 1px solid #4DFFED30;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 11px;
+  color: #4DFFED;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.overloadReason {
+  font-size: 10px;
+  color: #888888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+}

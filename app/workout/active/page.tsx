@@ -454,8 +454,6 @@ export default function ActiveWorkoutPage() {
                   onRemoveSet={(setId) => removeSet(workoutExercise.id, setId)}
                   onRemoveExercise={() => removeExercise(workoutExercise.id)}
                   onReplaceExercise={(newEx) => replaceExercise(workoutExercise.id, newEx)}
-                  onMoveUp={index > 0 ? () => moveExercise(workoutExercise.id, 'up') : undefined}
-                  onMoveDown={index < activeWorkout.exercises.length - 1 ? () => moveExercise(workoutExercise.id, 'down') : undefined}
                   onStartTimer={(seconds) => startRestTimer(seconds)}
                   onApplySuggestion={(w, r) => handleApplySuggestion(workoutExercise.id, w, r)}
                   onToggleUnilateral={() => toggleUnilateral(workoutExercise.id)}

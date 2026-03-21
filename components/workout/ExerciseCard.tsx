@@ -1,13 +1,14 @@
 'use client';
 
-import { Plus, ChevronDown, ChevronUp, Trash2, HelpCircle, Target, Timer, TrendingUp, Check, ArrowUp, ArrowDown, ArrowLeftRight, Loader2, X, RefreshCw } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Target, TrendingUp, Check, ArrowLeftRight, Loader2, X, RefreshCw, GripVertical, Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { SetRow } from './SetRow';
-import { Badge } from '@/components/ui/Badge';
+import { ExerciseSettingsSheet } from './ExerciseSettingsSheet';
 import type { WorkoutExercise } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
 import { exercises as exerciseDb, findExerciseByName } from '@/constants/exercises';
+import { EQUIPMENT_LABELS } from '@/utils/variations';
 import styles from './ExerciseCard.module.css';
 
 interface OverloadSuggestion {
@@ -28,10 +29,10 @@ interface ExerciseCardProps {
   onReplaceExercise?: (newExercise: Exercise) => void;
   onStartTimer: (seconds: number) => void;
   onApplySuggestion?: (weight: number, reps: number) => void;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
   onToggleUnilateral?: () => void;
   onChangeSetType?: (setId: string, type: string) => void;
+  onUpdateExercise?: (updates: Partial<WorkoutExercise>) => void;
+  dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
 }
 
 export function ExerciseCard({
@@ -46,17 +47,16 @@ export function ExerciseCard({
   onReplaceExercise,
   onStartTimer,
   onApplySuggestion,
-  onMoveUp,
-  onMoveDown,
   onToggleUnilateral,
   onChangeSetType,
+  onUpdateExercise,
+  dragHandleProps,
 }: ExerciseCardProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [scienceExpanded, setScienceExpanded] = useState(false);
   const [customRest, setCustomRest] = useState<number | null>(null);
-  const [isEditingRest, setIsEditingRest] = useState(false);
   const [busyLoading, setBusyLoading] = useState(false);
   const [busyAlts, setBusyAlts] = useState<{ name: string; reason: string }[] | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const handleDeviceBusy = async () => {
     setBusyLoading(true);
@@ -133,197 +133,64 @@ export function ExerciseCard({
       <div
         className={`${styles.headerContainer} ${collapsed ? '' : styles.headerBorder} ${isFullyCompleted ? styles.headerBgCompleted : styles.headerBgNormal}`}
       >
+        {/* Drag Handle */}
+        <div className={styles.dragHandle} {...(dragHandleProps ?? {})}>
+          <GripVertical size={18} color={colors.textFaint} />
+        </div>
+
         <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Exercise Name — strikethrough + dimmed when done */}
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
-            <h3 className={`${styles.exerciseTitle} ${isFullyCompleted ? styles.exerciseTitleCompleted : styles.exerciseTitleNormal}`}>
+            <h3 className={`${styles.exerciseTitle} ${isFullyCompleted ? styles.exerciseTitleDone : ''}`}>
               {exercise.nameDE}
             </h3>
-            {isFullyCompleted && <Check size={18} color={colors.success} />}
+            {isFullyCompleted && <Check size={16} color={colors.success} />}
           </div>
 
-          {/* Progress + Science badges */}
-          <div className={styles.badgesContainer}>
-            <Badge variant="muted">
-              {completedSets}/{sets.length} Sätze
-            </Badge>
-
-            {/* Unilateral Toggle */}
-            <button
-              onClick={onToggleUnilateral}
-              className={`${styles.unilateralBtn} ${workoutExercise.isUnilateral ? styles.unilateralActive : ''}`}
-            >
-              {workoutExercise.isUnilateral ? 'Unilateral ON' : 'Unilateral OFF'}
-            </button>
-
-            {/* Rep range target */}
-            {exercise.repRange && (
-              <div className={styles.badgeAccentBox}>
-                <Target size={10} color={colors.accent} />
-                <span className={styles.monoSmAccent}>
-                  {exercise.repRange.min}–{exercise.repRange.max} Wdh.
-                </span>
-              </div>
+          {/* Sub-info row */}
+          <div className={styles.subInfo}>
+            <span className={styles.muscleLabel}>{exercise.primaryMuscle}</span>
+            <span className={styles.dot}>·</span>
+            <span className={styles.setsLabel}>{completedSets}/{sets.length} Sätze</span>
+            {workoutExercise.equipment && (
+              <>
+                <span className={styles.dot}>·</span>
+                <span className={styles.equipLabel}>{EQUIPMENT_LABELS[workoutExercise.equipment]}</span>
+              </>
             )}
-
-            {/* Rest time */}
-            <div className={styles.badgeIconBox}>
-              <Timer size={10} color={colors.textMuted} />
-              {isEditingRest ? (
-                <div style={{ display: 'flex', gap: spacing[2], alignItems: 'center' }}>
-                  <button
-                    onClick={() => setCustomRest(Math.max(15, restSeconds - 15))}
-                    className={`${styles.hoverBtn} ${styles.opacityHover}`}
-                    style={{ padding: '0 4px', color: colors.textPrimary }}
-                    aria-label="Decrease Rest"
-                  >
-                    -
-                  </button>
-                  <span className={styles.monoSmMuted} style={{ color: colors.textPrimary }}>{restSeconds}s</span>
-                  <button
-                    onClick={() => setCustomRest(Math.min(300, restSeconds + 15))}
-                    className={`${styles.hoverBtn} ${styles.opacityHover}`}
-                    style={{ padding: '0 4px', color: colors.textPrimary }}
-                    aria-label="Increase Rest"
-                  >
-                    +
-                  </button>
-                  <button
-                    onClick={() => setIsEditingRest(false)}
-                    className={`${styles.hoverBtn} ${styles.opacityHover} ${styles.labelAccent}`}
-                    style={{ padding: '0 4px' }}
-                  >
-                    OK
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setIsEditingRest(true)}
-                  className={styles.hoverBtn}
-                  style={{ padding: 0 }}
-                >
-                  <span className={styles.monoSmMuted}>
-                    {restSeconds}s
-                  </span>
-                </button>
-              )}
-            </div>
-
-            {/* Science note toggle (now always visible to explain reps too) */}
-            <button
-              onClick={() => setScienceExpanded((v) => !v)}
-              className={`${styles.scienceToggle} ${scienceExpanded ? styles.scienceToggleExpanded : styles.scienceToggleClosed}`}
-              aria-expanded={scienceExpanded}
-            >
-              <HelpCircle size={10} color={scienceExpanded ? colors.accent : colors.textFaint} />
-              <span className={scienceExpanded ? styles.labelAccent : styles.labelFaint}>
-                Warum?
-              </span>
-            </button>
           </div>
 
-          {/* Science note expanded */}
-          {scienceExpanded && (
-            <div className={styles.scienceCard}>
-              {exercise.scienceNote && (
-                <div>
-                  <span className={styles.labelAccent}>Übungs-Fokus:</span>
-                  <p className={styles.bodySmMutedLine18} style={{ marginTop: '2px' }}>
-                    {exercise.scienceNote}
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <span className={styles.labelAccent}>Warum {exercise.repRange ? `${exercise.repRange.min}–${exercise.repRange.max}` : '6–8'} Wiederholungen?</span>
-                <p className={styles.bodySmMutedLine18} style={{ marginTop: '2px' }}>
-                  Dieser Bereich bietet die optimale Balance aus mechanischer Spannung und Muskelermüdung. Es ist der Sweetspot, um effektiv Muskelmasse (Hypertrophie) aufzubauen und gleichzeitig Kraft zu steigern.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* KI Suggestion — always visible as compact inline row */}
-          {overloadSuggestion && (
+          {/* Overload chip */}
+          {overloadSuggestion && !isFullyCompleted && (
             <button
               onClick={() => onApplySuggestion?.(overloadSuggestion.weight, overloadSuggestion.reps)}
-              className={styles.suggestionInline}
+              className={styles.overloadChip}
               title="Tippen um auf ersten offenen Satz anzuwenden"
             >
               <TrendingUp size={11} color={colors.accent} />
-              <span className={styles.monoSmAccent}>
-                {overloadSuggestion.weight} kg × {overloadSuggestion.reps} Wdh.
-              </span>
-              <span className={styles.monoSmMuted} style={{ fontSize: '9px', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                — {overloadSuggestion.reason}
-              </span>
+              <span className={styles.monoSmAccent}>{overloadSuggestion.weight} kg × {overloadSuggestion.reps} Wdh.</span>
+              <span className={styles.overloadReason}>{overloadSuggestion.reason}</span>
             </button>
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: spacing[2], flexShrink: 0, marginLeft: spacing[2], alignItems: 'center' }}>
-          {/* Reorder Buttons */}
-          {(onMoveUp || onMoveDown) && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginRight: spacing[1] }}>
-              {onMoveUp && (
-                <button
-                  onClick={onMoveUp}
-                  aria-label="Nach oben verschieben"
-                  className={`${styles.hoverBtn} ${styles.opacityHover}`}
-                  style={{ padding: '2px' }}
-                >
-                  <ArrowUp size={14} color={colors.textPrimary} />
-                </button>
-              )}
-              {onMoveDown && (
-                <button
-                  onClick={onMoveDown}
-                  aria-label="Nach unten verschieben"
-                  className={`${styles.hoverBtn} ${styles.opacityHover}`}
-                  style={{ padding: '2px' }}
-                >
-                  <ArrowDown size={14} color={colors.textPrimary} />
-                </button>
-              )}
-            </div>
-          )}
+        {/* Settings button */}
+        <button
+          onClick={() => setShowSettings(true)}
+          className={styles.settingsBtn}
+          aria-label="Übungseinstellungen"
+        >
+          <Settings size={18} color={colors.textMuted} />
+        </button>
 
-          {/* Device Busy — AI Alternative */}
-          <button
-            onClick={handleDeviceBusy}
-            disabled={busyLoading}
-            aria-label="Gerät besetzt — Alternative vorschlagen"
-            title="Gerät besetzt? KI schlägt Alternative vor"
-            className={`${styles.hoverBtn} ${styles.opacityHover}`}
-            style={{ padding: '6px' }}
-          >
-            {busyLoading
-              ? <Loader2 size={15} color={colors.accent} style={{ animation: 'spin 1s linear infinite' }} />
-              : <ArrowLeftRight size={15} color={colors.textMuted} />
-            }
-          </button>
-
-          {/* Delete Exercise */}
-          <button
-            onClick={onRemoveExercise}
-            aria-label="Übung entfernen"
-            className={`${styles.hoverBtn} ${styles.dangerBtn}`}
-          >
-            <Trash2 size={16} color={colors.danger} />
-          </button>
-
-          {/* Collapse */}
-          <button
-            onClick={() => setCollapsed((c) => !c)}
-            aria-label={collapsed ? "Aufklappen" : "Zuklappen"}
-            className={`${styles.hoverBtn} ${styles.collapseBtn}`}
-          >
-            {collapsed ? (
-              <ChevronDown size={18} color={colors.textMuted} />
-            ) : (
-              <ChevronUp size={18} color={colors.textMuted} />
-            )}
-          </button>
-        </div>
+        {/* Collapse */}
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          aria-label={collapsed ? "Aufklappen" : "Zuklappen"}
+          className={`${styles.hoverBtn} ${styles.collapseBtn}`}
+        >
+          {collapsed ? <ChevronDown size={18} color={colors.textMuted} /> : <ChevronUp size={18} color={colors.textMuted} />}
+        </button>
       </div>
 
       {/* Device Busy Alternative Card */}
@@ -432,6 +299,37 @@ export function ExerciseCard({
         </div>
       )}
 
+      <ExerciseSettingsSheet
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        exercise={exercise}
+        equipment={workoutExercise.equipment ?? 'barbell'}
+        gymId={workoutExercise.gymId}
+        isUnilateral={workoutExercise.isUnilateral}
+        restSeconds={customRest ?? exercise.restSeconds ?? restTimerDefault}
+        warmupEnabled={workoutExercise.warmupEnabled ?? false}
+        warmupCount={workoutExercise.warmupSetsCount ?? 1}
+        repRangeMin={exercise.repRange?.min ?? 6}
+        repRangeMax={exercise.repRange?.max ?? 12}
+        note={workoutExercise.note}
+        onEquipmentChange={(eq) => onUpdateExercise?.({ equipment: eq })}
+        onGymChange={(gymId) => onUpdateExercise?.({ gymId: gymId ?? undefined })}
+        onUnilateralChange={(_val: boolean) => onToggleUnilateral?.()}
+        onRestChange={(s) => setCustomRest(s)}
+        onWarmupChange={(enabled, count) => onUpdateExercise?.({ warmupEnabled: enabled, warmupSetsCount: count })}
+        onRepRangeChange={(_min, _max) => { /* stored in exercise, not workout state — skip for now */ }}
+        onNoteChange={(note) => onUpdateExercise?.({ note })}
+        onRemoveExercise={() => { setShowSettings(false); onRemoveExercise(); }}
+        onReplaceExercise={() => setShowSettings(false)}
+        onShowHistory={() => setShowSettings(false)}
+      />
+
+      {/* Device Busy — AI Alternative button (kept accessible via settings, but still available inline) */}
+      {busyLoading && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: spacing[2] }}>
+          <Loader2 size={15} color={colors.accent} style={{ animation: 'spin 1s linear infinite' }} />
+        </div>
+      )}
     </div>
   );
 }
