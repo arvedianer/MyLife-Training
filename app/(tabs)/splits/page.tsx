@@ -1,5 +1,6 @@
 'use client';
 
+import { Fragment } from 'react';
 import Link from 'next/link';
 import { ChevronRight, CheckCircle2, Plus, Trash2, TrendingUp } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
@@ -201,7 +202,7 @@ export default function SplitsPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3], marginBottom: spacing[6] }}>
-            {splits.map(split => renderSplitCard(split, false))}
+            {splits.map(split => <Fragment key={split.id}>{renderSplitCard(split, false)}</Fragment>)}
           </div>
         )}
       </div>
@@ -210,7 +211,7 @@ export default function SplitsPage() {
       <div>
         <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>Vorlagen</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
-          {predefinedSplits.map(template => renderSplitCard(template, true))}
+          {predefinedSplits.map(template => <Fragment key={template.id}>{renderSplitCard(template, true)}</Fragment>)}
         </div>
       </div>
     </div>

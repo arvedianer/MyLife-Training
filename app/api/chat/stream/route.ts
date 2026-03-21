@@ -133,8 +133,8 @@ REGELN:
 4. Wenn Informationen fehlen, frage nach bevor du Empfehlungen machst.`;
 }
 
-const NO_KEY_REPLY = 'Yo, kein API-Key gesetzt. GROQ_API_KEY in .env.local eintragen — kostenlos auf console.groq.com.';
-const ERROR_REPLY = 'Moin, kurz überlastet — versuch es gleich nochmal, Bro.';
+const NO_KEY_REPLY = 'Kein API-Key konfiguriert. Bitte GROQ_API_KEY in der .env.local hinterlegen (kostenlos auf console.groq.com).';
+const ERROR_REPLY = 'Verbindungsproblem — bitte erneut versuchen.';
 
 export async function POST(req: NextRequest) {
   if (!process.env.GROQ_API_KEY) {

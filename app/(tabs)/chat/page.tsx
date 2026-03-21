@@ -14,9 +14,54 @@ import { getExerciseById, findExerciseByName } from '@/constants/exercises';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import type { Components } from 'react-markdown';
 import { usePathname } from 'next/navigation';
 import type { TrainingSplit, SplitDay } from '@/types/splits';
 import type { ChatMessage } from '@/store/chatStore';
+// Shape of exercises from /data/exercises.json (snake_case from DB)
+interface DbExercise {
+  id: string;
+  name: string;
+  name_de: string;
+}
+
+// SpeechRecognition browser API — not yet in stable lib.dom.d.ts
+interface SpeechRecognitionResult {
+  readonly isFinal: boolean;
+  readonly length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+interface SpeechRecognitionAlternative {
+  readonly transcript: string;
+  readonly confidence: number;
+}
+interface SpeechRecognitionResultList {
+  readonly length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+interface SpeechRecognitionEvent extends Event {
+  readonly resultIndex: number;
+  readonly results: SpeechRecognitionResultList;
+}
+interface SpeechRecognitionErrorEvent extends Event {
+  readonly error: string;
+  readonly message: string;
+}
+interface ISpeechRecognition extends EventTarget {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: ((e: SpeechRecognitionEvent) => void) | null;
+  onerror: ((e: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+interface SpeechRecognitionConstructor {
+  new(): ISpeechRecognition;
+}
 
 function generateId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -89,7 +134,7 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const manualStopRef = useRef(false);
 
   // Init active conversation
@@ -214,6 +259,7 @@ export default function ChatPage() {
       if ((err as Error).name !== 'AbortError') {
         setError('Verbindungsfehler. Prüfe deine Internetverbindung.');
         setIsLoading(false);
+        setShowQuickReplies(true); // restore chips after error
       }
     }
   };
@@ -227,7 +273,8 @@ export default function ChatPage() {
       return;
     }
 
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const win = window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor };
+    const SR = win.SpeechRecognition || win.webkitSpeechRecognition;
     if (!SR) {
       setError('Spracheingabe nicht unterstützt. Bitte Chrome oder Edge verwenden.');
       return;
@@ -241,7 +288,7 @@ export default function ChatPage() {
       recognition.interimResults = false;
       recognition.continuous = true;
 
-      recognition.onresult = (e: any) => {
+      recognition.onresult = (e: SpeechRecognitionEvent) => {
         let newTranscript = '';
         for (let i = e.resultIndex; i < e.results.length; ++i) {
           if (e.results[i].isFinal) {
@@ -270,7 +317,7 @@ export default function ChatPage() {
         }
       };
 
-      recognition.onerror = (e: any) => {
+      recognition.onerror = (e: SpeechRecognitionErrorEvent) => {
         if (e.error === 'not-allowed') {
           manualStopRef.current = true;
           setListening(false);
@@ -306,7 +353,7 @@ export default function ChatPage() {
       const data = await res.json();
       if (data.name && Array.isArray(data.days)) {
 
-        let dbExercises: any[] = [];
+        let dbExercises: DbExercise[] = [];
         try {
           const fetchRes = await fetch('/data/exercises.json');
           if (fetchRes.ok) {
@@ -394,6 +441,16 @@ export default function ChatPage() {
     newConversation();
     setHistoryOpen(false);
     setError(null);
+  };
+
+  const markdownComponents: Components = {
+    p: ({ children }) => <p style={{ margin: '0 0 10px 0', lineHeight: '1.6' }}>{children}</p>,
+    ul: ({ children }) => <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>{children}</ul>,
+    ol: ({ children }) => <ol style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>{children}</ol>,
+    li: ({ children }) => <li style={{ marginBottom: '4px' }}>{children}</li>,
+    h3: ({ children }) => <h3 style={{ ...typography.h3, marginTop: '14px', marginBottom: '8px', color: colors.textPrimary }}>{children}</h3>,
+    h4: ({ children }) => <h4 style={{ fontWeight: 600, marginTop: '12px', marginBottom: '6px' }}>{children}</h4>,
+    strong: ({ children }) => <strong style={{ color: colors.textPrimary }}>{children}</strong>,
   };
 
   return (
@@ -713,15 +770,7 @@ export default function ChatPage() {
                     <div style={{ ...typography.body, color: colors.textPrimary, lineHeight: '24px', wordBreak: 'break-word' }}>
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
-                        components={{
-                          p: ({ node, ...props }) => <p style={{ margin: '0 0 10px 0', lineHeight: '1.6' }} {...(props as any)} />,
-                          ul: ({ node, ...props }) => <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }} {...(props as any)} />,
-                          ol: ({ node, ...props }) => <ol style={{ margin: '0 0 10px 0', paddingLeft: '20px' }} {...(props as any)} />,
-                          li: ({ node, ...props }) => <li style={{ marginBottom: '4px' }} {...(props as any)} />,
-                          h3: ({ node, ...props }) => <h3 style={{ ...typography.h3, marginTop: '14px', marginBottom: '8px', color: colors.textPrimary }} {...(props as any)} />,
-                          h4: ({ node, ...props }) => <h4 style={{ fontWeight: 600, marginTop: '12px', marginBottom: '6px' }} {...(props as any)} />,
-                          strong: ({ node, ...props }) => <strong style={{ color: colors.textPrimary }} {...(props as any)} />,
-                        }}
+                        components={markdownComponents}
                       >
                         {msg.content}
                       </ReactMarkdown>

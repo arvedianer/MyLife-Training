@@ -84,10 +84,10 @@ WICHTIG: Wenn der Nutzer nach spezifischen Daten aus seinem Training fragt, lies
 }
 
 const NO_KEY_REPLY =
-  'Hey! Ich bin gerade offline. Trag deinen GEMINI_API_KEY in der .env.local ein, dann bin ich für dich da. 💪';
+  'Kein API-Key konfiguriert. Bitte GEMINI_API_KEY in der .env.local hinterlegen.';
 
 const RATE_LIMIT_REPLY =
-  'Ich bin gerade kurz überlastet oder es gab ein Problem — versuch es gleich noch einmal! 💪';
+  'Verbindungsproblem — bitte erneut versuchen.';
 
 export async function POST(req: NextRequest) {
   if (!process.env.GEMINI_API_KEY) {
@@ -133,8 +133,10 @@ export async function POST(req: NextRequest) {
     const reply = result.response.text() || RATE_LIMIT_REPLY;
 
     return NextResponse.json({ reply });
-  } catch (err: any) {
+  } catch (err) {
     console.error('[chat] Gemini error:', err);
-    return NextResponse.json({ reply: RATE_LIMIT_REPLY, error: err.message, stack: err.stack });
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const errStack = err instanceof Error ? err.stack : undefined;
+    return NextResponse.json({ reply: RATE_LIMIT_REPLY, error: errMsg, stack: errStack });
   }
 }

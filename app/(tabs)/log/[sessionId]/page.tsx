@@ -84,6 +84,7 @@ export default function SessionDetailPage({
   };
 
   const handleRestartWorkout = () => {
+    if (!session.exercises || session.exercises.length === 0) return;
     startWorkout(session.splitName ?? undefined);
     for (const ex of session.exercises) {
       addExercise(ex.exercise);
@@ -237,6 +238,7 @@ export default function SessionDetailPage({
           <Button
             onClick={handleRestartWorkout}
             variant="secondary"
+            disabled={!session.exercises || session.exercises.length === 0}
             style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}
           >
             <RefreshCw size={16} /> Nochmal trainieren
