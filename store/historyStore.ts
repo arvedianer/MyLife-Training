@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { zustandStorage } from '@/utils/storage';
-import type { WorkoutSession } from '@/types/workout';
+import type { WorkoutSession, SetEntry } from '@/types/workout';
 import { supabase } from '@/lib/supabase';
 import { getExerciseById } from '@/constants/exercises';
 import { generateShareToken as createToken } from '@/utils/shareToken';
@@ -20,6 +20,22 @@ interface HistoryState {
   getPersonalRecords: () => Record<string, { weight: number; reps: number; volume: number }>;
   loadFromSupabase: (userId: string) => Promise<void>;
   generateShareToken: (sessionId: string) => string;
+}
+
+interface RawSessionExercise {
+  exercise_id: string;
+  exercise_name: string;
+  sets: SetEntry[]; // JSONB stored as SetEntry[]
+}
+
+interface RawSession {
+  id: string;
+  date: string;
+  split_name?: string | null;
+  duration: number;
+  total_volume: number;
+  notes?: string | null;
+  session_exercises?: RawSessionExercise[];
 }
 
 export const useHistoryStore = create<HistoryState>()(
@@ -71,28 +87,31 @@ export const useHistoryStore = create<HistoryState>()(
           ),
         }));
 
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          try {
-            const updatedSession = get().sessions.find(s => s.id === id);
-            if (!updatedSession) return;
+        // Fire-and-forget Supabase sync (outer try/catch prevents auth errors from propagating)
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            try {
+              const updatedSession = get().sessions.find(s => s.id === id);
+              if (!updatedSession) return;
 
-            await supabase.from('sessions').update({
-              total_volume: updatedSession.totalVolume,
-              duration: updatedSession.durationSeconds,
-              notes: updatedSession.note,
-              split_name: updatedSession.splitName,
-            }).eq('id', id).eq('user_id', user.id);
+              await supabase.from('sessions').update({
+                total_volume: updatedSession.totalVolume,
+                duration: updatedSession.durationSeconds,
+                notes: updatedSession.note,
+                split_name: updatedSession.splitName,
+              }).eq('id', id).eq('user_id', user.id);
 
-            for (const ex of updatedSession.exercises) {
-              await supabase.from('session_exercises').update({
-                sets: ex.sets,
-              }).eq('session_id', id).eq('exercise_id', ex.exercise.id);
+              for (const ex of updatedSession.exercises) {
+                await supabase.from('session_exercises').update({
+                  sets: ex.sets,
+                }).eq('session_id', id).eq('exercise_id', ex.exercise.id);
+              }
+            } catch (e) {
+              console.error('Failed to sync session update to Supabase:', e);
             }
-          } catch (e) {
-            console.error("Failed to update session in Supabase:", e);
           }
-        }
+        } catch { /* auth error — not logged in, skip sync */ }
       },
 
       deleteSession: (id) =>
@@ -153,18 +172,18 @@ export const useHistoryStore = create<HistoryState>()(
           if (error) throw error;
 
           if (data) {
-            const mappedSessions: WorkoutSession[] = data.map((d: any) => ({
+            const mappedSessions: WorkoutSession[] = data.map((d: RawSession) => ({
               id: d.id,
               date: d.date,
               startedAt: new Date(d.date).getTime(), // Fallback
               finishedAt: new Date(d.date).getTime() + (d.duration * 1000), // Fallback
               durationSeconds: d.duration,
               totalVolume: d.total_volume,
-              totalSets: d.session_exercises?.reduce((acc: number, cur: any) => acc + (cur.sets?.length || 0), 0) || 0,
+              totalSets: d.session_exercises?.reduce((acc: number, cur: RawSessionExercise) => acc + (cur.sets?.length || 0), 0) || 0,
               newPRs: [],
               splitName: d.split_name || undefined,
               note: d.notes || undefined,
-              exercises: (d.session_exercises || []).map((se: any) => {
+              exercises: (d.session_exercises || []).map((se: RawSessionExercise) => {
                 const exerciseData = getExerciseById(se.exercise_id);
                 return {
                   id: `${d.id}-${se.exercise_id}`,
@@ -174,11 +193,19 @@ export const useHistoryStore = create<HistoryState>()(
                     nameEN: se.exercise_name,
                     name: se.exercise_name,
                     primaryMuscle: 'chest' as const,
-                    secondaryMuscles: [] as string[],
-                    equipment: [] as string[],
+                    secondaryMuscles: [] as const,
+                    equipment: [] as const,
                     category: 'compound' as const,
+                    defaultSets: 3,
+                    defaultReps: 10,
+                    defaultWeight: 0,
+                    repRange: { min: 8, max: 12 },
+                    restSeconds: 90,
+                    scienceNote: '',
                   },
                   sets: se.sets || [],
+                  isUnilateral: false,
+                  unilateralSync: false,
                 };
               }),
             }));

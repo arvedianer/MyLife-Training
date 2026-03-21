@@ -1,28 +1,27 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import type { WorkoutSession } from '@/types/workout';
 import type { WorkoutScore } from '@/types/score';
+import { colors } from '@/constants/tokens';
 
-// Note: @react-pdf/renderer uses its own style system, not CSS Modules or design tokens.
-// Colors are hardcoded here intentionally — this is a static PDF document, not a React component.
 const styles = StyleSheet.create({
-  page: { backgroundColor: '#080808', padding: 30, color: '#FFFFFF', fontFamily: 'Helvetica' },
-  header: { marginBottom: 20, borderBottom: 1, borderBottomColor: '#262626', paddingBottom: 16 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#4DFFED' },
-  subtitle: { fontSize: 12, color: '#888888', marginTop: 4 },
+  page: { backgroundColor: colors.bgPrimary, padding: 30, color: colors.textPrimary, fontFamily: 'Helvetica' },
+  header: { marginBottom: 20, borderBottom: 1, borderBottomColor: colors.border, paddingBottom: 16 },
+  title: { fontSize: 28, fontWeight: 'bold', color: colors.accent },
+  subtitle: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
   scoreContainer: { alignItems: 'center', marginVertical: 20 },
-  scoreNumber: { fontSize: 48, fontWeight: 'bold', color: '#4DFFED' },
-  scoreLabel: { fontSize: 12, color: '#888888', marginTop: 4 },
-  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 8, marginTop: 16 },
+  scoreNumber: { fontSize: 48, fontWeight: 'bold', color: colors.accent },
+  scoreLabel: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: colors.textPrimary, marginBottom: 8, marginTop: 16 },
   exerciseRow: {
     flexDirection: 'row', justifyContent: 'space-between',
-    paddingVertical: 6, borderBottom: 1, borderBottomColor: '#1E1E1E',
+    paddingVertical: 6, borderBottom: 1, borderBottomColor: colors.borderLight,
   },
-  exerciseName: { fontSize: 12, color: '#FFFFFF' },
-  exerciseStats: { fontSize: 11, color: '#888888' },
-  tip: { fontSize: 11, color: '#F5F5F5', marginBottom: 4 },
+  exerciseName: { fontSize: 12, color: colors.textPrimary },
+  exerciseStats: { fontSize: 11, color: colors.textMuted },
+  tip: { fontSize: 11, color: colors.textSecondary, marginBottom: 4 },
   footer: {
     position: 'absolute', bottom: 20, left: 30, right: 30,
-    textAlign: 'center', fontSize: 9, color: '#555555',
+    textAlign: 'center', fontSize: 9, color: colors.textFaint,
   },
 });
 
