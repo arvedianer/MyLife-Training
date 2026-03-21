@@ -19,6 +19,10 @@ interface SetRowProps {
   restTimerDefault?: number;
   onStartTimer?: () => void;
   isCardio?: boolean;
+  /** Weight from last session — shown as ghost placeholder when field is empty */
+  previousWeight?: number;
+  /** Reps from last session — shown as ghost placeholder when field is empty */
+  previousReps?: number;
 }
 
 // Removed getRepsColor — rep-range color highlighting removed
@@ -34,7 +38,22 @@ export function SetRow({
   onRemove,
   onStartTimer,
   isCardio,
+  previousWeight,
+  previousReps,
 }: SetRowProps) {
+
+  const handleToggle = () => {
+    if (!set.isCompleted) {
+      // Auto-fill ghost values when completing with empty fields
+      if (set.weight === 0 && previousWeight !== undefined) {
+        onUpdateWeight(previousWeight);
+      }
+      if (set.reps === 0 && previousReps !== undefined) {
+        onUpdateReps(previousReps);
+      }
+    }
+    onToggleComplete();
+  };
 
   const getSetTypeChar = () => {
     switch (set.type) {
@@ -81,7 +100,12 @@ export function SetRow({
         value={set.weight}
         onChange={onUpdateWeight}
         step={isCardio ? 0.5 : 2.5}
-        placeholder={isCardio ? 'km' : (isBodyweight ? 'BW' : '0')}
+        placeholder={
+          set.weight === 0 && previousWeight !== undefined
+            ? String(previousWeight)
+            : isCardio ? 'km' : (isBodyweight ? 'BW' : '0')
+        }
+        ghost={set.weight === 0 && previousWeight !== undefined}
         style={{
           flex: 1,
           opacity: set.isCompleted ? 0.55 : 1,
@@ -94,7 +118,12 @@ export function SetRow({
         value={set.reps}
         onChange={onUpdateReps}
         step={isCardio ? 1 : 1}
-        placeholder={isCardio ? 'min' : '0'}
+        placeholder={
+          set.reps === 0 && previousReps !== undefined
+            ? String(previousReps)
+            : isCardio ? 'min' : '0'
+        }
+        ghost={set.reps === 0 && previousReps !== undefined}
         style={{
           flex: 1,
           opacity: set.isCompleted ? 0.55 : 1,
@@ -116,7 +145,7 @@ export function SetRow({
       <div className={styles.actionsContainer}>
         <button
           onClick={() => {
-            onToggleComplete();
+            handleToggle();
             if (!set.isCompleted && onStartTimer) {
               onStartTimer();
             }

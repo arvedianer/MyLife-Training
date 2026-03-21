@@ -67,6 +67,8 @@ interface NumericInputProps {
   step?: number;
   placeholder?: string;
   style?: React.CSSProperties;
+  /** When true, renders a data-ghost attribute so CSS can style the placeholder as a ghost hint */
+  ghost?: boolean;
 }
 
 export function NumericInput({
@@ -77,6 +79,7 @@ export function NumericInput({
   step = 1,
   placeholder = '0',
   style,
+  ghost,
 }: NumericInputProps) {
   return (
     <input
@@ -84,6 +87,7 @@ export function NumericInput({
       inputMode="decimal"
       value={value || ''}
       placeholder={placeholder}
+      data-ghost={ghost ? 'true' : undefined}
       min={min}
       max={max}
       step={step}

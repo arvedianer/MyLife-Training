@@ -9,6 +9,7 @@ import type { WorkoutExercise } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
 import { exercises as exerciseDb, findExerciseByName } from '@/constants/exercises';
 import { EQUIPMENT_LABELS } from '@/utils/variations';
+import { useHistoryStore } from '@/store/historyStore';
 import styles from './ExerciseCard.module.css';
 
 interface OverloadSuggestion {
@@ -57,6 +58,13 @@ export function ExerciseCard({
   const [busyLoading, setBusyLoading] = useState(false);
   const [busyAlts, setBusyAlts] = useState<{ name: string; reason: string }[] | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+
+  const { sessions } = useHistoryStore();
+  // Find last session that included this exercise (sessions are newest-first)
+  const lastSession = sessions.find((s) =>
+    s.exercises.some((e) => e.exercise.id === workoutExercise.exercise.id)
+  );
+  const lastSets = lastSession?.exercises.find((e) => e.exercise.id === workoutExercise.exercise.id)?.sets ?? [];
 
   const handleDeviceBusy = async () => {
     setBusyLoading(true);
@@ -285,6 +293,8 @@ export function ExerciseCard({
               onRemove={() => onRemoveSet(set.id)}
               onStartTimer={() => onStartTimer(restSeconds)}
               isCardio={isCardio}
+              previousWeight={lastSets[index]?.weight}
+              previousReps={lastSets[index]?.reps}
             />
           ))}
 
