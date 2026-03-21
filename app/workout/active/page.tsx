@@ -62,6 +62,7 @@ export default function ActiveWorkoutPage() {
     reorderExercises,
   } = useWorkout();
 
+  const { updateWorkoutExercise } = useWorkoutStore();
   const restTimer = useRestTimer();
   const { sessions } = useHistoryStore();
 
@@ -532,6 +533,7 @@ export default function ActiveWorkoutPage() {
                         onApplySuggestion={(w, r) => handleApplySuggestion(workoutExercise.id, w, r)}
                         onToggleUnilateral={() => toggleUnilateral(workoutExercise.id)}
                         onChangeSetType={(setId, type) => changeSetType(workoutExercise.id, setId, type as Parameters<typeof changeSetType>[2])}
+                        onUpdateExercise={(updates) => updateWorkoutExercise(workoutExercise.id, updates)}
                       />
                     );
                   })}

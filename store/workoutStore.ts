@@ -38,6 +38,7 @@ interface WorkoutState {
   replaceExercise: (exerciseId: string, newExercise: Exercise) => void;
   reorderExercises: (exercises: WorkoutExercise[]) => void;
   toggleUnilateral: (exerciseId: string) => void;
+  updateWorkoutExercise: (exerciseId: string, updates: Partial<WorkoutExercise>) => void;
 
   // Actions — Sets
   addSet: (exerciseId: string) => void;
@@ -241,6 +242,19 @@ export const useWorkoutStore = create<WorkoutState>()(
                   sets: e.sets.map((s) => (s.id === setId ? { ...s, type } : s)),
                 };
               }),
+            },
+          };
+        }),
+
+      updateWorkoutExercise: (exerciseId, updates) =>
+        set((state) => {
+          if (!state.activeWorkout) return state;
+          return {
+            activeWorkout: {
+              ...state.activeWorkout,
+              exercises: state.activeWorkout.exercises.map((ex) =>
+                ex.id === exerciseId ? { ...ex, ...updates } : ex
+              ),
             },
           };
         }),
