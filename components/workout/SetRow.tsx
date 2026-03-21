@@ -44,11 +44,13 @@ export function SetRow({
 
   const handleToggle = () => {
     if (!set.isCompleted) {
-      // Auto-fill ghost values when completing with empty fields
-      if (set.weight === 0 && previousWeight !== undefined) {
+      // Auto-fill ghost values when completing with empty fields.
+      // Guard previousWeight > 0: avoids overwriting intentional zero-weight entries
+      // (e.g. bodyweight exercises where weight=0 is a deliberate choice, not an empty field).
+      if (set.weight === 0 && previousWeight !== undefined && previousWeight > 0) {
         onUpdateWeight(previousWeight);
       }
-      if (set.reps === 0 && previousReps !== undefined) {
+      if (set.reps === 0 && previousReps !== undefined && previousReps > 0) {
         onUpdateReps(previousReps);
       }
     }
