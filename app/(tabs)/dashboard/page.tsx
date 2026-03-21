@@ -12,11 +12,13 @@ import { usePlanStore } from '@/store/planStore';
 import { formatWorkoutDate, formatDuration, formatVolume, calculateStreak } from '@/utils/dates';
 import { parseISO } from 'date-fns';
 import { getMissingMuscles, getRemainingWeekDays, getWeeklyMuscleStatus, MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
+import { useAutoRestDay } from '@/hooks/useAutoRestDay';
 
 export default function DashboardPage() {
   const { profile } = useUserStore();
   const { sessions, restDays } = useHistoryStore();
   const { getActiveSplit, getTodaysSplitDay } = usePlanStore();
+  const { notification: autoRestNotification, dismiss: dismissAutoRest } = useAutoRestDay();
 
   const activeSplit = getActiveSplit();
   const todaysDay = getTodaysSplitDay();
@@ -135,6 +137,31 @@ export default function DashboardPage() {
           </button>
         </Link>
       </div>
+
+      {/* Auto Rest Day Notification */}
+      {autoRestNotification && (
+        <div style={{
+          background: 'var(--accent-bg)',
+          border: '1px solid rgba(61, 255, 230, 0.2)',
+          borderRadius: '10px',
+          padding: '10px 14px',
+          marginBottom: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          fontSize: '13px',
+          color: 'var(--text-secondary)',
+        }}>
+          <span>{autoRestNotification}</span>
+          <button
+            onClick={dismissAutoRest}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px', flexShrink: 0 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Start Workout CTA */}
       <Link href="/start" style={{ display: 'block' }}>

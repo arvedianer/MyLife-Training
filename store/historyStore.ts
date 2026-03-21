@@ -9,12 +9,14 @@ import { generateShareToken as createToken } from '@/utils/shareToken';
 interface HistoryState {
   sessions: WorkoutSession[];
   restDays: string[]; // ISO date strings (YYYY-MM-DD)
+  autoRestDays: string[]; // ISO date strings auto-added by useAutoRestDay
 
   // Actions
   addSession: (session: WorkoutSession) => void;
   updateSession: (id: string, updates: Partial<WorkoutSession>) => Promise<void>;
   deleteSession: (id: string) => void;
   addRestDay: (date: string) => void;
+  addAutoRestDay: (date: string) => void;
 
   // Selectors (als Methoden für einfachen Zugriff)
   getSessionById: (id: string) => WorkoutSession | undefined;
@@ -45,8 +47,14 @@ export const useHistoryStore = create<HistoryState>()(
     (set, get) => ({
       sessions: [],
       restDays: [],
+      autoRestDays: [],
 
       addRestDay: (date) => set((state) => ({
+        restDays: state.restDays.includes(date) ? state.restDays : [...state.restDays, date],
+      })),
+
+      addAutoRestDay: (date) => set((state) => ({
+        autoRestDays: state.autoRestDays.includes(date) ? state.autoRestDays : [...state.autoRestDays, date],
         restDays: state.restDays.includes(date) ? state.restDays : [...state.restDays, date],
       })),
 
