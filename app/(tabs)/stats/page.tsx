@@ -13,8 +13,9 @@ import { exercises } from '@/constants/exercises';
 import { formatVolume, calculateStreak } from '@/utils/dates';
 import {
   format, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
-  subWeeks, subMonths, addWeeks, parseISO, isSameDay, eachDayOfInterval,
+  subWeeks, subMonths, addWeeks, parseISO, isSameDay, eachDayOfInterval, isAfter,
 } from 'date-fns';
+import { MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
 import { de } from 'date-fns/locale';
 
 type Period = 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
@@ -153,9 +154,10 @@ export default function StatsPage() {
     return Array.from(ms).sort();
   }, [sessions]);
 
-  // 8-week volume chart — supports muscle group filter
-  const weeklyVolumeData = useMemo(() => Array.from({ length: 8 }, (_, i) => {
-    const wStart = subWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 7 - i);
+  // Volume chart — respects volumeRange state
+  const weeksToShow = RANGE_WEEKS[volumeRange] ?? 8;
+  const weeklyVolumeData = useMemo(() => Array.from({ length: weeksToShow }, (_, i) => {
+    const wStart = subWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), weeksToShow - 1 - i);
     const wEnd = addWeeks(wStart, 1);
     const weekSessions = sessions.filter(s => { const d = parseISO(s.date); return d >= wStart && d < wEnd; });
     let vol: number;
@@ -173,15 +175,26 @@ export default function StatsPage() {
       0);
     }
     return {
-      week: format(wStart, 'dd.MM', { locale: de }),
+      week: format(wStart, 'yyyy-MM-dd'),
       volumen: muscleFilter === null
         ? Math.round((vol / 1000) * 10) / 10  // tonnes
         : Math.round(vol),                      // kg
     };
-  }), [sessions, muscleFilter]);
+  }), [sessions, muscleFilter, weeksToShow]);
 
   const volumeUnit = muscleFilter === null ? 't' : 'kg';
   const hasVolumeData = weeklyVolumeData.some(d => d.volumen > 0);
+
+  // Missing muscles this week
+  const missingMusclesThisWeek = useMemo(() => {
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const thisWeekSessions = sessions.filter(s => isAfter(parseISO(s.date), weekStart) || parseISO(s.date) >= weekStart);
+    const trainedMuscles = new Set(
+      thisWeekSessions.flatMap(s => s.exercises.map(e => e.exercise.primaryMuscle as string))
+    );
+    const MAJOR_MUSCLES = ['chest', 'back', 'quads', 'shoulders', 'biceps', 'triceps', 'core', 'hamstrings'];
+    return MAJOR_MUSCLES.filter(m => !trainedMuscles.has(m));
+  }, [sessions]);
 
   const exercisesWithPRs = exercises.filter(e => prs[e.id]).slice(0, 10);
 
@@ -311,6 +324,34 @@ export default function StatsPage() {
         </div>
       </div>
 
+      {/* ── MISSING MUSCLES THIS WEEK ── */}
+      {missingMusclesThisWeek.length > 0 && missingMusclesThisWeek.length < 7 && (
+        <div style={{
+          backgroundColor: colors.bgCard,
+          border: `1px solid ${colors.border}`,
+          borderRadius: radius.lg,
+          padding: `${spacing[3]} ${spacing[4]}`,
+        }}>
+          <div style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[2] }}>
+            Diese Woche noch nicht trainiert:
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[2] }}>
+            {missingMusclesThisWeek.map(m => (
+              <span key={m} style={{
+                backgroundColor: colors.bgElevated,
+                border: `1px solid ${colors.border}`,
+                borderRadius: radius.full,
+                padding: `3px ${spacing[3]}`,
+                ...typography.label,
+                color: colors.textSecondary,
+              }}>
+                {(MUSCLE_LABELS_DE as Record<string, string>)[m] ?? m}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── 3 KEY METRICS ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing[3] }}>
         <MetricCard
@@ -401,8 +442,27 @@ export default function StatsPage() {
           </h2>
         </div>
         <p style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[3] }}>
-          {muscleFilter ? `${MUSCLE_LABELS[muscleFilter] ?? muscleFilter} — letzte 8 Wochen` : 'Gesamtvolumen der letzten 8 Wochen'}
+          {muscleFilter ? `${MUSCLE_LABELS[muscleFilter] ?? muscleFilter} — letzte ${volumeRange}` : `Gesamtvolumen — letzte ${volumeRange}`}
         </p>
+
+        {/* Volume range selector */}
+        <div style={{ display: 'flex', gap: spacing[2], marginBottom: spacing[3] }}>
+          {RANGE_KEYS.map(rk => (
+            <button
+              key={rk}
+              onClick={() => setVolumeRange(rk)}
+              style={{
+                padding: `3px ${spacing[3]}`, borderRadius: radius.full,
+                border: `1px solid ${volumeRange === rk ? colors.accent : colors.border}`,
+                backgroundColor: volumeRange === rk ? colors.accentBg : 'transparent',
+                ...typography.label, color: volumeRange === rk ? colors.accent : colors.textMuted,
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+            >
+              {rk.toUpperCase()}
+            </button>
+          ))}
+        </div>
 
         {/* Muscle filter pills */}
         {availableMuscles.length > 0 && (
@@ -452,6 +512,20 @@ export default function StatsPage() {
                   dataKey="week"
                   tick={{ fill: colors.textFaint, fontSize: 10, fontFamily: 'monospace' }}
                   axisLine={false} tickLine={false}
+                  tickFormatter={(dateStr: string) => {
+                    try {
+                      const date = parseISO(dateStr);
+                      if (weeksToShow <= 8) {
+                        // Show abbreviated week date "KW dd.MM"
+                        return format(date, 'dd.MM', { locale: de });
+                      }
+                      // For larger ranges show just month abbreviation
+                      return format(date, 'MMM', { locale: de }).slice(0, 3);
+                    } catch {
+                      return dateStr;
+                    }
+                  }}
+                  interval={weeksToShow > 13 ? Math.floor(weeksToShow / 8) : 0}
                 />
                 <YAxis
                   tick={{ fill: colors.textFaint, fontSize: 10, fontFamily: 'monospace' }}
@@ -469,7 +543,7 @@ export default function StatsPage() {
             </ResponsiveContainer>
           ) : (
             <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <p style={{ ...typography.bodySm, color: colors.textMuted }}>Noch keine Workouts in den letzten 8 Wochen</p>
+              <p style={{ ...typography.bodySm, color: colors.textMuted }}>Noch keine Workouts in den letzten {volumeRange}</p>
             </div>
           )}
         </div>
