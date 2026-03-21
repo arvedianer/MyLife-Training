@@ -1,15 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target, MessageCircle } from 'lucide-react';
+import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target, MessageCircle, AlertTriangle } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { BodyHeatmap } from '@/components/ui/BodyHeatmap';
 import { useUserStore } from '@/store/userStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { usePlanStore } from '@/store/planStore';
 import { formatWorkoutDate, formatDuration, formatVolume, calculateStreak } from '@/utils/dates';
-import { parseISO } from 'date-fns';
+import { parseISO, subDays, isAfter } from 'date-fns';
+import { getMissingMuscles, getRemainingWeekDays, MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
 
 export default function DashboardPage() {
   const { profile } = useUserStore();
@@ -31,6 +33,25 @@ export default function DashboardPage() {
   const recentWeekSessions = sessions.filter((s) => parseISO(s.date) >= weekAgo);
   const weekVolume = recentWeekSessions.reduce((sum, s) => sum + s.totalVolume, 0);
   const weekWorkouts = recentWeekSessions.length;
+
+  // Muscle coverage signal
+  const daysLeft = getRemainingWeekDays();
+  const missingMuscles = getMissingMuscles(sessions, Object.keys(MUSCLE_LABELS_DE));
+  const showMuscleWarning = daysLeft > 0 && missingMuscles.length > 0;
+
+  // Compact heatmap data — compute muscleSets from last 7 days
+  const oneWeekAgo = subDays(new Date(), 7);
+  const muscleSets: Record<string, number> = {};
+  for (const session of sessions.filter((s) => isAfter(parseISO(s.date), oneWeekAgo))) {
+    for (const ex of session.exercises) {
+      const muscle = ex.exercise.primaryMuscle;
+      if (muscle) {
+        const workedSets = ex.sets.filter((s) => s.isCompleted && s.type !== 'warmup').length;
+        muscleSets[muscle] = (muscleSets[muscle] ?? 0) + workedSets;
+      }
+    }
+  }
+  const maxMuscleSets = Math.max(1, ...Object.values(muscleSets));
 
   // Goal personalization
   const goal = profile?.goal;
@@ -184,6 +205,50 @@ export default function DashboardPage() {
           unit={weekVolume >= 1000 ? 'Tonnen' : 'kg'}
           valueColor={colors.volumeColor}
         />
+      </div>
+
+      {/* Muscle Coverage Warning */}
+      {showMuscleWarning && (
+        <div style={{
+          backgroundColor: `${colors.warning}10`,
+          border: `1px solid ${colors.warning}30`,
+          borderRadius: radius.xl,
+          padding: spacing[4],
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginBottom: spacing[2] }}>
+            <AlertTriangle size={16} color={colors.warning} />
+            <span style={{ ...typography.label, color: colors.warning }}>
+              NOCH {daysLeft} TAG{daysLeft !== 1 ? 'E' : ''} — MUSKELN UNGENÜGEND TRAINIERT
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[2] }}>
+            {missingMuscles.slice(0, 4).map((m) => (
+              <span key={m} style={{
+                padding: `3px ${spacing[2]}`,
+                backgroundColor: `${colors.warning}20`,
+                border: `1px solid ${colors.warning}40`,
+                borderRadius: radius.full,
+                ...typography.label,
+                color: colors.warning,
+              }}>
+                {MUSCLE_LABELS_DE[m] ?? m}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Compact Body Heatmap */}
+      <div style={{
+        backgroundColor: colors.bgCard,
+        border: `1px solid ${colors.border}`,
+        borderRadius: radius.xl,
+        padding: spacing[3],
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <BodyHeatmap compact muscleSets={muscleSets} maxSets={maxMuscleSets} />
       </div>
 
       {/* Recent Workouts */}

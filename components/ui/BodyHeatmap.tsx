@@ -8,6 +8,7 @@ import { bodyBack } from './bodyBack';
 interface BodyHeatmapProps {
     muscleSets: Record<string, number>;
     maxSets: number;
+    compact?: boolean;
 }
 
 const HEAT_COLORS = [
@@ -125,7 +126,20 @@ function BackBody({ muscleSets, maxSets }: BodyHeatmapProps) {
     );
 }
 
-export default function BodyHeatmap({ muscleSets, maxSets }: BodyHeatmapProps) {
+export function BodyHeatmap({ muscleSets, maxSets, compact = false }: BodyHeatmapProps) {
+    if (compact) {
+        return (
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', height: '120px' }}>
+                <div style={{ width: '60px', height: '120px' }}>
+                    <FrontBody muscleSets={muscleSets} maxSets={maxSets} />
+                </div>
+                <div style={{ width: '60px', height: '120px' }}>
+                    <BackBody muscleSets={muscleSets} maxSets={maxSets} />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={styles.container}>
             <div className={styles.bodies}>
@@ -149,3 +163,5 @@ export default function BodyHeatmap({ muscleSets, maxSets }: BodyHeatmapProps) {
         </div>
     );
 }
+
+export default BodyHeatmap;
