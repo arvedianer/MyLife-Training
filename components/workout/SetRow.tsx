@@ -1,6 +1,7 @@
 'use client';
 
 import { CheckCircle2, Circle, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { colors } from '@/constants/tokens';
 import { NumericInput } from '@/components/ui/Input';
 import type { SetEntry } from '@/types/workout';
@@ -12,7 +13,10 @@ interface SetRowProps {
   exerciseId: string;
   repRange?: { min: number; max: number };
   isBodyweight?: boolean;
+  isUnilateral?: boolean;
   onUpdateWeight: (weight: number) => void;
+  onUpdateWeightL?: (weight: number) => void;
+  onUpdateWeightR?: (weight: number) => void;
   onUpdateReps: (reps: number) => void;
   onToggleComplete: () => void;
   onRemove: () => void;
@@ -32,7 +36,10 @@ export function SetRow({
   setNumber,
   repRange,
   isBodyweight,
+  isUnilateral,
   onUpdateWeight,
+  onUpdateWeightL,
+  onUpdateWeightR,
   onUpdateReps,
   onToggleComplete,
   onRemove,
@@ -41,6 +48,8 @@ export function SetRow({
   previousWeight,
   previousReps,
 }: SetRowProps) {
+  const [localWeightL, setLocalWeightL] = useState<number | undefined>(undefined);
+  const [localWeightR, setLocalWeightR] = useState<number | undefined>(undefined);
 
   const handleToggle = () => {
     if (!set.isCompleted) {
@@ -98,22 +107,65 @@ export function SetRow({
       </div>
 
       {/* Gewicht */}
-      <NumericInput
-        value={set.weight}
-        onChange={onUpdateWeight}
-        step={isCardio ? 0.5 : 2.5}
-        placeholder={
-          set.weight === 0 && previousWeight !== undefined
-            ? String(previousWeight)
-            : isCardio ? 'km' : (isBodyweight ? 'BW' : '0')
-        }
-        ghost={set.weight === 0 && previousWeight !== undefined}
-        style={{
-          flex: 1,
-          opacity: set.isCompleted ? 0.55 : 1,
-          transition: 'opacity 0.2s ease',
-        }}
-      />
+      {isUnilateral ? (
+        <div className={styles.unilateralInputs} style={{ opacity: set.isCompleted ? 0.55 : 1, transition: 'opacity 0.2s ease' }}>
+          <div className={styles.sideInput}>
+            <span className={styles.sideLabel}>L</span>
+            <NumericInput
+              value={localWeightL ?? set.weightL ?? set.weight}
+              onChange={(val) => {
+                setLocalWeightL(val);
+                onUpdateWeightL?.(val);
+              }}
+              step={2.5}
+              min={0}
+              placeholder={
+                (localWeightL === undefined && !set.weightL && set.weight === 0 && previousWeight !== undefined)
+                  ? String(previousWeight)
+                  : '0'
+              }
+              ghost={localWeightL === undefined && !set.weightL && set.weight === 0 && previousWeight !== undefined}
+              style={{ flex: 1 }}
+            />
+          </div>
+          <div className={styles.sideInput}>
+            <span className={styles.sideLabel}>R</span>
+            <NumericInput
+              value={localWeightR ?? set.weightR ?? set.weight}
+              onChange={(val) => {
+                setLocalWeightR(val);
+                onUpdateWeightR?.(val);
+              }}
+              step={2.5}
+              min={0}
+              placeholder={
+                (localWeightR === undefined && !set.weightR && set.weight === 0 && previousWeight !== undefined)
+                  ? String(previousWeight)
+                  : '0'
+              }
+              ghost={localWeightR === undefined && !set.weightR && set.weight === 0 && previousWeight !== undefined}
+              style={{ flex: 1 }}
+            />
+          </div>
+        </div>
+      ) : (
+        <NumericInput
+          value={set.weight}
+          onChange={onUpdateWeight}
+          step={isCardio ? 0.5 : 2.5}
+          placeholder={
+            set.weight === 0 && previousWeight !== undefined
+              ? String(previousWeight)
+              : isCardio ? 'km' : (isBodyweight ? 'BW' : '0')
+          }
+          ghost={set.weight === 0 && previousWeight !== undefined}
+          style={{
+            flex: 1,
+            opacity: set.isCompleted ? 0.55 : 1,
+            transition: 'opacity 0.2s ease',
+          }}
+        />
+      )}
 
       {/* Wiederholungen */}
       <NumericInput

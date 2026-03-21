@@ -20,6 +20,8 @@ export interface SetEntry {
   rpe?: number;     // 1-10, optional
   note?: string;
   variationKey?: string;
+  weightL?: number; // unilateral: left side weight
+  weightR?: number; // unilateral: right side weight
 }
 
 export interface WorkoutExercise {

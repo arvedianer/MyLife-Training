@@ -102,3 +102,58 @@
     opacity: 1;
     background-color: var(--danger-bg, rgba(255, 69, 58, 0.12));
 }
+
+.unilateralInputs {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.sideInput {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
+}
+
+.sideLabel {
+    font-family: var(--font-courier, 'Courier New', Courier, monospace);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent, #4DFFED);
+    flex-shrink: 0;
+    width: 10px;
+}
+
+.setNumberBoxWarmup {
+    background-color: rgba(255, 204, 0, 0.12);
+    border: 1px solid rgba(255, 204, 0, 0.4);
+}
+
+.setNumberBoxDropset {
+    background-color: rgba(0, 122, 255, 0.12);
+    border: 1px solid rgba(0, 122, 255, 0.4);
+}
+
+.setNumberTextWarmup {
+    color: #FFCC00;
+}
+
+.setNumberTextDropset {
+    color: #007AFF;
+}
+
+.sideIndicator {
+    font-family: var(--font-courier, 'Courier New', Courier, monospace);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted, #8E8E93);
+    width: 12px;
+    flex-shrink: 0;
+}
+
+.sideIndicatorActive {
+    color: var(--accent, #4DFFED);
+}

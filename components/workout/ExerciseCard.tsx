@@ -24,7 +24,7 @@ interface ExerciseCardProps {
   restTimerDefault: number;
   overloadSuggestion?: OverloadSuggestion | null;
   onAddSet: () => void;
-  onUpdateSet: (setId: string, updates: { weight?: number; reps?: number }) => void;
+  onUpdateSet: (setId: string, updates: { weight?: number; weightL?: number; weightR?: number; reps?: number }) => void;
   onToggleSet: (setId: string) => void;
   onRemoveSet: (setId: string) => void;
   onRemoveExercise: () => void;
@@ -288,7 +288,10 @@ export function ExerciseCard({
               exerciseId={workoutExercise.id}
               repRange={exercise.repRange}
               isBodyweight={isBodyweight}
+              isUnilateral={workoutExercise.isUnilateral}
               onUpdateWeight={(weight) => onUpdateSet(set.id, { weight })}
+              onUpdateWeightL={(weightL) => onUpdateSet(set.id, { weightL })}
+              onUpdateWeightR={(weightR) => onUpdateSet(set.id, { weightR })}
               onUpdateReps={(reps) => onUpdateSet(set.id, { reps })}
               onToggleComplete={() => onToggleSet(set.id)}
               onRemove={() => onRemoveSet(set.id)}
