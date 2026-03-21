@@ -33,6 +33,14 @@ function detectTrainingPlan(text: string): boolean {
   return headingCount >= 2 || (hasDayPattern && hasBulletList);
 }
 
+const QUICK_REPLIES = [
+  'Warum dieser Score?',
+  'Trainingsplan anpassen',
+  'Welche Übung für Brust?',
+  'Progressive Overload erklären',
+  'Bin ich übertrainiert?',
+];
+
 const STARTER_PROMPTS = [
   { icon: <Dumbbell size={14} color={colors.accent} />, text: 'Erstell mir den Arnold Split' },
   { icon: <TrendingUp size={14} color={colors.prColor} />, text: 'Analysiere mein letztes Workout' },
@@ -72,6 +80,7 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [showQuickReplies, setShowQuickReplies] = useState(true);
   const [savingPlan, setSavingPlan] = useState<string | null>(null); // msgId being saved
   const [savedPlanIds, setSavedPlanIds] = useState<Set<string>>(new Set());
   const [planToast, setPlanToast] = useState(false);
@@ -146,6 +155,7 @@ export default function ChatPage() {
 
     setInput('');
     setError(null);
+    setShowQuickReplies(false);
 
     const convId = activeConversationId ?? newConversation();
 
@@ -199,6 +209,7 @@ export default function ChatPage() {
           updateLastMessage(convId, assistantText);
         }
       }
+      setShowQuickReplies(true);
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
         setError('Verbindungsfehler. Prüfe deine Internetverbindung.');
@@ -812,6 +823,36 @@ export default function ChatPage() {
 
         <div ref={bottomRef} />
       </div>
+
+      {/* Quick-reply chips */}
+      {showQuickReplies && messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[2], padding: `${spacing[2]} ${spacing[4]}`, flexShrink: 0 }}>
+          {QUICK_REPLIES.map((reply) => (
+            <button
+              key={reply}
+              onClick={() => {
+                setShowQuickReplies(false);
+                void sendMessage(reply);
+              }}
+              style={{
+                padding: `${spacing[2]} ${spacing[3]}`,
+                borderRadius: radius.full,
+                border: `1px solid ${colors.border}`,
+                backgroundColor: colors.bgCard,
+                color: colors.textSecondary,
+                fontSize: '13px',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                transition: 'background-color 0.15s',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgElevated; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgCard; }}
+            >
+              {reply}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Input area */}
       <div
