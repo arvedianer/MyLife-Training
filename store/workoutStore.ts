@@ -208,21 +208,17 @@ export const useWorkoutStore = create<WorkoutState>()(
                 const reps = lastSet?.reps ?? 0;
                 const type = lastSet?.type ?? 'normal';
 
-                if (e.isUnilateral) {
-                  // If unilateral, add a pair (L and R)
-                  return {
-                    ...e,
-                    sets: [
-                      ...e.sets,
-                      createDefaultSet(weight, reps, type, 'left'),
-                      createDefaultSet(weight, reps, type, 'right'),
-                    ],
-                  };
-                }
-
+                // Always add exactly ONE new set (unilateral uses repsL/repsR fields, not separate rows)
                 return {
                   ...e,
-                  sets: [...e.sets, createDefaultSet(weight, reps, type, 'both')],
+                  sets: [
+                    ...e.sets,
+                    {
+                      ...createDefaultSet(weight, reps, type, 'both'),
+                      repsL: lastSet?.repsL,
+                      repsR: lastSet?.repsR,
+                    },
+                  ],
                 };
               }),
             },

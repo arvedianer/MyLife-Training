@@ -15,9 +15,9 @@ interface SetRowProps {
   isBodyweight?: boolean;
   isUnilateral?: boolean;
   onUpdateWeight: (weight: number) => void;
-  onUpdateWeightL?: (weight: number) => void;
-  onUpdateWeightR?: (weight: number) => void;
   onUpdateReps: (reps: number) => void;
+  onUpdateRepsL?: (repsL: number) => void;
+  onUpdateRepsR?: (repsR: number) => void;
   onToggleComplete: () => void;
   onRemove: () => void;
   restTimerDefault?: number;
@@ -38,9 +38,9 @@ export function SetRow({
   isBodyweight,
   isUnilateral,
   onUpdateWeight,
-  onUpdateWeightL,
-  onUpdateWeightR,
   onUpdateReps,
+  onUpdateRepsL,
+  onUpdateRepsR,
   onToggleComplete,
   onRemove,
   onStartTimer,
@@ -48,8 +48,8 @@ export function SetRow({
   previousWeight,
   previousReps,
 }: SetRowProps) {
-  const [localWeightL, setLocalWeightL] = useState<number | undefined>(undefined);
-  const [localWeightR, setLocalWeightR] = useState<number | undefined>(undefined);
+  const [localRepsL, setLocalRepsL] = useState<number | undefined>(undefined);
+  const [localRepsR, setLocalRepsR] = useState<number | undefined>(undefined);
 
   const handleToggle = () => {
     if (!set.isCompleted) {
@@ -92,13 +92,8 @@ export function SetRow({
 
   return (
     <div className={`${styles.setRowContainer} ${set.isCompleted ? styles.setRowCompleted : ''}`}>
-      {/* Set Number & Side Indicator */}
-      <div style={{ display: 'flex', alignItems: 'center', width: 44 }}>
-        {set.side && set.side !== 'both' && (
-          <div className={`${styles.sideIndicator} ${styles.sideIndicatorActive}`}>
-            {set.side === 'left' ? 'L' : 'R'}
-          </div>
-        )}
+      {/* Set Number */}
+      <div style={{ display: 'flex', alignItems: 'center', width: 28 }}>
         <div className={`${styles.setNumberBox} ${getSetTypeClass()}`}>
           <span className={`${styles.setNumberText} ${getSetTypeTextClass()}`}>
             {set.isPR ? '★' : getSetTypeChar()}
@@ -106,59 +101,69 @@ export function SetRow({
         </div>
       </div>
 
-      {/* Gewicht */}
+      {/* Gewicht — always one shared input */}
+      <NumericInput
+        value={set.weight}
+        onChange={onUpdateWeight}
+        step={isCardio ? 0.5 : 2.5}
+        placeholder={
+          set.weight === 0 && previousWeight !== undefined
+            ? String(previousWeight)
+            : isCardio ? 'km' : (isBodyweight ? 'BW' : '0')
+        }
+        ghost={set.weight === 0 && previousWeight !== undefined}
+        style={{
+          flex: 1,
+          opacity: set.isCompleted ? 0.55 : 1,
+          transition: 'opacity 0.2s ease',
+        }}
+      />
+
+      {/* Wiederholungen — L/R side-by-side for unilateral, single input otherwise */}
       {isUnilateral ? (
-        <div className={styles.unilateralInputs} style={{ opacity: set.isCompleted ? 0.55 : 1, transition: 'opacity 0.2s ease' }}>
-          <div className={styles.sideInput}>
+        <div className={styles.unilateralReps} style={{ opacity: set.isCompleted ? 0.55 : 1, transition: 'opacity 0.2s ease' }}>
+          <div className={styles.sideRepInput}>
             <span className={styles.sideLabel}>L</span>
             <NumericInput
-              value={localWeightL ?? set.weightL ?? set.weight}
+              value={localRepsL ?? set.repsL ?? set.reps}
               onChange={(val) => {
-                setLocalWeightL(val);
-                onUpdateWeightL?.(val);
+                setLocalRepsL(val);
+                onUpdateRepsL?.(val);
               }}
-              step={2.5}
-              min={0}
-              placeholder={
-                (localWeightL === undefined && !set.weightL && set.weight === 0 && previousWeight !== undefined)
-                  ? String(previousWeight)
-                  : '0'
-              }
-              ghost={localWeightL === undefined && !set.weightL && set.weight === 0 && previousWeight !== undefined}
+              step={1}
+              min={1}
+              placeholder={String(set.repsL ?? set.reps ?? previousReps ?? 10)}
+              ghost={localRepsL === undefined && !set.repsL && set.reps === 0 && previousReps !== undefined}
               style={{ flex: 1 }}
             />
           </div>
-          <div className={styles.sideInput}>
+          <div className={styles.sideRepInput}>
             <span className={styles.sideLabel}>R</span>
             <NumericInput
-              value={localWeightR ?? set.weightR ?? set.weight}
+              value={localRepsR ?? set.repsR ?? set.reps}
               onChange={(val) => {
-                setLocalWeightR(val);
-                onUpdateWeightR?.(val);
+                setLocalRepsR(val);
+                onUpdateRepsR?.(val);
               }}
-              step={2.5}
-              min={0}
-              placeholder={
-                (localWeightR === undefined && !set.weightR && set.weight === 0 && previousWeight !== undefined)
-                  ? String(previousWeight)
-                  : '0'
-              }
-              ghost={localWeightR === undefined && !set.weightR && set.weight === 0 && previousWeight !== undefined}
+              step={1}
+              min={1}
+              placeholder={String(set.repsR ?? set.reps ?? previousReps ?? 10)}
+              ghost={localRepsR === undefined && !set.repsR && set.reps === 0 && previousReps !== undefined}
               style={{ flex: 1 }}
             />
           </div>
         </div>
       ) : (
         <NumericInput
-          value={set.weight}
-          onChange={onUpdateWeight}
-          step={isCardio ? 0.5 : 2.5}
+          value={set.reps}
+          onChange={onUpdateReps}
+          step={isCardio ? 1 : 1}
           placeholder={
-            set.weight === 0 && previousWeight !== undefined
-              ? String(previousWeight)
-              : isCardio ? 'km' : (isBodyweight ? 'BW' : '0')
+            set.reps === 0 && previousReps !== undefined
+              ? String(previousReps)
+              : isCardio ? 'min' : '0'
           }
-          ghost={set.weight === 0 && previousWeight !== undefined}
+          ghost={set.reps === 0 && previousReps !== undefined}
           style={{
             flex: 1,
             opacity: set.isCompleted ? 0.55 : 1,
@@ -166,24 +171,6 @@ export function SetRow({
           }}
         />
       )}
-
-      {/* Wiederholungen */}
-      <NumericInput
-        value={set.reps}
-        onChange={onUpdateReps}
-        step={isCardio ? 1 : 1}
-        placeholder={
-          set.reps === 0 && previousReps !== undefined
-            ? String(previousReps)
-            : isCardio ? 'min' : '0'
-        }
-        ghost={set.reps === 0 && previousReps !== undefined}
-        style={{
-          flex: 1,
-          opacity: set.isCompleted ? 0.55 : 1,
-          transition: 'opacity 0.2s ease',
-        }}
-      />
 
       {/* Volumen (readonly) */}
       <div className={styles.volumeContainer}>
