@@ -8,7 +8,8 @@ export type MuscleGroup =
   | 'glutes'
   | 'core'
   | 'calves'
-  | 'forearms';
+  | 'forearms'
+  | 'cardio';
 
 export type Equipment =
   | 'barbell'
@@ -41,4 +42,8 @@ export interface Exercise {
   isPublic?: boolean;
   createdBy?: string;
   isCardio?: boolean;  // If true: track km + duration instead of weight/reps
+  popularity?: number;      // 1–100 (based on real-world usage data)
+  variationOf?: string;     // parent exercise ID (e.g. 'bench-press')
+  variationLabel?: string;  // e.g. 'Kurzhantel', 'Kabel', 'Maschine'
+  tags?: string[];          // e.g. ['compound', 'beginner-friendly', 'home']
 }

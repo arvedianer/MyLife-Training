@@ -22,6 +22,7 @@ const muscleLabels: Record<MuscleGroup, string> = {
   core: 'Core',
   calves: 'Waden',
   forearms: 'Unterarme',
+  cardio: 'Cardio',
 };
 
 const equipmentLabels: Record<Equipment, string> = {
@@ -38,7 +39,7 @@ const equipmentLabels: Record<Equipment, string> = {
 
 const muscleOrder: MuscleGroup[] = [
   'chest', 'back', 'shoulders', 'legs', 'glutes',
-  'biceps', 'triceps', 'core', 'calves', 'forearms',
+  'biceps', 'triceps', 'core', 'calves', 'forearms', 'cardio',
 ];
 
 const equipmentOrder: Equipment[] = [
@@ -83,27 +84,29 @@ export default function ExercisesPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   const filtered = useMemo(() => {
-    return allExercises.filter((ex) => {
-      if (search) {
-        const q = search.toLowerCase();
-        if (
-          !ex.nameDE.toLowerCase().includes(q) &&
-          !ex.name.toLowerCase().includes(q)
-        )
-          return false;
-      }
-      if (selectedMuscle && ex.primaryMuscle !== selectedMuscle) return false;
-      if (selectedEquipment && !ex.equipment.includes(selectedEquipment)) return false;
+    return allExercises
+      .filter((ex) => {
+        if (search) {
+          const q = search.toLowerCase();
+          if (
+            !ex.nameDE.toLowerCase().includes(q) &&
+            !ex.name.toLowerCase().includes(q)
+          )
+            return false;
+        }
+        if (selectedMuscle && ex.primaryMuscle !== selectedMuscle) return false;
+        if (selectedEquipment && !ex.equipment.includes(selectedEquipment)) return false;
 
-      const isCustom = (ex as Exercise & { isCustom?: boolean }).isCustom;
-      const isPublic = (ex as Exercise & { isPublic?: boolean }).isPublic ?? true;
+        const isCustom = (ex as Exercise & { isCustom?: boolean }).isCustom;
+        const isPublic = (ex as Exercise & { isPublic?: boolean }).isPublic ?? true;
 
-      if (selectedOrigin === 'builtin' && isCustom) return false;
-      if (selectedOrigin === 'community' && (!isCustom || !isPublic)) return false;
-      if (selectedOrigin === 'private' && (!isCustom || isPublic)) return false;
+        if (selectedOrigin === 'builtin' && isCustom) return false;
+        if (selectedOrigin === 'community' && (!isCustom || !isPublic)) return false;
+        if (selectedOrigin === 'private' && (!isCustom || isPublic)) return false;
 
-      return true;
-    });
+        return true;
+      })
+      .sort((a, b) => (b.popularity ?? 50) - (a.popularity ?? 50));
   }, [search, selectedMuscle, selectedEquipment, selectedOrigin, allExercises]);
 
   const handleAddToWorkout = (exerciseId: string) => {
@@ -371,6 +374,21 @@ export default function ExercisesPage() {
                           }}
                         >
                           {isPublic ? 'Community' : 'Privat'}
+                        </span>
+                      )}
+                      {(exercise.popularity ?? 0) >= 80 && (
+                        <span
+                          style={{
+                            ...typography.label,
+                            color: colors.accent,
+                            fontSize: '9px',
+                            padding: `1px ${spacing[1]}`,
+                            border: `1px solid ${colors.accent}40`,
+                            borderRadius: radius.full,
+                            marginLeft: spacing[1],
+                          }}
+                        >
+                          ★
                         </span>
                       )}
                     </div>

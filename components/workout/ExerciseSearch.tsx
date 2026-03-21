@@ -26,6 +26,7 @@ const muscleGroups: { id: MuscleGroup; label: string }[] = [
   { id: 'core', label: 'Core' },
   { id: 'calves', label: 'Waden' },
   { id: 'forearms', label: 'Unterarme' },
+  { id: 'cardio', label: 'Cardio' },
 ];
 
 const equipmentFilters: { id: Equipment; label: string }[] = [
@@ -96,31 +97,33 @@ export function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
   );
 
   const filtered = useMemo(() => {
-    return allExercises.filter((ex) => {
-      const matchesQuery =
-        query.length === 0 ||
-        ex.nameDE.toLowerCase().includes(query.toLowerCase()) ||
-        ex.name.toLowerCase().includes(query.toLowerCase());
+    return allExercises
+      .filter((ex) => {
+        const matchesQuery =
+          query.length === 0 ||
+          ex.nameDE.toLowerCase().includes(query.toLowerCase()) ||
+          ex.name.toLowerCase().includes(query.toLowerCase());
 
-      const matchesMuscle =
-        !selectedMuscle ||
-        ex.primaryMuscle === selectedMuscle;
+        const matchesMuscle =
+          !selectedMuscle ||
+          ex.primaryMuscle === selectedMuscle;
 
-      const matchesEquipment =
-        !selectedEquipment || ex.equipment.includes(selectedEquipment);
+        const matchesEquipment =
+          !selectedEquipment || ex.equipment.includes(selectedEquipment);
 
-      const matchesCategory =
-        !selectedCategory || ex.category === selectedCategory;
+        const matchesCategory =
+          !selectedCategory || ex.category === selectedCategory;
 
-      const isCustom = (ex as Exercise & { isCustom?: boolean }).isCustom;
-      const isPublic = (ex as Exercise & { isPublic?: boolean }).isPublic ?? true;
+        const isCustom = (ex as Exercise & { isCustom?: boolean }).isCustom;
+        const isPublic = (ex as Exercise & { isPublic?: boolean }).isPublic ?? true;
 
-      if (selectedOrigin === 'builtin' && isCustom) return false;
-      if (selectedOrigin === 'community' && (!isCustom || !isPublic)) return false;
-      if (selectedOrigin === 'private' && (!isCustom || isPublic)) return false;
+        if (selectedOrigin === 'builtin' && isCustom) return false;
+        if (selectedOrigin === 'community' && (!isCustom || !isPublic)) return false;
+        if (selectedOrigin === 'private' && (!isCustom || isPublic)) return false;
 
-      return matchesQuery && matchesMuscle && matchesEquipment && matchesCategory;
-    });
+        return matchesQuery && matchesMuscle && matchesEquipment && matchesCategory;
+      })
+      .sort((a, b) => (b.popularity ?? 50) - (a.popularity ?? 50));
   }, [query, selectedMuscle, selectedEquipment, selectedCategory, selectedOrigin, allExercises]);
 
   function FilterChip<T extends string>({
@@ -399,6 +402,21 @@ export function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
                         }}
                       >
                         {isPublic ? 'Community' : 'Privat'}
+                      </span>
+                    )}
+                    {(exercise.popularity ?? 0) >= 80 && (
+                      <span
+                        style={{
+                          ...typography.label,
+                          color: colors.accent,
+                          fontSize: '9px',
+                          padding: `1px ${spacing[1]}`,
+                          border: `1px solid ${colors.accent}40`,
+                          borderRadius: radius.full,
+                          marginLeft: spacing[1],
+                        }}
+                      >
+                        ★
                       </span>
                     )}
                   </div>
