@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { Play, Plus, Sofa, Droplets, Moon, Beef, PersonStanding, Clock } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { usePlanStore } from '@/store/planStore';
 import { useHistoryStore } from '@/store/historyStore';
@@ -64,6 +63,21 @@ export default function StartPage() {
   const handleStartFree = () => {
     startWorkout();
     router.push('/workout/active');
+  };
+
+  const handleRepeatLast = () => {
+    if (!lastSession || activeWorkout) return;
+    const lastExerciseIds = lastSession.exercises.map((e) => e.exercise.id);
+    startWorkout(lastSession.splitName, lastExerciseIds);
+    router.push('/workout/active');
+  };
+
+  const handleRestDay = () => {
+    setSelectedDayId('manual-rest-day');
+    const today = new Date().toISOString().split('T')[0];
+    addRestDay(today);
+    setRestDaySaved(true);
+    setTimeout(() => setRestDaySaved(false), 2000);
   };
 
   const handleContinue = () => {
@@ -381,104 +395,161 @@ export default function StartPage() {
         </div>
       )}
 
-      {/* Freies Training */}
+      {/* Schnellstart */}
       <div>
         <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>
           Schnellstart
         </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
-          <Card onPress={activeWorkout ? undefined : handleStartFree}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: spacing[4] }}>
-              <div
+
+        {/* PRIMARY: Today's planned workout (no active split section above) or Free Workout */}
+        {!activeSplit ? (
+          <div
+            style={{
+              backgroundColor: colors.bgCard,
+              border: `1px solid ${colors.border}`,
+              borderRadius: radius.xl,
+              padding: spacing[5],
+              marginBottom: spacing[3],
+            }}
+          >
+            <div style={{ marginBottom: spacing[3] }}>
+              <span
                 style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: radius.md,
-                  backgroundColor: colors.bgHighest,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  ...typography.label,
+                  color: colors.accent,
+                  display: 'block',
+                  marginBottom: spacing[1],
                 }}
               >
-                <Plus size={22} color={colors.textMuted} />
-              </div>
-              <div>
-                <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>
-                  Leeres Training
-                </div>
-                <div style={{ ...typography.bodySm, color: colors.textMuted }}>
-                  Selbst Übungen hinzufügen
-                </div>
-              </div>
+                SCHNELLSTART
+              </span>
+              <span style={{ ...typography.h3, color: colors.textPrimary, display: 'block' }}>
+                Freies Workout
+              </span>
             </div>
-          </Card>
-
-          {/* Manuelles Rest Day Card */}
-          <Card onPress={() => {
-            setSelectedDayId('manual-rest-day');
-            const today = new Date().toISOString().split('T')[0];
-            addRestDay(today);
-            setRestDaySaved(true);
-            setTimeout(() => setRestDaySaved(false), 2000);
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: spacing[4] }}>
-              <div
+            <p style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[4] }}>
+              Übungen frei wählen, kein Plan nötig
+            </p>
+            <button
+              onClick={activeWorkout ? undefined : handleStartFree}
+              disabled={!!activeWorkout}
+              style={{
+                width: '100%',
+                padding: `${spacing[4]} ${spacing[5]}`,
+                borderRadius: radius.lg,
+                backgroundColor: activeWorkout ? colors.bgHighest : colors.accent,
+                color: activeWorkout ? colors.textDisabled : '#000',
+                ...typography.bodyLg,
+                fontWeight: '700',
+                cursor: activeWorkout ? 'not-allowed' : 'pointer',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing[2],
+              }}
+            >
+              <Plus size={18} />
+              Workout starten
+            </button>
+          </div>
+        ) : (
+          /* When a split is active, primary card shows free workout as an alternative option */
+          <div
+            style={{
+              backgroundColor: colors.bgCard,
+              border: `1px solid ${colors.border}`,
+              borderRadius: radius.xl,
+              padding: spacing[5],
+              marginBottom: spacing[3],
+            }}
+          >
+            <div style={{ marginBottom: spacing[3] }}>
+              <span
                 style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: radius.md,
-                  backgroundColor: `${colors.accent}15`,
-                  border: `1px solid ${colors.accent}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  ...typography.label,
+                  color: colors.textMuted,
+                  display: 'block',
+                  marginBottom: spacing[1],
                 }}
               >
-                <Sofa size={22} color={colors.accent} />
-              </div>
-              <div>
-                <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>
-                  Rest Day einlegen
-                </div>
-                <div style={{ ...typography.bodySm, color: restDaySaved ? colors.success : colors.textMuted }}>
-                  {restDaySaved ? 'Rest Day gespeichert ✓' : 'Heute pausieren & regenerieren'}
-                </div>
-              </div>
+                ALTERNATIV
+              </span>
+              <span style={{ ...typography.h3, color: colors.textPrimary, display: 'block' }}>
+                Freies Workout
+              </span>
             </div>
-          </Card>
+            <p style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[4] }}>
+              Übungen frei wählen, ohne Plan
+            </p>
+            <button
+              onClick={activeWorkout ? undefined : handleStartFree}
+              disabled={!!activeWorkout}
+              style={{
+                width: '100%',
+                padding: `${spacing[3]} ${spacing[5]}`,
+                borderRadius: radius.lg,
+                backgroundColor: colors.bgHighest,
+                color: activeWorkout ? colors.textDisabled : colors.textSecondary,
+                ...typography.body,
+                fontWeight: '600',
+                cursor: activeWorkout ? 'not-allowed' : 'pointer',
+                border: `1px solid ${colors.border}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing[2],
+              }}
+            >
+              <Plus size={16} />
+              Leeres Training starten
+            </button>
+          </div>
+        )}
 
+        {/* SECONDARY ROW: quick action chips */}
+        <div style={{ display: 'flex', gap: spacing[2], flexWrap: 'wrap' as const, marginBottom: spacing[4] }}>
           {lastSession && (
-            <Card onPress={activeWorkout ? undefined : () => {
-              // Repeat last session: pre-load the same exercise IDs in order
-              const lastExerciseIds = lastSession.exercises.map((e) => e.exercise.id);
-              startWorkout(lastSession.splitName, lastExerciseIds);
-              router.push('/workout/active');
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[4] }}>
-                <div
-                  style={{
-                    width: '44px',
-                    height: '44px',
-                    borderRadius: radius.md,
-                    backgroundColor: colors.bgHighest,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Play size={22} color={colors.textMuted} />
-                </div>
-                <div>
-                  <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>
-                    Letzte Einheit wiederholen
-                  </div>
-                  <div style={{ ...typography.bodySm, color: colors.textMuted }}>
-                    {lastSession.splitName ?? 'Freies Training'}
-                  </div>
-                </div>
-              </div>
-            </Card>
+            <button
+              onClick={activeWorkout ? undefined : handleRepeatLast}
+              disabled={!!activeWorkout}
+              style={{
+                backgroundColor: colors.bgElevated,
+                border: `1px solid ${colors.border}`,
+                borderRadius: radius.full,
+                padding: `${spacing[2]} ${spacing[4]}`,
+                ...typography.bodySm,
+                color: activeWorkout ? colors.textDisabled : colors.textSecondary,
+                cursor: activeWorkout ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing[2],
+                whiteSpace: 'nowrap' as const,
+              }}
+            >
+              <Play size={13} color={activeWorkout ? colors.textDisabled : colors.textMuted} />
+              Letztes wiederholen
+            </button>
           )}
+          <button
+            onClick={handleRestDay}
+            style={{
+              backgroundColor: colors.bgElevated,
+              border: `1px solid ${colors.border}`,
+              borderRadius: radius.full,
+              padding: `${spacing[2]} ${spacing[4]}`,
+              ...typography.bodySm,
+              color: colors.textSecondary,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing[2],
+              whiteSpace: 'nowrap' as const,
+            }}
+          >
+            <Sofa size={13} color={colors.textMuted} />
+            Rest Day
+          </button>
         </div>
       </div>
     </div>
