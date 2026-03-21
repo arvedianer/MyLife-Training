@@ -102,8 +102,3 @@
     opacity: 1;
     background-color: var(--danger-bg, rgba(255, 69, 58, 0.12));
 }
-
-/* Ghost placeholder — faded hint from previous session */
-input[data-ghost="true"]::placeholder {
-    color: rgba(255, 255, 255, 0.35);
-}
