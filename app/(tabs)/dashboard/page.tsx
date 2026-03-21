@@ -15,15 +15,22 @@ import { getMissingMuscles, getRemainingWeekDays, getWeeklyMuscleStatus, MUSCLE_
 
 export default function DashboardPage() {
   const { profile } = useUserStore();
-  const { sessions } = useHistoryStore();
+  const { sessions, restDays } = useHistoryStore();
   const { getActiveSplit, getTodaysSplitDay } = usePlanStore();
 
   const activeSplit = getActiveSplit();
   const todaysDay = getTodaysSplitDay();
   const recentSessions = sessions.slice(0, 3);
 
-  // Streak berechnen
-  const streak = calculateStreak(sessions.map((s) => s.date));
+  // Streak berechnen (Trainingstage + Rest Days zählen beide)
+  const trainingDates = sessions.map((s) => s.date);
+  const streak = calculateStreak(trainingDates, restDays);
+
+  // Streak-Warnung: heute weder trainiert noch Rest Day eingelegt
+  const todayISO = new Date().toISOString().split('T')[0];
+  const hasTodayActivity =
+    trainingDates.includes(todayISO) || restDays.includes(todayISO);
+  const showStreakWarning = !hasTodayActivity;
 
   // Wochenvolumen (parseISO für konsistente Timezone-Behandlung)
   const weekAgo = new Date();
@@ -197,6 +204,24 @@ export default function DashboardPage() {
           valueColor={colors.volumeColor}
         />
       </div>
+
+      {/* Streak Warning */}
+      {showStreakWarning && (
+        <div style={{
+          backgroundColor: `${colors.danger}10`,
+          border: `1px solid ${colors.danger}30`,
+          borderRadius: radius.xl,
+          padding: spacing[4],
+          display: 'flex',
+          alignItems: 'center',
+          gap: spacing[3],
+        }}>
+          <Flame size={20} color={colors.danger} />
+          <p style={{ ...typography.body, color: colors.danger, flex: 1 }}>
+            Trainiere heute oder leg einen Rest Day ein — sonst bricht dein Streak!
+          </p>
+        </div>
+      )}
 
       {/* Muscle Coverage Warning */}
       {showMuscleWarning && (

@@ -48,10 +48,12 @@ export function formatVolume(volume: number): string {
   return `${volume}kg`;
 }
 
-/** Berechnet den aktuellen Trainings-Streak aus einem Array von ISO-Datumsstrings (YYYY-MM-DD). */
-export function calculateStreak(dates: string[]): number {
-  if (dates.length === 0) return 0;
-  const sorted = Array.from(new Set(dates)).sort().reverse();
+/** Berechnet den aktuellen Trainings-Streak aus einem Array von ISO-Datumsstrings (YYYY-MM-DD).
+ *  Rest Days zählen ebenfalls als aktive Tage (Streak wird nicht gebrochen). */
+export function calculateStreak(trainingDates: string[], restDays: string[] = []): number {
+  const allActiveDates = [...new Set([...trainingDates, ...restDays])];
+  if (allActiveDates.length === 0) return 0;
+  const sorted = allActiveDates.sort().reverse();
   let streak = 0;
   let cursor = new Date();
   cursor.setHours(0, 0, 0, 0);

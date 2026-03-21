@@ -16,7 +16,7 @@ export default function StartPage() {
   const router = useRouter();
   const { startWorkout, activeWorkout } = useWorkoutStore();
   const { getActiveSplit, getTodaysSplitDay } = usePlanStore();
-  const { sessions } = useHistoryStore();
+  const { sessions, addRestDay } = useHistoryStore();
 
   const activeSplit = getActiveSplit();
   const todaysDayOriginal = getTodaysSplitDay();
@@ -31,6 +31,7 @@ export default function StartPage() {
     sleep: false,
     macros: false,
   });
+  const [restDaySaved, setRestDaySaved] = useState(false);
 
   useEffect(() => {
     if (!selectedDayId) {
@@ -413,7 +414,13 @@ export default function StartPage() {
           </Card>
 
           {/* Manuelles Rest Day Card */}
-          <Card onPress={() => setSelectedDayId('manual-rest-day')}>
+          <Card onPress={() => {
+            setSelectedDayId('manual-rest-day');
+            const today = new Date().toISOString().split('T')[0];
+            addRestDay(today);
+            setRestDaySaved(true);
+            setTimeout(() => setRestDaySaved(false), 2000);
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: spacing[4] }}>
               <div
                 style={{
@@ -433,8 +440,8 @@ export default function StartPage() {
                 <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>
                   Rest Day einlegen
                 </div>
-                <div style={{ ...typography.bodySm, color: colors.textMuted }}>
-                  Heute pausieren & regenerieren
+                <div style={{ ...typography.bodySm, color: restDaySaved ? colors.success : colors.textMuted }}>
+                  {restDaySaved ? 'Rest Day gespeichert ✓' : 'Heute pausieren & regenerieren'}
                 </div>
               </div>
             </div>

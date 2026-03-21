@@ -8,11 +8,13 @@ import { generateShareToken as createToken } from '@/utils/shareToken';
 
 interface HistoryState {
   sessions: WorkoutSession[];
+  restDays: string[]; // ISO date strings (YYYY-MM-DD)
 
   // Actions
   addSession: (session: WorkoutSession) => void;
   updateSession: (id: string, updates: Partial<WorkoutSession>) => Promise<void>;
   deleteSession: (id: string) => void;
+  addRestDay: (date: string) => void;
 
   // Selectors (als Methoden für einfachen Zugriff)
   getSessionById: (id: string) => WorkoutSession | undefined;
@@ -42,6 +44,11 @@ export const useHistoryStore = create<HistoryState>()(
   persist(
     (set, get) => ({
       sessions: [],
+      restDays: [],
+
+      addRestDay: (date) => set((state) => ({
+        restDays: state.restDays.includes(date) ? state.restDays : [...state.restDays, date],
+      })),
 
       addSession: async (session) => {
         set((state) => ({
