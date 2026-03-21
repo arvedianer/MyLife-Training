@@ -9,6 +9,7 @@ import type { WorkoutExercise } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
 import { exercises as exerciseDb, findExerciseByName } from '@/constants/exercises';
 import { EQUIPMENT_LABELS } from '@/utils/variations';
+import { MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
 import { useHistoryStore } from '@/store/historyStore';
 import styles from './ExerciseCard.module.css';
 
@@ -157,7 +158,7 @@ export function ExerciseCard({
 
           {/* Sub-info row */}
           <div className={styles.subInfo}>
-            <span className={styles.muscleLabel}>{exercise.primaryMuscle}</span>
+            <span className={styles.muscleLabel}>{MUSCLE_LABELS_DE[exercise.primaryMuscle] ?? exercise.primaryMuscle}</span>
             <span className={styles.dot}>·</span>
             <span className={styles.setsLabel}>{completedSets}/{sets.length} Sätze</span>
             {workoutExercise.equipment && (

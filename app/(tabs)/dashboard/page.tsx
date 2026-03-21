@@ -229,7 +229,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Compact Body Heatmap */}
+      {/* Body Heatmap */}
       <div style={{
         backgroundColor: colors.bgCard,
         border: `1px solid ${colors.border}`,
@@ -239,7 +239,7 @@ export default function DashboardPage() {
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-        <BodyHeatmap compact muscleSets={muscleSets} maxSets={maxMuscleSets} />
+        <BodyHeatmap muscleSets={muscleSets} maxSets={maxMuscleSets} />
       </div>
 
       {/* Recent Workouts */}
