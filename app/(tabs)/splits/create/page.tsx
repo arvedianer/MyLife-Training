@@ -2,11 +2,12 @@
 
 import { useState, useCallback, useMemo, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Plus, X, Search, ChevronDown, ChevronUp, Check, Sofa } from 'lucide-react';
+import { Plus, X, Search, ChevronDown, ChevronUp, Check, Sofa, CheckCircle2 } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { usePlanStore } from '@/store/planStore';
+import { useHistoryStore } from '@/store/historyStore';
 import { exercises as allHardcodedExercises, getExerciseById } from '@/constants/exercises';
 import { useExerciseStore } from '@/store/exerciseStore';
 import type { TrainingSplit, RepScheme } from '@/types/splits';
@@ -52,7 +53,9 @@ function CreateSplitContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get('edit');
+  const sessionsParam = searchParams.get('sessions');
   const { addSplit, updateSplit, splits } = usePlanStore();
+  const { getSessionById } = useHistoryStore();
 
   const [splitName, setSplitName] = useState('');
   const [daysPerWeek, setDaysPerWeek] = useState(3);
@@ -69,11 +72,44 @@ function CreateSplitContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMuscle, setSearchMuscle] = useState<MuscleGroup | null>(null);
   const [searchEquipment, setSearchEquipment] = useState<Equipment | null>(null);
+  // true when we've pre-populated from history sessions
+  const [fromHistory, setFromHistory] = useState(false);
 
   const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
-    if (editId && !hasLoaded) {
+    if (hasLoaded) return;
+
+    // Pre-populate from history sessions
+    if (sessionsParam && !editId) {
+      const sessionIds = sessionsParam.split(',').filter(Boolean);
+      const loadedSessions = sessionIds
+        .map((id) => getSessionById(id))
+        .filter((s): s is NonNullable<ReturnType<typeof getSessionById>> => s !== undefined);
+
+      if (loadedSessions.length > 0) {
+        const generatedDays: DayForm[] = loadedSessions.map((session, i) => {
+          // Format date as weekday name or fallback to "Tag N"
+          const dateObj = new Date(session.date);
+          const weekday = dateObj.toLocaleDateString('de-DE', { weekday: 'long' });
+          const dayName = weekday || `Tag ${i + 1}`;
+          const exerciseIds = session.exercises.map((we) => we.exercise.id);
+          return {
+            name: dayName,
+            exerciseIds,
+            repScheme: 'hypertrophy' as RepScheme,
+            restDay: false,
+          };
+        });
+        setDays(generatedDays);
+        setDaysPerWeek(generatedDays.length);
+        setFromHistory(true);
+        setHasLoaded(true);
+        return;
+      }
+    }
+
+    if (editId) {
       const existing = splits.find(s => s.id === editId);
       if (existing) {
         setSplitName(existing.name);
@@ -85,11 +121,9 @@ function CreateSplitContent() {
           restDay: d.restDay ?? false,
         })));
       }
-      setHasLoaded(true);
-    } else if (!editId) {
-      setHasLoaded(true);
     }
-  }, [editId, splits, hasLoaded]);
+    setHasLoaded(true);
+  }, [editId, sessionsParam, splits, hasLoaded, getSessionById]);
 
   const customExercises = useExerciseStore(state => state.customExercises);
   const allExercises = useMemo(() => {
@@ -226,7 +260,7 @@ function CreateSplitContent() {
         paddingBottom: '160px',
       }}
     >
-      <PageHeader title={editId ? "Plan bearbeiten" : "Eigener Plan"} />
+      <PageHeader title={editId ? "Plan bearbeiten" : fromHistory ? "Split aus Verlauf" : "Eigener Plan"} />
 
       <div
         style={{
@@ -236,6 +270,26 @@ function CreateSplitContent() {
           gap: spacing[5],
         }}
       >
+        {/* From-history info banner */}
+        {fromHistory && (
+          <div
+            style={{
+              backgroundColor: colors.accentBg,
+              border: `1px solid ${colors.accent}40`,
+              borderRadius: radius.lg,
+              padding: spacing[3],
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing[2],
+            }}
+          >
+            <CheckCircle2 size={16} color={colors.accent} />
+            <span style={{ ...typography.bodySm, color: colors.accent }}>
+              {days.length} {days.length === 1 ? 'Tag' : 'Tage'} aus deinem Verlauf importiert — benenne den Split und passe die Tage an.
+            </span>
+          </div>
+        )}
+
         {/* Plan Name */}
         <div>
           <label
