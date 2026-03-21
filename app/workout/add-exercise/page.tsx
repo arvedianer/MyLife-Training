@@ -1,29 +1,76 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { X } from 'lucide-react';
 import { colors, typography, spacing } from '@/constants/tokens';
 import { ExerciseSearch } from '@/components/workout/ExerciseSearch';
 import { useWorkoutStore } from '@/store/workoutStore';
+import { useHistoryStore } from '@/store/historyStore';
 import type { Exercise } from '@/types/exercises';
+import type { SetEntry, WorkoutExercise } from '@/types/workout';
 
 export default function AddExercisePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
+  const sessionEdit = searchParams.get('sessionEdit') === '1';
+
   const { addExercise, activeWorkout } = useWorkoutStore();
+  const { getSessionById, updateSession } = useHistoryStore();
+
+  // Extract sessionId from returnTo path like /log/<id>
+  const sessionId = sessionEdit && returnTo
+    ? returnTo.split('/log/')[1] ?? null
+    : null;
 
   useEffect(() => {
-    if (!activeWorkout) {
+    // Only redirect if NOT in session edit mode and no active workout
+    if (!sessionEdit && !activeWorkout) {
       router.replace('/start');
     }
-  }, [activeWorkout, router]);
+  }, [activeWorkout, router, sessionEdit]);
 
-  const handleSelect = (exercise: Exercise) => {
-    addExercise(exercise);
-    router.back();
+  const handleSelect = async (exercise: Exercise) => {
+    if (sessionEdit && sessionId) {
+      // Add exercise to an existing session
+      const session = getSessionById(sessionId);
+      if (session) {
+        const newExercise: WorkoutExercise = {
+          id: `${sessionId}-${exercise.id}-${Date.now()}`,
+          exercise,
+          sets: [
+            {
+              id: `set-${Date.now()}`,
+              weight: exercise.defaultWeight ?? 0,
+              reps: exercise.defaultReps ?? 10,
+              isCompleted: true,
+              isPR: false,
+              type: 'normal',
+            } satisfies SetEntry,
+          ],
+          isUnilateral: false,
+          unilateralSync: false,
+        };
+
+        await updateSession(sessionId, {
+          exercises: [...session.exercises, newExercise],
+        });
+      }
+      router.push(returnTo!);
+    } else {
+      // Normal flow: add to active workout
+      addExercise(exercise);
+      if (returnTo) {
+        router.push(returnTo);
+      } else {
+        router.back();
+      }
+    }
   };
 
-  if (!activeWorkout) return null;
+  // In session edit mode we don't need an active workout
+  if (!sessionEdit && !activeWorkout) return null;
 
   return (
     <div
@@ -50,7 +97,7 @@ export default function AddExercisePage() {
           Übung hinzufügen
         </h1>
         <button
-          onClick={() => router.back()}
+          onClick={() => (returnTo ? router.push(returnTo) : router.back())}
           style={{
             width: '36px',
             height: '36px',

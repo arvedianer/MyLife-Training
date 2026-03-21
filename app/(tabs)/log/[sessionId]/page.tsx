@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Clock, Dumbbell, TrendingUp, Trash2, Star, Edit2, Save, X, Share2, RefreshCw } from 'lucide-react';
+import Link from 'next/link';
+import { Clock, Dumbbell, TrendingUp, Trash2, Star, Edit2, Save, X, Share2, RefreshCw, CheckSquare, Square, Plus } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge } from '@/components/ui/Badge';
@@ -26,6 +27,7 @@ export default function SessionDetailPage({
 
   const [isEditing, setIsEditing] = useState(false);
   const [editedSession, setEditedSession] = useState<WorkoutSession | null>(null);
+  const [editedDuration, setEditedDuration] = useState<number>(0);
 
   if (!session) {
     return (
@@ -95,30 +97,40 @@ export default function SessionDetailPage({
   const startEditing = () => {
     if (!session) return;
     setEditedSession(JSON.parse(JSON.stringify(session)));
+    setEditedDuration(Math.round(session.durationSeconds / 60));
     setIsEditing(true);
   };
 
   const cancelEditing = () => {
     setIsEditing(false);
     setEditedSession(null);
+    setEditedDuration(0);
   };
 
   const saveEditing = async () => {
     if (!editedSession) return;
 
-    // Recalculate volume if logic changed
+    // Apply edited duration (minutes → seconds)
+    editedSession.durationSeconds = editedDuration * 60;
+
+    // Recalculate volume and totalSets
     let newVolume = 0;
+    let newTotalSets = 0;
     editedSession.exercises.forEach(ex => {
       ex.sets.forEach(s => {
         if (s.isCompleted) {
           newVolume += s.weight * s.reps;
+          newTotalSets++;
         }
       });
     });
     editedSession.totalVolume = newVolume;
+    editedSession.totalSets = newTotalSets;
 
     await updateSession(sessionId, editedSession);
     setIsEditing(false);
+    setEditedSession(null);
+    setEditedDuration(0);
   };
 
   const handleSetChange = (exerciseId: string, setId: string, field: 'weight' | 'reps', value: string) => {
@@ -136,6 +148,27 @@ export default function SessionDetailPage({
             sets: ex.sets.map(s => {
               if (s.id !== setId) return s;
               return { ...s, [field]: numValue };
+            })
+          };
+        })
+      };
+    });
+  };
+
+  const handleSetToggleCompleted = (exerciseId: string, setId: string) => {
+    if (!editedSession) return;
+
+    setEditedSession(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        exercises: prev.exercises.map(ex => {
+          if (ex.id !== exerciseId) return ex;
+          return {
+            ...ex,
+            sets: ex.sets.map(s => {
+              if (s.id !== setId) return s;
+              return { ...s, isCompleted: !s.isCompleted };
             })
           };
         })
@@ -216,11 +249,51 @@ export default function SessionDetailPage({
       <div style={{ padding: spacing[5], display: 'flex', flexDirection: 'column', gap: spacing[6] }}>
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing[3] }}>
-          <StatItem
-            icon={<Clock size={16} color={colors.accent} />}
-            value={formatDuration(displaySession.durationSeconds)}
-            label="Dauer"
-          />
+          {/* Duration — editable in edit mode */}
+          <div
+            style={{
+              backgroundColor: colors.bgCard,
+              border: `1px solid ${isEditing ? colors.accent + '60' : colors.border}`,
+              borderRadius: radius.lg,
+              padding: spacing[3],
+              display: 'flex',
+              flexDirection: 'column',
+              gap: spacing[2],
+              alignItems: 'center',
+              textAlign: 'center',
+            }}
+          >
+            <Clock size={16} color={colors.accent} />
+            {isEditing ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[1] }}>
+                <input
+                  type="number"
+                  value={editedDuration}
+                  onChange={e => setEditedDuration(Math.max(1, Math.min(600, Number(e.target.value) || 1)))}
+                  min={1}
+                  max={600}
+                  style={{
+                    width: '48px',
+                    backgroundColor: colors.bgHighest,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: radius.sm,
+                    color: colors.textPrimary,
+                    textAlign: 'center',
+                    padding: `2px 4px`,
+                    ...typography.mono,
+                    outline: 'none',
+                  }}
+                />
+                <span style={{ ...typography.monoSm, color: colors.textMuted }}>min</span>
+              </div>
+            ) : (
+              <div style={{ ...typography.mono, color: colors.textPrimary }}>
+                {formatDuration(displaySession.durationSeconds)}
+              </div>
+            )}
+            <div style={{ ...typography.label, color: colors.textMuted }}>Dauer</div>
+          </div>
+
           <StatItem
             icon={<Dumbbell size={16} color={colors.accent} />}
             value={String(displaySession.totalSets)}
@@ -315,7 +388,7 @@ export default function SessionDetailPage({
                       {!isEditing && displaySession.newPRs.includes(workoutExercise.exercise.id) && (
                         <Badge variant="accent">PR</Badge>
                       )}
-                      <Badge variant="muted">{completedSets.length} Sätze</Badge>
+                      <Badge variant="muted">{completedSets.filter(s => s.isCompleted).length} Sätze</Badge>
                     </div>
                   </div>
 
@@ -327,7 +400,7 @@ export default function SessionDetailPage({
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: spacing[4],
+                          gap: spacing[3],
                           padding: `${spacing[2]} 0`,
                           borderBottom: idx < completedSets.length - 1 ? `1px solid ${colors.borderLight}` : 'none',
                           opacity: set.isCompleted ? 1 : 0.5,
@@ -338,41 +411,65 @@ export default function SessionDetailPage({
                         </span>
 
                         {isEditing ? (
-                          <div style={{ display: 'flex', gap: spacing[2], flex: 1 }}>
-                            <input
-                              type="number"
-                              value={set.weight || ''}
-                              onChange={(e) => handleSetChange(workoutExercise.id, set.id, 'weight', e.target.value)}
+                          <>
+                            {/* Completed toggle */}
+                            <button
+                              onClick={() => handleSetToggleCompleted(workoutExercise.id, set.id)}
                               style={{
-                                width: '60px',
-                                backgroundColor: colors.bgHighest,
-                                border: `1px solid ${colors.border}`,
-                                borderRadius: radius.sm,
-                                padding: spacing[1],
-                                color: colors.textPrimary,
-                                textAlign: 'center',
-                                ...typography.mono
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                flexShrink: 0,
                               }}
-                            />
-                            <span style={{ color: colors.textMuted, alignSelf: 'center' }}>kg</span>
-                            <span style={{ color: colors.textDisabled, alignSelf: 'center' }}>×</span>
-                            <input
-                              type="number"
-                              value={set.reps || ''}
-                              onChange={(e) => handleSetChange(workoutExercise.id, set.id, 'reps', e.target.value)}
-                              style={{
-                                width: '60px',
-                                backgroundColor: colors.bgHighest,
-                                border: `1px solid ${colors.border}`,
-                                borderRadius: radius.sm,
-                                padding: spacing[1],
-                                color: colors.textPrimary,
-                                textAlign: 'center',
-                                ...typography.mono
-                              }}
-                            />
-                            <span style={{ color: colors.textMuted, alignSelf: 'center' }}>Wdh.</span>
-                          </div>
+                            >
+                              {set.isCompleted
+                                ? <CheckSquare size={16} color={colors.accent} />
+                                : <Square size={16} color={colors.textDisabled} />
+                              }
+                            </button>
+
+                            <div style={{ display: 'flex', gap: spacing[2], flex: 1, alignItems: 'center' }}>
+                              <input
+                                type="number"
+                                value={set.weight || ''}
+                                step={0.5}
+                                onChange={(e) => handleSetChange(workoutExercise.id, set.id, 'weight', e.target.value)}
+                                style={{
+                                  width: '60px',
+                                  backgroundColor: colors.bgHighest,
+                                  border: `1px solid ${colors.border}`,
+                                  borderRadius: radius.sm,
+                                  padding: spacing[1],
+                                  color: colors.textPrimary,
+                                  textAlign: 'center',
+                                  outline: 'none',
+                                  ...typography.mono
+                                }}
+                              />
+                              <span style={{ color: colors.textMuted, ...typography.monoSm }}>kg</span>
+                              <span style={{ color: colors.textDisabled, ...typography.monoSm }}>×</span>
+                              <input
+                                type="number"
+                                value={set.reps || ''}
+                                onChange={(e) => handleSetChange(workoutExercise.id, set.id, 'reps', e.target.value)}
+                                style={{
+                                  width: '60px',
+                                  backgroundColor: colors.bgHighest,
+                                  border: `1px solid ${colors.border}`,
+                                  borderRadius: radius.sm,
+                                  padding: spacing[1],
+                                  color: colors.textPrimary,
+                                  textAlign: 'center',
+                                  outline: 'none',
+                                  ...typography.mono
+                                }}
+                              />
+                              <span style={{ color: colors.textMuted, ...typography.monoSm }}>Wdh.</span>
+                            </div>
+                          </>
                         ) : (
                           <>
                             <span style={{ ...typography.mono, color: colors.textPrimary }}>
@@ -400,7 +497,53 @@ export default function SessionDetailPage({
               );
             })}
           </div>
+
+          {/* Add exercise link — only visible in edit mode */}
+          {isEditing && (
+            <Link
+              href={`/workout/add-exercise?returnTo=/log/${sessionId}&sessionEdit=1`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing[2],
+                marginTop: spacing[3],
+                padding: spacing[4],
+                backgroundColor: colors.bgCard,
+                border: `1px dashed ${colors.border}`,
+                borderRadius: radius.lg,
+                color: colors.accent,
+                textDecoration: 'none',
+                ...typography.body,
+              }}
+            >
+              <Plus size={16} color={colors.accent} />
+              Übung hinzufügen
+            </Link>
+          )}
         </div>
+
+        {/* Speichern button — only in edit mode, at bottom */}
+        {isEditing && (
+          <button
+            onClick={saveEditing}
+            style={{
+              background: colors.accent,
+              color: '#000',
+              border: 'none',
+              borderRadius: radius.lg,
+              padding: `${spacing[4]} ${spacing[6]}`,
+              fontWeight: 700,
+              fontSize: '15px',
+              cursor: 'pointer',
+              width: '100%',
+              marginTop: spacing[2],
+              marginBottom: spacing[6],
+            }}
+          >
+            Speichern
+          </button>
+        )}
       </div>
     </div>
   );
