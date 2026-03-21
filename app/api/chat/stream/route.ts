@@ -63,7 +63,7 @@ function buildSystemPrompt(
   history: SessionSummary[],
   appContext?: AppContext,
 ): string {
-  const name = profile?.name ?? 'Bro';
+  const name = profile?.name ?? 'Nutzer';
   const goal = profile?.goal ?? null;
   const level = profile?.level ?? null;
   const equipment = profile?.equipment ?? null;
