@@ -13,22 +13,20 @@ interface BodyHeatmapProps {
 }
 
 const HEAT_COLORS = [
-    'rgba(255, 80, 50, 0.62)',
-    'rgba(238, 34, 54, 0.80)',
-    'rgba(190, 22, 128, 0.90)',
-    'rgba(138, 43, 200, 0.96)',
+    { fill: '#3DFFE6', opacity: 0.50 },  // accent cyan — low volume
+    { fill: '#4A9EFF', opacity: 0.65 },  // volume blue — mid volume
+    { fill: '#BF6FFF', opacity: 0.80 },  // pr purple  — high volume
 ];
 
-function heatColor(sets: number, max: number): string | null {
-    if (sets === 0 || max === 0) return null;
-    const r = Math.min(sets / max, 1);
-    if (r < 0.25) return HEAT_COLORS[0];
-    if (r < 0.50) return HEAT_COLORS[1];
-    if (r < 0.75) return HEAT_COLORS[2];
-    return HEAT_COLORS[3];
+function getMuscleStyle(sets: number, max: number): { fill: string; fillOpacity: number } {
+    if (sets === 0 || max === 0) return { fill: 'transparent', fillOpacity: 0 };
+    const ratio = Math.min(sets / Math.max(max, 1), 1);
+    if (ratio < 0.4)  return { fill: '#3DFFE6', fillOpacity: 0.5 + ratio * 0.5 };  // accent cyan
+    if (ratio < 0.75) return { fill: '#4A9EFF', fillOpacity: 0.65 };                // volume blue
+    return { fill: '#BF6FFF', fillOpacity: 0.80 };                                   // pr purple
 }
 
-const BODY_FILL = colors.bgElevated;  // body clearly visible against background
+const BODY_FILL = 'transparent';      // no background tint — sit on parent background
 const BODY_STROKE = colors.border;    // visible separator between muscle paths
 
 const slugMap: Record<string, string[]> = {
@@ -50,29 +48,38 @@ const slugMap: Record<string, string[]> = {
   adductors: ['legs'],
 };
 
-function getPartColor(slug: string, muscleSets: Record<string, number>, maxSets: number) {
+function getPartStyle(slug: string, muscleSets: Record<string, number>, maxSets: number): { fill: string; fillOpacity: number } {
     const keys = slugMap[slug] || [];
     for (const key of keys) {
         if (muscleSets[key]) {
-            return heatColor(muscleSets[key], maxSets);
+            return getMuscleStyle(muscleSets[key], maxSets);
         }
     }
-    return null;
+    return { fill: BODY_FILL, fillOpacity: 1 };
 }
 
 function BodyPartPaths({ items, isBack, muscleSets, maxSets }: { items: BodyPart[], isBack: boolean, muscleSets: Record<string, number>, maxSets: number }) {
     return (
         <g>
             {items.map((part) => {
-                const highlight = getPartColor(part.slug, muscleSets, maxSets);
-                const fill = highlight || BODY_FILL;
-                const pathGlow = highlight ? (isBack ? 'url(#muscleGlowBack)' : 'url(#muscleGlow)') : undefined;
-                const className = highlight ? styles.muscleActive : styles.muscleOverlay;
+                const muscleStyle = getPartStyle(part.slug, muscleSets, maxSets);
+                const isActive = muscleStyle.fill !== BODY_FILL && muscleStyle.fill !== 'transparent';
+                const pathGlow = isActive ? (isBack ? 'url(#muscleGlowBack)' : 'url(#muscleGlow)') : undefined;
+                const className = isActive ? styles.muscleActive : styles.muscleOverlay;
 
                 const renderPaths = (paths?: string[]) => {
                     if (!paths) return null;
                     return paths.map((d, i) => (
-                        <path key={d + i} d={d} fill={fill} stroke={BODY_STROKE} strokeWidth={1.5} filter={pathGlow} className={className} />
+                        <path
+                            key={d + i}
+                            d={d}
+                            fill={muscleStyle.fill}
+                            fillOpacity={muscleStyle.fillOpacity}
+                            stroke={BODY_STROKE}
+                            strokeWidth={1.5}
+                            filter={pathGlow}
+                            className={className}
+                        />
                     ));
                 };
 
@@ -156,8 +163,8 @@ export function BodyHeatmap({ muscleSets, maxSets, compact = false }: BodyHeatma
 
             <div className={styles.scaleLegend}>
                 <span className={styles.scaleLabel}>Wenig</span>
-                {HEAT_COLORS.map((c, i) => (
-                    <div key={i} className={styles.scaleBlock} style={{ backgroundColor: c }} />
+                {HEAT_COLORS.map((stop, i) => (
+                    <div key={i} className={styles.scaleBlock} style={{ backgroundColor: stop.fill, opacity: stop.opacity }} />
                 ))}
                 <span className={styles.scaleLabel}>Viel</span>
             </div>

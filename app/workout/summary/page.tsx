@@ -1,11 +1,12 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useMemo } from 'react';
 import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp, Share2, BarChart2, Download } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { BodyHeatmap } from '@/components/ui/BodyHeatmap';
 import { useHistoryStore } from '@/store/historyStore';
 import { useUserStore } from '@/store/userStore';
 import { formatDuration, formatVolume } from '@/utils/dates';
@@ -73,6 +74,25 @@ function SummaryContent() {
   );
   const updateSession = useHistoryStore((state) => state.updateSession);
   const { generateShareToken: createShareToken } = useHistoryStore();
+
+  // Compute muscle coverage for this session only
+  const sessionMuscleSets = useMemo<Record<string, number>>(() => {
+    if (!session) return {};
+    const setsPerMuscle: Record<string, number> = {};
+    for (const ex of session.exercises) {
+      const exercise = getExerciseById(ex.exercise.id);
+      const primaryMuscle = exercise?.primaryMuscle ?? ex.exercise.primaryMuscle;
+      if (!primaryMuscle) continue;
+      const workedSets = ex.sets.filter((s) => s.isCompleted && s.type !== 'warmup').length;
+      setsPerMuscle[primaryMuscle] = (setsPerMuscle[primaryMuscle] ?? 0) + workedSets;
+      for (const sec of exercise?.secondaryMuscles ?? []) {
+        setsPerMuscle[sec] = (setsPerMuscle[sec] ?? 0) + Math.floor(workedSets / 2);
+      }
+    }
+    return setsPerMuscle;
+  }, [session]);
+
+  const maxSessionSets = Math.max(...Object.values(sessionMuscleSets), 1);
 
   if (!session) {
     return (
@@ -307,6 +327,26 @@ function SummaryContent() {
           </div>
         ))}
       </div>
+
+      {/* SESSION MUSCLE HEATMAP */}
+      {Object.keys(sessionMuscleSets).length > 0 && (
+        <section style={{ margin: `${spacing[5]} ${spacing[5]} 0` }}>
+          <h3
+            style={{
+              fontFamily: 'var(--font-barlow)',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: colors.textMuted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              marginBottom: '12px',
+            }}
+          >
+            Trainierte Muskeln
+          </h3>
+          <BodyHeatmap muscleSets={sessionMuscleSets} maxSets={maxSessionSets} />
+        </section>
+      )}
 
       {/* PRs */}
       {session.newPRs.length > 0 && (
