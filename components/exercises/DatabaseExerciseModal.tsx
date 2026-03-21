@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import type { Exercise } from '@/types/exercise';
 import { Badge } from '@/components/ui/Badge';
-import BodyHeatmap from '@/components/ui/BodyHeatmap';
+import { BodyHeatmap } from '@/components/ui/BodyHeatmap';
 
 interface Props {
     exercise: Exercise;

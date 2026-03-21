@@ -10,8 +10,8 @@ import { useUserStore } from '@/store/userStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { usePlanStore } from '@/store/planStore';
 import { formatWorkoutDate, formatDuration, formatVolume, calculateStreak } from '@/utils/dates';
-import { parseISO, subDays, isAfter } from 'date-fns';
-import { getMissingMuscles, getRemainingWeekDays, MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
+import { parseISO } from 'date-fns';
+import { getMissingMuscles, getRemainingWeekDays, getWeeklyMuscleStatus, MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
 
 export default function DashboardPage() {
   const { profile } = useUserStore();
@@ -39,19 +39,10 @@ export default function DashboardPage() {
   const missingMuscles = getMissingMuscles(sessions, Object.keys(MUSCLE_LABELS_DE));
   const showMuscleWarning = daysLeft > 0 && missingMuscles.length > 0;
 
-  // Compact heatmap data — compute muscleSets from last 7 days
-  const oneWeekAgo = subDays(new Date(), 7);
-  const muscleSets: Record<string, number> = {};
-  for (const session of sessions.filter((s) => isAfter(parseISO(s.date), oneWeekAgo))) {
-    for (const ex of session.exercises) {
-      const muscle = ex.exercise.primaryMuscle;
-      if (muscle) {
-        const workedSets = ex.sets.filter((s) => s.isCompleted && s.type !== 'warmup').length;
-        muscleSets[muscle] = (muscleSets[muscle] ?? 0) + workedSets;
-      }
-    }
-  }
-  const maxMuscleSets = Math.max(1, ...Object.values(muscleSets));
+  // Compact heatmap data — use getWeeklyMuscleStatus for consistency with warning logic
+  const weeklyStatus = getWeeklyMuscleStatus(sessions);
+  const muscleSets = Object.fromEntries(weeklyStatus.map((s) => [s.muscleId, s.setsThisWeek]));
+  const maxMuscleSets = Math.max(...weeklyStatus.map((s) => s.setsThisWeek), 1);
 
   // Goal personalization
   const goal = profile?.goal;

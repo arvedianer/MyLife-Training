@@ -66,5 +66,7 @@ export function getMissingMuscles(sessions: WorkoutSession[], activeSplitMuscles
 
 export function getRemainingWeekDays(): number {
   const today = new Date().getDay(); // 0=Sun, 6=Sat
-  return today === 0 ? 0 : 7 - today;
+  // Weekend = no training days left this week
+  if (today === 0 || today === 6) return 0;
+  return 6 - today; // Mon(1)→5, Tue(2)→4, ..., Fri(5)→1
 }

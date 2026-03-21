@@ -4,6 +4,7 @@ import React from 'react';
 import styles from './BodyHeatmap.module.css';
 import { bodyFront, BodyPart } from './bodyFront';
 import { bodyBack } from './bodyBack';
+import { colors, spacing } from '@/constants/tokens';
 
 interface BodyHeatmapProps {
     muscleSets: Record<string, number>;
@@ -27,8 +28,8 @@ function heatColor(sets: number, max: number): string | null {
     return HEAT_COLORS[3];
 }
 
-const BODY_FILL = '#272736';   // lighter than bgPrimary — body clearly visible
-const BODY_STROKE = '#42425C'; // visible separator between muscle paths
+const BODY_FILL = colors.bgElevated;  // body clearly visible against background
+const BODY_STROKE = colors.border;    // visible separator between muscle paths
 
 const slugMap: Record<string, string[]> = {
   abs: ['core'],
@@ -129,7 +130,7 @@ function BackBody({ muscleSets, maxSets }: BodyHeatmapProps) {
 export function BodyHeatmap({ muscleSets, maxSets, compact = false }: BodyHeatmapProps) {
     if (compact) {
         return (
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', height: '120px' }}>
+            <div style={{ display: 'flex', gap: spacing[3], alignItems: 'center', height: '120px' }}>
                 <div style={{ width: '60px', height: '120px' }}>
                     <FrontBody muscleSets={muscleSets} maxSets={maxSets} />
                 </div>
@@ -164,4 +165,3 @@ export function BodyHeatmap({ muscleSets, maxSets, compact = false }: BodyHeatma
     );
 }
 
-export default BodyHeatmap;
