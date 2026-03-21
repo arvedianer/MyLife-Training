@@ -19,9 +19,19 @@ export function useWorkout() {
     const now = Date.now();
     const durationSeconds = Math.floor((now - activeWorkout.startedAt) / 1000);
 
+    // Auto-complete sets that have data entered (weight > 0 AND reps > 0) but weren't
+    // explicitly ticked — covers the "Discard Incomplete" path and quick finishes.
+    const exercisesWithAutoComplete = activeWorkout.exercises.map((ex) => ({
+      ...ex,
+      sets: ex.sets.map((s) => ({
+        ...s,
+        isCompleted: s.isCompleted || (s.weight > 0 && s.reps > 0),
+      })),
+    }));
+
     // PR-Erkennung
     const newPRs: string[] = [];
-    for (const workoutExercise of activeWorkout.exercises) {
+    for (const workoutExercise of exercisesWithAutoComplete) {
       for (const set of workoutExercise.sets) {
         if (!set.isCompleted) continue;
         if (isPRSet(workoutExercise.exercise.id, set.weight, set.reps, sessions)) {
@@ -35,7 +45,7 @@ export function useWorkout() {
     // Volumen & Sets berechnen
     let totalVolume = 0;
     let totalSets = 0;
-    for (const workoutExercise of activeWorkout.exercises) {
+    for (const workoutExercise of exercisesWithAutoComplete) {
       for (const set of workoutExercise.sets) {
         if (!set.isCompleted) continue;
         totalVolume += calculateSetVolume(set.weight, set.reps);
@@ -44,7 +54,7 @@ export function useWorkout() {
     }
 
     // Übungen ohne abgeschlossene Sätze herausfiltern
-    const validExercises = activeWorkout.exercises.filter((ex) =>
+    const validExercises = exercisesWithAutoComplete.filter((ex) =>
       ex.sets.some((s) => s.isCompleted)
     );
 

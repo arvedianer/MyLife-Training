@@ -48,6 +48,15 @@ export function calculateWorkoutScore(
       // 0.5x avg → ~14 pts, 1x avg → 27 pts, 1.3x avg → 35 pts
       volumeScore = Math.min(35, Math.max(0, Math.round(ratio * 27)));
     }
+  } else {
+    // No history yet — score based purely on session volume and completed sets
+    const hasGoodVolume = sessionVolume > 500; // 500 kg total = decent session
+    volumeScore =
+      completedSets.length >= 9 ? 28    // 3 exercises × 3 sets = great
+      : completedSets.length >= 6 ? 22
+      : completedSets.length >= 3 ? 15
+      : 8;
+    if (hasGoodVolume) volumeScore = Math.min(35, volumeScore + 5);
   }
 
   // --- 3. INTENSITY (0-20 points) ---
@@ -113,6 +122,8 @@ export function calculateWorkoutScore(
     } else if (pct < 80) {
       parts.push(`Nur ${pct}% deines üblichen Volumens`);
     }
+  } else {
+    parts.push('Erster Datenpunkt — Score wird mit mehr History präziser');
   }
 
   if (trainedMuscles.size >= 3) {
