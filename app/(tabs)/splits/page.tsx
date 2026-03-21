@@ -2,14 +2,15 @@
 
 import { Fragment } from 'react';
 import Link from 'next/link';
-import { ChevronRight, CheckCircle2, Plus, Trash2, TrendingUp } from 'lucide-react';
+import { ChevronRight, CheckCircle2, Plus, Trash2 } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { usePlanStore } from '@/store/planStore';
 import { predefinedSplits } from '@/constants/splits';
 import type { TrainingSplit } from '@/types/splits';
-import { calculatePlanScore } from '@/utils/planScore';
+import { getExerciseById } from '@/constants/exercises';
+import { MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
 
 export default function SplitsPage() {
   const { splits, activeSplitId, setActiveSplit, addSplit, deleteSplit } = usePlanStore();
@@ -33,7 +34,15 @@ export default function SplitsPage() {
 
   const renderSplitCard = (split: TrainingSplit, isTemplate = false) => {
     const isActive = split.id === activeSplitId;
-    const planScore = calculatePlanScore(split);
+
+    const splitMuscles = split.days
+      .flatMap(d => d.exerciseIds.map(id => {
+        const ex = getExerciseById(id);
+        return ex?.primaryMuscle as string | undefined;
+      }))
+      .filter((m): m is string => Boolean(m));
+    const uniqueMuscles = [...new Set(splitMuscles)].slice(0, 5);
+
     return (
       <div
         key={split.id}
@@ -98,15 +107,25 @@ export default function SplitsPage() {
               <Badge variant="default">
                 {difficultyLabel[split.difficulty] ?? split.difficulty}
               </Badge>
-              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[1] }}>
-                <TrendingUp size={12} color={planScore.total >= 75 ? colors.success : planScore.total >= 50 ? colors.accent : colors.danger} />
-                <span style={{
-                  ...typography.monoSm,
-                  color: planScore.total >= 75 ? colors.success : planScore.total >= 50 ? colors.accent : colors.danger,
+            </div>
+
+            {/* Muscle chips */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px' }}>
+              {uniqueMuscles.map(m => (
+                <span key={m} style={{
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '16px',
+                  padding: '2px 8px',
+                  fontSize: '11px',
+                  color: 'var(--text-muted)',
                 }}>
-                  {planScore.total}/100
+                  {(MUSCLE_LABELS_DE as Record<string, string>)[m] ?? m}
                 </span>
-              </div>
+              ))}
+              {uniqueMuscles.length === 0 && (
+                <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>Keine Übungen</span>
+              )}
             </div>
           </div>
         </Link>
