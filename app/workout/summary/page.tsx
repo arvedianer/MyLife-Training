@@ -2,11 +2,12 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useState } from 'react';
-import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp, Share2, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp, Share2, AlertTriangle, BarChart2 } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useHistoryStore } from '@/store/historyStore';
+import { usePlanStore } from '@/store/planStore';
 import { useUserStore } from '@/store/userStore';
 import { formatDuration, formatVolume } from '@/utils/dates';
 import { getExerciseById } from '@/constants/exercises';
@@ -55,6 +56,9 @@ function SummaryContent() {
   const previousSessions = useHistoryStore((state) =>
     state.sessions.filter((s) => s.id !== sessionId).slice(0, 10)
   );
+  const updateSession = useHistoryStore((state) => state.updateSession);
+
+  const splits = usePlanStore((state) => state.splits);
 
   if (!session) {
     return (
@@ -67,12 +71,25 @@ function SummaryContent() {
     );
   }
 
+  // Derive plannedMuscles from the matching split's day, or fall back to session exercises
+  const matchingSplit = session.splitName
+    ? splits.find((sp) => sp.name === session.splitName)
+    : undefined;
+  const plannedMuscles: string[] = matchingSplit
+    ? Array.from(new Set(matchingSplit.days.flatMap((d) => d.muscleGroups)))
+    : session.exercises.map((e) => e.exercise.primaryMuscle);
+
   const score: WorkoutScore = calculateWorkoutScore(
     { ...session, rpe },
     profile?.goal ?? 'fitness',
-    [],
+    plannedMuscles,
     previousSessions
   );
+
+  const handleSave = async () => {
+    await updateSession(session.id, { rpe, score });
+    router.replace('/dashboard');
+  };
 
   const handleShare = async () => {
     let text = `💪 Workout: ${session.splitName || 'Freies Training'} — Score: ${score.total}/100\n`;
@@ -148,8 +165,8 @@ function SummaryContent() {
             WIE ANSTRENGEND? (RPE {rpe !== undefined ? rpe.toFixed(1) : '–'})
           </div>
           <input
-            type="range" min={0} max={10} step={0.5}
-            value={rpe ?? 7}
+            type="range" min={1} max={10} step={0.5}
+            value={rpe ?? 5}
             onChange={(e) => setRpe(parseFloat(e.target.value))}
             style={{ width: '100%', accentColor: colors.accent }}
           />
@@ -173,7 +190,7 @@ function SummaryContent() {
               <span style={{ ...typography.label, color: colors.danger }}>SCHWACHSTELLEN</span>
             </div>
             {score.weakPoints.map((wp, i) => (
-              <div key={i} style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[1] }}>
+              <div key={`${wp.muscle}-${wp.subMuscle ?? i}`} style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[1] }}>
                 · {wp.message}{wp.suggestedExercise ? ` → ${wp.suggestedExercise}` : ''}
               </div>
             ))}
@@ -184,8 +201,8 @@ function SummaryContent() {
         {score.tips.length > 0 && (
           <div style={{ marginBottom: spacing[5] }}>
             <h3 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>Nächstes Mal</h3>
-            {score.tips.map((tip, i) => (
-              <div key={i} style={{
+            {score.tips.map((tip) => (
+              <div key={tip.slice(0, 30)} style={{
                 display: 'flex', gap: spacing[2], alignItems: 'flex-start', marginBottom: spacing[2],
               }}>
                 <span style={{ color: colors.accent, flexShrink: 0, marginTop: '2px' }}>›</span>
@@ -197,11 +214,12 @@ function SummaryContent() {
       </div>
 
       {/* STATS */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing[3], padding: `0 ${spacing[5]}` }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: spacing[3], padding: `0 ${spacing[5]}` }}>
         {[
           { icon: <Clock size={20} color={colors.accent} />, value: formatDuration(session.durationSeconds), label: 'Dauer' },
           { icon: <Dumbbell size={20} color={colors.accent} />, value: String(session.totalSets), label: 'Sätze' },
           { icon: <TrendingUp size={20} color={colors.accent} />, value: formatVolume(session.totalVolume), label: 'Volumen' },
+          { icon: <BarChart2 size={20} color={colors.accent} />, value: String(session.exercises.filter((e) => e.sets.some((s) => s.isCompleted)).length), label: 'Übungen' },
         ].map(({ icon, value, label }) => (
           <div key={label} style={{
             backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
@@ -273,8 +291,8 @@ function SummaryContent() {
         paddingBottom: `calc(${spacing[5]} + env(safe-area-inset-bottom))`,
         display: 'flex', flexDirection: 'column', gap: spacing[3], marginTop: spacing[6],
       }}>
-        <Button fullWidth size="lg" onClick={() => router.replace('/dashboard')}>
-          Zum Dashboard
+        <Button fullWidth size="lg" onClick={handleSave}>
+          Workout speichern
         </Button>
         <Button variant="secondary" fullWidth onClick={handleShare}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing[2] }}>
@@ -290,7 +308,7 @@ function SummaryContent() {
 
 export default function SummaryPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<div style={{ padding: '24px', color: colors.textMuted, textAlign: 'center' }}>Lade...</div>}>
       <SummaryContent />
     </Suspense>
   );
