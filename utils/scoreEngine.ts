@@ -77,11 +77,12 @@ function calcVolumeScore(currentSession: WorkoutSession): number {
 
   for (const ex of currentSession.exercises) {
     const exercise = getExerciseById(ex.exercise.id);
-    if (!exercise) continue;
+    // Fall back to session-level primaryMuscle for custom exercises not in the static DB
+    const muscle = exercise?.primaryMuscle ?? ex.exercise.primaryMuscle;
+    if (!muscle) continue;
     const workedSets = ex.sets.filter(
       (s) => s.isCompleted && s.type !== 'warmup'
     ).length;
-    const muscle = exercise.primaryMuscle;
     muscleSetCounts[muscle] = (muscleSetCounts[muscle] ?? 0) + workedSets;
   }
 
