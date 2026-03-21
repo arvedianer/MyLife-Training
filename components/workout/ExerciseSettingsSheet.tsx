@@ -34,8 +34,9 @@ interface ExerciseSettingsSheetProps {
   onNoteChange: (note: string) => void;
   onRemoveExercise: () => void;
   onReplaceExercise: () => void;
-  // History
+  // History + device busy
   onShowHistory: () => void;
+  onDeviceBusy?: () => void;
 }
 
 const EQUIPMENT_OPTIONS: ExerciseEquipment[] = ['barbell', 'dumbbell', 'cable', 'machine', 'bodyweight', 'other'];
@@ -48,7 +49,7 @@ export function ExerciseSettingsSheet({
   repRangeMin, repRangeMax, note,
   onEquipmentChange, onGymChange, onUnilateralChange, onRestChange,
   onWarmupChange, onRepRangeChange, onNoteChange,
-  onRemoveExercise, onReplaceExercise, onShowHistory,
+  onRemoveExercise, onReplaceExercise, onShowHistory, onDeviceBusy,
 }: ExerciseSettingsSheetProps) {
   const { gyms, addGym } = useGymStore();
   const [showAddGym, setShowAddGym] = useState(false);
@@ -272,6 +273,11 @@ export function ExerciseSettingsSheet({
                   <button onClick={onShowHistory} className={styles.extendedBtn}>
                     Letzte 5 Einheiten →
                   </button>
+                  {onDeviceBusy && (
+                    <button onClick={onDeviceBusy} className={styles.extendedBtn}>
+                      Gerät besetzt → Alternative vorschlagen
+                    </button>
+                  )}
                 </div>
               </div>
 

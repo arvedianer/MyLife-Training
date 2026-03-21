@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, ChevronDown, ChevronUp, Target, TrendingUp, Check, ArrowLeftRight, Loader2, X, RefreshCw, GripVertical, Settings } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, TrendingUp, Check, ArrowLeftRight, Loader2, X, RefreshCw, GripVertical, Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { SetRow } from './SetRow';
@@ -322,6 +322,7 @@ export function ExerciseCard({
         onRemoveExercise={() => { setShowSettings(false); onRemoveExercise(); }}
         onReplaceExercise={() => setShowSettings(false)}
         onShowHistory={() => setShowSettings(false)}
+        onDeviceBusy={() => { setShowSettings(false); handleDeviceBusy(); }}
       />
 
       {/* Device Busy — AI Alternative button (kept accessible via settings, but still available inline) */}
