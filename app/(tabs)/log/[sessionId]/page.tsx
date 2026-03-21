@@ -11,8 +11,9 @@ import { useHistoryStore } from '@/store/historyStore';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { formatWorkoutDate, formatDuration, formatVolume } from '@/utils/dates';
 import { exercises } from '@/constants/exercises';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { WorkoutSession } from '@/types/workout';
+import { BodyHeatmap } from '@/components/ui/BodyHeatmap';
 
 export default function SessionDetailPage({
   params,
@@ -177,6 +178,24 @@ export default function SessionDetailPage({
   };
 
   const displaySession = isEditing && editedSession ? editedSession : session;
+
+  const sessionMuscleSets = useMemo(() => {
+    if (!session) return {};
+    const result: Record<string, number> = {};
+    session.exercises.forEach(ex => {
+      const muscle = ex.exercise.primaryMuscle;
+      if (!muscle) return;
+      const completedSets = ex.sets.filter(s => s.isCompleted).length;
+      if (completedSets === 0) return;
+      result[muscle] = (result[muscle] ?? 0) + completedSets;
+      ex.exercise.secondaryMuscles.forEach((sm: string) => {
+        result[sm] = (result[sm] ?? 0) + Math.floor(completedSets / 2);
+      });
+    });
+    return result;
+  }, [session]);
+
+  const maxSets = Math.max(...Object.values(sessionMuscleSets), 1);
 
   return (
     <div style={{ backgroundColor: colors.bgPrimary, minHeight: '100dvh' }}>
@@ -349,6 +368,24 @@ export default function SessionDetailPage({
               })}
             </div>
           </div>
+        )}
+
+        {/* Muscle Heatmap */}
+        {!isEditing && Object.keys(sessionMuscleSets).length > 0 && (
+          <section style={{ marginBottom: spacing[2] }}>
+            <h3 style={{
+              fontFamily: 'var(--font-barlow)',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: colors.textMuted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              marginBottom: spacing[3],
+            }}>
+              Trainierte Muskeln
+            </h3>
+            <BodyHeatmap muscleSets={sessionMuscleSets} maxSets={maxSets} />
+          </section>
         )}
 
         {/* Exercises */}
