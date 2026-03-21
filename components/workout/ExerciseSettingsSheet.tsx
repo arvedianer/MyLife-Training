@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence, type PanInfo } from 'framer-motion';
+import { motion, AnimatePresence, type PanInfo, useDragControls } from 'framer-motion';
 import { X } from 'lucide-react';
 import { colors, spacing } from '@/constants/tokens';
 import { useGymStore } from '@/store/gymStore';
@@ -53,6 +53,11 @@ export function ExerciseSettingsSheet({
   const { gyms, addGym } = useGymStore();
   const [showAddGym, setShowAddGym] = useState(false);
   const [newGymName, setNewGymName] = useState('');
+  const dragControls = useDragControls();
+
+  // Defensive clamp: ensure valid range even if parent passes bad props
+  const safeMin = Math.min(repRangeMin, repRangeMax - 1);
+  const safeMax = Math.max(repRangeMax, repRangeMin + 1);
 
   const handleAddGym = () => {
     if (!newGymName.trim()) return;
@@ -84,12 +89,14 @@ export function ExerciseSettingsSheet({
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             drag="y"
+            dragControls={dragControls}
+            dragListener={false}
             dragConstraints={{ top: 0 }}
             onDragEnd={(_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => { if (info.offset.y > 80) onClose(); }}
             className={styles.sheet}
           >
-            {/* Handle */}
-            <div className={styles.handle} />
+            {/* Handle — drag initiates only from here, not from scrollable content */}
+            <div className={styles.handle} onPointerDown={(e) => dragControls.start(e)} style={{ cursor: 'grab' }} />
 
             {/* Header */}
             <div className={styles.sheetHeader}>
@@ -97,7 +104,7 @@ export function ExerciseSettingsSheet({
                 <div className={styles.sheetTitle}>{exercise.nameDE}</div>
                 <div className={styles.sheetSubtitle}>Übungseinstellungen</div>
               </div>
-              <button onClick={onClose} className={styles.closeBtn}>
+              <button onClick={onClose} className={styles.closeBtn} aria-label="Schließen">
                 <X size={20} color={colors.textMuted} />
               </button>
             </div>
@@ -175,7 +182,7 @@ export function ExerciseSettingsSheet({
                       autoFocus
                     />
                     <button onClick={handleAddGym} className={`${styles.chip} ${styles.chipActive}`}>OK</button>
-                    <button onClick={() => setShowAddGym(false)} className={styles.chip}>
+                    <button onClick={() => setShowAddGym(false)} className={styles.chip} aria-label="Abbrechen">
                       <X size={14} />
                     </button>
                   </div>
@@ -231,18 +238,18 @@ export function ExerciseSettingsSheet({
               <div className={styles.section}>
                 <div className={styles.sectionLabel}>WIEDERHOLUNGSBEREICH</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
-                  <span className={styles.rangeLabel}>{repRangeMin}</span>
+                  <span className={styles.rangeLabel}>{safeMin}</span>
                   <input
-                    type="range" min={1} max={repRangeMax - 1} value={repRangeMin}
-                    onChange={(e) => onRepRangeChange(Number(e.target.value), repRangeMax)}
+                    type="range" min={1} max={safeMax - 1} value={safeMin}
+                    onChange={(e) => onRepRangeChange(Number(e.target.value), safeMax)}
                     className={styles.slider}
                   />
                   <input
-                    type="range" min={repRangeMin + 1} max={30} value={repRangeMax}
-                    onChange={(e) => onRepRangeChange(repRangeMin, Number(e.target.value))}
+                    type="range" min={safeMin + 1} max={30} value={safeMax}
+                    onChange={(e) => onRepRangeChange(safeMin, Number(e.target.value))}
                     className={styles.slider}
                   />
-                  <span className={styles.rangeLabel}>{repRangeMax}</span>
+                  <span className={styles.rangeLabel}>{safeMax}</span>
                 </div>
               </div>
 
