@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronRight, CheckCircle2, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, CheckCircle2, Plus, Trash2, TrendingUp } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { usePlanStore } from '@/store/planStore';
 import { predefinedSplits } from '@/constants/splits';
 import type { TrainingSplit } from '@/types/splits';
+import { calculatePlanScore } from '@/utils/planScore';
 
 export default function SplitsPage() {
   const { splits, activeSplitId, setActiveSplit, addSplit, deleteSplit } = usePlanStore();
@@ -31,6 +32,7 @@ export default function SplitsPage() {
 
   const renderSplitCard = (split: TrainingSplit, isTemplate = false) => {
     const isActive = split.id === activeSplitId;
+    const planScore = calculatePlanScore(split);
     return (
       <div
         key={split.id}
@@ -88,13 +90,22 @@ export default function SplitsPage() {
             </div>
 
             {/* Badges */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], flexWrap: 'wrap' }}>
               <Badge variant={isActive ? 'accent' : 'muted'}>
                 {split.daysPerWeek}x / Woche
               </Badge>
               <Badge variant="default">
                 {difficultyLabel[split.difficulty] ?? split.difficulty}
               </Badge>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[1] }}>
+                <TrendingUp size={12} color={planScore.total >= 75 ? colors.success : planScore.total >= 50 ? colors.accent : colors.danger} />
+                <span style={{
+                  ...typography.monoSm,
+                  color: planScore.total >= 75 ? colors.success : planScore.total >= 50 ? colors.accent : colors.danger,
+                }}>
+                  {planScore.total}/100
+                </span>
+              </div>
             </div>
           </div>
         </Link>

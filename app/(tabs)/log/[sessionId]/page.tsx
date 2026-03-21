@@ -1,11 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Clock, Dumbbell, TrendingUp, Trash2, Star, Edit2, Save, X, Share2 } from 'lucide-react';
+import { Clock, Dumbbell, TrendingUp, Trash2, Star, Edit2, Save, X, Share2, RefreshCw } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { useHistoryStore } from '@/store/historyStore';
+import { useWorkoutStore } from '@/store/workoutStore';
 import { formatWorkoutDate, formatDuration, formatVolume } from '@/utils/dates';
 import { exercises } from '@/constants/exercises';
 import { useState } from 'react';
@@ -19,6 +21,7 @@ export default function SessionDetailPage({
   const { sessionId } = params;
   const router = useRouter();
   const { getSessionById, deleteSession, updateSession } = useHistoryStore();
+  const { startWorkout, addExercise } = useWorkoutStore();
   const session = getSessionById(sessionId);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -78,6 +81,14 @@ export default function SessionDetailPage({
       deleteSession(sessionId);
       router.back();
     }
+  };
+
+  const handleRestartWorkout = () => {
+    startWorkout(session.splitName ?? undefined);
+    for (const ex of session.exercises) {
+      addExercise(ex.exercise);
+    }
+    router.push('/workout/active');
   };
 
   const startEditing = () => {
@@ -220,6 +231,17 @@ export default function SessionDetailPage({
             label="Volumen"
           />
         </div>
+
+        {/* Nochmal trainieren */}
+        {!isEditing && (
+          <Button
+            onClick={handleRestartWorkout}
+            variant="secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}
+          >
+            <RefreshCw size={16} /> Nochmal trainieren
+          </Button>
+        )}
 
         {/* PRs */}
         {!isEditing && displaySession.newPRs.length > 0 && (
