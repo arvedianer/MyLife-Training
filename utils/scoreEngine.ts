@@ -1,258 +1,137 @@
 import type { WorkoutSession } from '@/types/workout';
-import type { WorkoutScore, WeakPoint } from '@/types/score';
-import { getMissingSubGroups, getSubGroupsForMuscle } from '@/constants/muscleSubGroups';
-import { getExerciseById } from '@/constants/exercises';
-
-const OPTIMAL_DURATION_MIN = 40; // minutes
-const OPTIMAL_DURATION_MAX = 75; // minutes
-
-function epley1RM(weight: number, reps: number): number {
-  if (reps <= 0) return weight;
-  if (reps === 1) return weight;
-  return weight * (1 + reps / 30);
-}
-
-function clamp(val: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, val));
-}
+import type { WorkoutScore } from '@/types/score';
 
 /**
- * Intensity Score based on Prilepin table zones.
- * Returns 0–100 based on how well % 1RM aligns with user's goal.
+ * Intelligent Workout Score (0–100)
+ *
+ * Three meaningful metrics compared against the user's own history:
+ *   1. Completion rate   (0–35 pts) — planned sets actually done
+ *   2. Volume vs average (0–35 pts) — today's total tonnage vs last 8 sessions
+ *   3. Intensity         (0–20 pts) — avg weight vs last 4 sessions
+ *   4. Consistency bonus (0–10 pts) — diverse muscle group coverage
+ *
+ * Result: label ("Schwach"…"Exzellent") + explanation sentence.
  */
-function calcIntensityScore(
-  currentSession: WorkoutSession,
-  goal: string
-): number {
-  const targetIntensityRange = (
-    {
-      muskelaufbau: { min: 0.65, max: 0.85 },
-      kraft: { min: 0.80, max: 0.95 },
-      ausdauer: { min: 0.50, max: 0.70 },
-      abnehmen: { min: 0.55, max: 0.75 },
-      fitness: { min: 0.60, max: 0.80 },
-    } as Record<string, { min: number; max: number }>
-  )[goal] ?? { min: 0.65, max: 0.85 };
-
-  let totalScore = 0;
-  let setsWithData = 0;
-
-  for (const ex of currentSession.exercises) {
-    const completedSets = ex.sets.filter(
-      (s) => s.isCompleted && s.weight > 0 && s.reps > 0
-    );
-    if (completedSets.length === 0) continue;
-
-    const best1RM = Math.max(...completedSets.map((s) => epley1RM(s.weight, s.reps)));
-
-    for (const set of completedSets) {
-      if (best1RM <= 0) continue;
-      const relativeIntensity = set.weight / best1RM;
-      let setScore: number;
-      if (
-        relativeIntensity >= targetIntensityRange.min &&
-        relativeIntensity <= targetIntensityRange.max
-      ) {
-        setScore = 100;
-      } else if (relativeIntensity < targetIntensityRange.min) {
-        setScore = clamp((relativeIntensity / targetIntensityRange.min) * 100, 0, 100);
-      } else {
-        setScore = clamp(
-          100 - ((relativeIntensity - targetIntensityRange.max) / 0.1) * 20,
-          60,
-          100
-        );
-      }
-      totalScore += setScore;
-      setsWithData++;
-    }
-  }
-
-  return setsWithData > 0 ? Math.round(totalScore / setsWithData) : 70;
-}
-
-/** Volume score based on session sets per muscle */
-function calcVolumeScore(currentSession: WorkoutSession): number {
-  const muscleSetCounts: Record<string, number> = {};
-
-  for (const ex of currentSession.exercises) {
-    const exercise = getExerciseById(ex.exercise.id);
-    // Fall back to session-level primaryMuscle for custom exercises not in the static DB
-    const muscle = exercise?.primaryMuscle ?? ex.exercise.primaryMuscle;
-    if (!muscle) continue;
-    const workedSets = ex.sets.filter(
-      (s) => s.isCompleted && s.type !== 'warmup'
-    ).length;
-    muscleSetCounts[muscle] = (muscleSetCounts[muscle] ?? 0) + workedSets;
-  }
-
-  const muscles = Object.keys(muscleSetCounts);
-  if (muscles.length === 0) return 50;
-
-  const scores = muscles.map((m) => {
-    const sets = muscleSetCounts[m] ?? 0;
-    if (sets === 0) return 0;
-    if (sets >= 3 && sets <= 7) return 100;
-    if (sets < 3) return clamp((sets / 3) * 100, 20, 100);
-    return clamp(100 - (sets - 7) * 8, 60, 100);
-  });
-
-  return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-}
-
-/** Coverage score based on planned vs. trained muscle sub-groups */
-function calcCoverageScore(
-  currentSession: WorkoutSession,
-  plannedMuscles: string[]
-): { score: number; weakPoints: WeakPoint[] } {
-  const trainedExerciseIds = currentSession.exercises
-    .filter((e) => e.sets.some((s) => s.isCompleted))
-    .map((e) => e.exercise.id);
-
-  if (plannedMuscles.length === 0) {
-    const musclesCovered = new Set(
-      currentSession.exercises.map((e) => e.exercise.primaryMuscle)
-    ).size;
-    return { score: Math.min(musclesCovered * 25, 100), weakPoints: [] };
-  }
-
-  const missing = getMissingSubGroups(trainedExerciseIds, plannedMuscles);
-  const totalSubGroups = plannedMuscles.reduce((sum, m) => {
-    return sum + (getSubGroupsForMuscle(m).length || 1);
-  }, 0);
-
-  const score =
-    totalSubGroups > 0
-      ? Math.round(((totalSubGroups - missing.length) / totalSubGroups) * 100)
-      : 80;
-
-  const weakPoints: WeakPoint[] = missing.slice(0, 3).map((sg) => ({
-    muscle: sg.muscle,
-    subMuscle: sg.labelDE,
-    message: `${sg.labelDE} nicht trainiert`,
-    suggestedExercise: sg.trainedBy[0],
-  }));
-
-  return { score, weakPoints };
-}
-
-/** Duration score — optimal 40–75 min */
-function calcDurationScore(durationSeconds: number): number {
-  const minutes = durationSeconds / 60;
-  if (minutes >= OPTIMAL_DURATION_MIN && minutes <= OPTIMAL_DURATION_MAX) return 100;
-  if (minutes < OPTIMAL_DURATION_MIN) {
-    return clamp(Math.round((minutes / OPTIMAL_DURATION_MIN) * 100), 20, 100);
-  }
-  return clamp(Math.round(100 - ((minutes - OPTIMAL_DURATION_MAX) / 30) * 40), 40, 100);
-}
-
-/** RPE score — optimal RPE 7–8.5 */
-function calcRPEScore(rpe: number | undefined): number | null {
-  if (rpe === undefined || rpe === null) return null;
-  if (rpe >= 7 && rpe <= 8.5) return 100;
-  if (rpe < 7) return clamp(Math.round((rpe / 7) * 100), 20, 100);
-  return clamp(Math.round(100 - ((rpe - 8.5) / 1.5) * 60), 20, 100);
-}
-
-/** Generate deterministic coaching tips */
-function generateTips(
-  session: WorkoutSession,
-  volumeScore: number,
-  intensityScore: number,
-  coverageScore: number,
-  durationScore: number,
-  weakPoints: WeakPoint[]
-): string[] {
-  const tips: string[] = [];
-
-  if (volumeScore < 70) tips.push('Volumen erhöhen: versuche 1–2 Sätze mehr pro Muskelgruppe');
-  if (intensityScore < 65) tips.push('Gewicht leicht erhöhen für bessere Intensität');
-  if (coverageScore < 70 && weakPoints.length > 0) {
-    tips.push(
-      `${weakPoints[0].subMuscle ?? weakPoints[0].muscle} zu wenig trainiert — ${
-        weakPoints[0].suggestedExercise ?? 'geeignete Übung hinzufügen'
-      }`
-    );
-  }
-  if (durationScore < 60) {
-    const minutes = session.durationSeconds / 60;
-    if (minutes > OPTIMAL_DURATION_MAX) {
-      tips.push('Training war zu lang — fokussierter trainieren, kürzere Pausen');
-    } else {
-      tips.push('Training war sehr kurz — Volumen erhöhen für bessere Adaption');
-    }
-  }
-
-  for (const ex of session.exercises) {
-    const completed = ex.sets.filter((s) => s.isCompleted);
-    if (completed.length === 0) continue;
-    const exercise = getExerciseById(ex.exercise.id);
-    if (!exercise?.repRange) continue;
-    const allHitMax = completed.every((s) => s.reps >= exercise.repRange!.max);
-    if (allHitMax) {
-      tips.push(`${exercise.nameDE}: obere Grenze erreicht → +2.5kg beim nächsten Mal`);
-    }
-  }
-
-  return tips.slice(0, 5);
-}
-
-/** Main score calculation function — deterministic, no API calls */
 export function calculateWorkoutScore(
   session: WorkoutSession,
-  goal: string,
-  plannedMuscles: string[],
   previousSessions: WorkoutSession[]
 ): WorkoutScore {
-  const volumeScore = calcVolumeScore(session);
-  const intensityScore = calcIntensityScore(session, goal);
-  const { score: coverageScore, weakPoints } = calcCoverageScore(session, plannedMuscles);
-  const durationScore = calcDurationScore(session.durationSeconds);
-  const rpeScore = calcRPEScore(session.rpe);
+  const completedSets = session.exercises.flatMap((e) =>
+    e.sets.filter((s) => s.isCompleted)
+  );
+  const allSets = session.exercises.flatMap((e) => e.sets);
 
-  // Weighted total — when RPE absent, redistribute its 5% proportionally
-  const hasRPE = rpeScore !== null;
-  const total = hasRPE
-    ? Math.round(
-        volumeScore * 0.35 +
-          intensityScore * 0.25 +
-          coverageScore * 0.25 +
-          durationScore * 0.1 +
-          rpeScore! * 0.05
-      )
-    : Math.round(
-        volumeScore * 0.368 +
-          intensityScore * 0.263 +
-          coverageScore * 0.263 +
-          durationScore * 0.105
-      );
+  // --- 1. COMPLETION RATE (0-35 points) ---
+  const completionRatio =
+    allSets.length > 0 ? completedSets.length / allSets.length : 1;
+  const completionScore = Math.round(completionRatio * 35);
 
-  const allScores = previousSessions
-    .filter((s) => s.score?.total !== undefined)
-    .map((s) => s.score!.total);
-  const betterThan =
-    allScores.length > 0
-      ? Math.round((allScores.filter((s) => s < total).length / allScores.length) * 100)
-      : 50;
+  // --- 2. VOLUME vs PERSONAL AVERAGE (0-35 points) ---
+  const sessionVolume = completedSets.reduce(
+    (sum, s) => sum + s.weight * s.reps,
+    0
+  );
+  const prevVolumes = previousSessions
+    .slice(0, 8)
+    .map((ps) =>
+      ps.exercises
+        .flatMap((e) => e.sets.filter((s) => s.isCompleted))
+        .reduce((sum, s) => sum + s.weight * s.reps, 0)
+    )
+    .filter((v) => v > 0);
 
-  const tips = generateTips(
-    session,
-    volumeScore,
-    intensityScore,
-    coverageScore,
-    durationScore,
-    weakPoints
+  let volumeScore = 25; // default when no history available
+  if (prevVolumes.length >= 2) {
+    const avgVolume = prevVolumes.reduce((a, b) => a + b, 0) / prevVolumes.length;
+    if (avgVolume > 0) {
+      const ratio = sessionVolume / avgVolume;
+      // 0.5x avg → ~14 pts, 1x avg → 27 pts, 1.3x avg → 35 pts
+      volumeScore = Math.min(35, Math.max(0, Math.round(ratio * 27)));
+    }
+  }
+
+  // --- 3. INTENSITY (0-20 points) ---
+  const avgWeightNow =
+    completedSets.length > 0
+      ? completedSets.reduce((sum, s) => sum + s.weight, 0) / completedSets.length
+      : 0;
+  const prevSets = previousSessions
+    .slice(0, 4)
+    .flatMap((ps) => ps.exercises.flatMap((e) => e.sets.filter((s) => s.isCompleted)));
+  const avgWeightPrev =
+    prevSets.length > 0
+      ? prevSets.reduce((sum, s) => sum + s.weight, 0) / prevSets.length
+      : avgWeightNow;
+
+  let intensityScore = 14; // default
+  if (avgWeightPrev > 0 && completedSets.length > 0) {
+    const ratio = avgWeightNow / avgWeightPrev;
+    // 0.7x → ~10 pts, 1x → 14 pts, 1.1x → ~15 pts, 1.4x+ → 20 pts
+    intensityScore = Math.min(20, Math.max(0, Math.round(ratio * 14)));
+  }
+
+  // --- 4. CONSISTENCY BONUS (0-10 points) ---
+  const trainedMuscles = new Set(
+    session.exercises.map((e) => e.exercise.primaryMuscle)
+  );
+  const consistencyBonus = Math.min(10, trainedMuscles.size * 3);
+
+  // --- TOTAL ---
+  const total = Math.min(
+    100,
+    completionScore + volumeScore + intensityScore + consistencyBonus
   );
 
+  // --- LABEL ---
+  const label =
+    total >= 88
+      ? 'Exzellent 🔥'
+      : total >= 75
+      ? 'Stark 💪'
+      : total >= 62
+      ? 'Gut'
+      : total >= 48
+      ? 'Ok'
+      : total >= 32
+      ? 'Mäßig'
+      : 'Schwach';
+
+  // --- EXPLANATION ---
+  const parts: string[] = [];
+
+  if (completionRatio < 0.7) {
+    parts.push(`Nur ${Math.round(completionRatio * 100)}% der Sets abgeschlossen`);
+  } else if (completionRatio >= 1) {
+    parts.push('Alle Sets durchgezogen');
+  }
+
+  if (prevVolumes.length >= 2) {
+    const avgVol = prevVolumes.reduce((a, b) => a + b, 0) / prevVolumes.length;
+    const pct = Math.round((sessionVolume / Math.max(avgVol, 1)) * 100);
+    if (pct >= 120) {
+      parts.push(`${pct}% deines üblichen Volumens`);
+    } else if (pct < 80) {
+      parts.push(`Nur ${pct}% deines üblichen Volumens`);
+    }
+  }
+
+  if (trainedMuscles.size >= 3) {
+    parts.push(`${trainedMuscles.size} Muskelgruppen`);
+  }
+
+  const explanation =
+    parts.length > 0 ? parts.join(' · ') : 'Workout abgeschlossen';
+
   return {
-    total: clamp(total, 0, 100),
+    total,
+    label,
+    completionRate: Math.round(completionRatio * 100),
     volumeScore,
     intensityScore,
-    coverageScore,
-    durationScore,
-    rpeScore,
-    percentileBetter: betterThan,
-    weakPoints,
-    tips,
+    consistencyBonus,
+    explanation,
+    // Legacy: keep tips as empty array so stored sessions & PDF don't crash
+    tips: [],
+    percentileBetter: 0,
   };
 }

@@ -2,12 +2,11 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useState } from 'react';
-import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp, Share2, AlertTriangle, BarChart2, Download } from 'lucide-react';
+import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp, Share2, BarChart2, Download } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useHistoryStore } from '@/store/historyStore';
-import { usePlanStore } from '@/store/planStore';
 import { useUserStore } from '@/store/userStore';
 import { formatDuration, formatVolume } from '@/utils/dates';
 import { buildShareUrl } from '@/utils/shareToken';
@@ -15,30 +14,44 @@ import { getExerciseById } from '@/constants/exercises';
 import { calculateWorkoutScore } from '@/utils/scoreEngine';
 import type { WorkoutScore } from '@/types/score';
 
-function getScoreLabel(total: number | undefined): string {
-  if (total === undefined) return '';
-  if (total >= 90) return 'Exzellent';
-  if (total >= 75) return 'Sehr gut';
-  if (total >= 60) return 'Gut';
-  if (total >= 45) return 'Okay';
-  return 'Verbesserungswürdig';
-}
-
-function ScoreBar({ label, value, color }: { label: string; value: number; color?: string }) {
+/** Compact metric row used in the score breakdown section */
+function MetricRow({
+  label,
+  value,
+  maxValue,
+  unit,
+}: {
+  label: string;
+  value: number;
+  maxValue: number;
+  unit?: string;
+}) {
+  const pct = Math.round((value / maxValue) * 100);
   return (
     <div style={{ marginBottom: spacing[3] }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
         <span style={{ ...typography.bodySm, color: colors.textMuted }}>{label}</span>
-        <span style={{ ...typography.mono, color: color ?? colors.textPrimary }}>{value}</span>
+        <span style={{ ...typography.mono, color: colors.textPrimary }}>
+          {unit === '%' ? `${value}${unit}` : `${value} / ${maxValue}`}
+        </span>
       </div>
-      <div style={{ height: '6px', backgroundColor: colors.bgHighest, borderRadius: radius.full, overflow: 'hidden' }}>
-        <div style={{
-          height: '100%',
-          width: `${value}%`,
-          backgroundColor: color ?? colors.accent,
+      <div
+        style={{
+          height: '6px',
+          backgroundColor: colors.bgHighest,
           borderRadius: radius.full,
-          transition: 'width 0.6s ease',
-        }} />
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            height: '100%',
+            width: `${Math.min(100, pct)}%`,
+            backgroundColor: pct >= 70 ? colors.accent : pct >= 40 ? colors.accentDark : colors.danger,
+            borderRadius: radius.full,
+            transition: 'width 0.6s ease',
+          }}
+        />
       </div>
     </div>
   );
@@ -49,7 +62,6 @@ function SummaryContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session');
   const { profile } = useUserStore();
-  // Default RPE = 5 (center of 1–10 scale); always persisted so score always includes RPE
   const [rpe, setRpe] = useState<number>(5);
   const [pdfLoading, setPdfLoading] = useState(false);
 
@@ -62,8 +74,6 @@ function SummaryContent() {
   const updateSession = useHistoryStore((state) => state.updateSession);
   const { generateShareToken: createShareToken } = useHistoryStore();
 
-  const splits = usePlanStore((state) => state.splits);
-
   if (!session) {
     return (
       <div style={{ padding: spacing[6], textAlign: 'center' }}>
@@ -75,20 +85,7 @@ function SummaryContent() {
     );
   }
 
-  // Derive plannedMuscles from the matching split's day, or fall back to session exercises
-  const matchingSplit = session.splitName
-    ? splits.find((sp) => sp.name === session.splitName)
-    : undefined;
-  const plannedMuscles: string[] = matchingSplit
-    ? Array.from(new Set(matchingSplit.days.flatMap((d) => d.muscleGroups)))
-    : session.exercises.map((e) => e.exercise.primaryMuscle);
-
-  const score: WorkoutScore = calculateWorkoutScore(
-    { ...session, rpe },
-    profile?.goal ?? 'fitness',
-    plannedMuscles,
-    previousSessions
-  );
+  const score: WorkoutScore = calculateWorkoutScore(session, previousSessions);
 
   const handleSave = async () => {
     await updateSession(session.id, { rpe, score });
@@ -100,9 +97,17 @@ function SummaryContent() {
     const url = buildShareUrl(token);
     const text = `💪 ${session.splitName || 'Freies Training'} — Score: ${score.total}/100`;
     if (navigator.share) {
-      try { await navigator.share({ title: 'Mein Workout', text, url }); } catch { /* cancelled */ }
+      try {
+        await navigator.share({ title: 'Mein Workout', text, url });
+      } catch {
+        /* cancelled */
+      }
     } else {
-      try { await navigator.clipboard.writeText(url); } catch { /* ignore */ }
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        /* ignore */
+      }
     }
   };
 
@@ -129,38 +134,74 @@ function SummaryContent() {
     }
   };
 
-  const scoreColor = score.total >= 90 ? colors.success : score.total >= 60 ? colors.accent : colors.danger;
+  const scoreColor =
+    score.total >= 75 ? colors.success : score.total >= 48 ? colors.accent : colors.danger;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', backgroundColor: colors.bgPrimary }}>
-
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100dvh',
+        backgroundColor: colors.bgPrimary,
+      }}
+    >
       {/* SCORE HERO */}
-      <div style={{
-        textAlign: 'center',
-        padding: `calc(${spacing[10]} + env(safe-area-inset-top)) ${spacing[5]} ${spacing[6]}`,
-        background: `linear-gradient(180deg, ${colors.accentBg} 0%, ${colors.bgPrimary} 100%)`,
-        borderBottom: `1px solid ${colors.borderLight}`,
-      }}>
+      <div
+        style={{
+          textAlign: 'center',
+          padding: `calc(${spacing[10]} + env(safe-area-inset-top)) ${spacing[5]} ${spacing[6]}`,
+          background: `linear-gradient(180deg, ${colors.accentBg} 0%, ${colors.bgPrimary} 100%)`,
+          borderBottom: `1px solid ${colors.borderLight}`,
+        }}
+      >
         <CheckCircle2 size={44} color={colors.success} style={{ marginBottom: spacing[3] }} />
+
+        {/* Big score number */}
         <div style={{ fontSize: '80px', fontWeight: 800, color: scoreColor, lineHeight: 1 }}>
           {score.total}
         </div>
-        <div style={{ ...typography.label, color: colors.textMuted, marginTop: spacing[1] }}>
-          / 100 · {getScoreLabel(score.total)}
+
+        {/* Label below the number */}
+        <div
+          style={{
+            ...typography.h3,
+            color: scoreColor,
+            marginTop: spacing[2],
+            fontWeight: 700,
+          }}
+        >
+          {score.label}
         </div>
-        <p style={{ ...typography.bodyLg, color: colors.textSecondary, marginTop: spacing[2] }}>
+
+        {/* Explanation subtitle */}
+        <div
+          style={{
+            ...typography.bodySm,
+            color: colors.textMuted,
+            marginTop: spacing[1],
+          }}
+        >
+          {score.explanation}
+        </div>
+
+        <p style={{ ...typography.bodyLg, color: colors.textSecondary, marginTop: spacing[3] }}>
           {session.splitName ?? 'Freies Training'}
         </p>
-        {score.percentileBetter > 0 && (
-          <p style={{ ...typography.bodySm, color: colors.textMuted, marginTop: spacing[1] }}>
-            Besser als {score.percentileBetter}% deiner Einheiten
-          </p>
-        )}
+
         {session.newPRs.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: spacing[2], marginTop: spacing[3] }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: spacing[2],
+              marginTop: spacing[3],
+            }}
+          >
             <Star size={16} color={colors.accent} />
             <span style={{ ...typography.body, color: colors.accent }}>
-              {session.newPRs.length} neue Personal {session.newPRs.length === 1 ? 'Record' : 'Records'}!
+              {session.newPRs.length} neue Personal{' '}
+              {session.newPRs.length === 1 ? 'Record' : 'Records'}!
             </span>
           </div>
         )}
@@ -169,29 +210,39 @@ function SummaryContent() {
       <div style={{ padding: `${spacing[5]} ${spacing[5]} 0` }}>
 
         {/* SCORE BREAKDOWN */}
-        <h3 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[4] }}>Score Aufschlüsselung</h3>
-        <ScoreBar label="Volumen" value={score.volumeScore} />
-        <ScoreBar label="Intensität" value={score.intensityScore} />
-        <ScoreBar label="Muskelabdeckung" value={score.coverageScore} color={score.coverageScore < 60 ? colors.danger : undefined} />
-        <ScoreBar label="Dauer" value={score.durationScore} />
-        {score.rpeScore !== null && score.rpeScore !== undefined && (
-          <ScoreBar label="RPE" value={score.rpeScore} />
-        )}
+        <h3 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[4] }}>
+          Score Aufschlüsselung
+        </h3>
+
+        <MetricRow label="Abschlussrate" value={score.completionRate} maxValue={100} unit="%" />
+        <MetricRow label="Volumen" value={score.volumeScore} maxValue={35} />
+        <MetricRow label="Intensität" value={score.intensityScore} maxValue={20} />
 
         {/* RPE INPUT */}
-        <div style={{
-          backgroundColor: colors.bgCard,
-          border: `1px solid ${colors.border}`,
-          borderRadius: radius.xl,
-          padding: spacing[4],
-          marginBottom: spacing[5],
-          marginTop: spacing[2],
-        }}>
-          <div style={{ ...typography.label, color: colors.textMuted, marginBottom: spacing[3] }}>
+        <div
+          style={{
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.xl,
+            padding: spacing[4],
+            marginBottom: spacing[5],
+            marginTop: spacing[4],
+          }}
+        >
+          <div
+            style={{
+              ...typography.label,
+              color: colors.textMuted,
+              marginBottom: spacing[3],
+            }}
+          >
             WIE ANSTRENGEND? (RPE {rpe.toFixed(1)})
           </div>
           <input
-            type="range" min={1} max={10} step={0.5}
+            type="range"
+            min={1}
+            max={10}
+            step={0.5}
             value={rpe}
             onChange={(e) => setRpe(parseFloat(e.target.value))}
             style={{ width: '100%', accentColor: colors.accent }}
@@ -201,57 +252,55 @@ function SummaryContent() {
             <span style={{ ...typography.monoSm, color: colors.textFaint }}>Maximal</span>
           </div>
         </div>
-
-        {/* WEAK POINTS */}
-        {score.weakPoints.length > 0 && (
-          <div style={{
-            backgroundColor: `${colors.danger}10`,
-            border: `1px solid ${colors.danger}30`,
-            borderRadius: radius.xl,
-            padding: spacing[4],
-            marginBottom: spacing[5],
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] }}>
-              <AlertTriangle size={16} color={colors.danger} />
-              <span style={{ ...typography.label, color: colors.danger }}>SCHWACHSTELLEN</span>
-            </div>
-            {score.weakPoints.map((wp, i) => (
-              <div key={`${wp.muscle}-${wp.subMuscle ?? i}`} style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[1] }}>
-                · {wp.message}{wp.suggestedExercise ? ` → ${wp.suggestedExercise}` : ''}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* TIPS */}
-        {score.tips.length > 0 && (
-          <div style={{ marginBottom: spacing[5] }}>
-            <h3 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>Nächstes Mal</h3>
-            {score.tips.map((tip) => (
-              <div key={tip.slice(0, 30)} style={{
-                display: 'flex', gap: spacing[2], alignItems: 'flex-start', marginBottom: spacing[2],
-              }}>
-                <span style={{ color: colors.accent, flexShrink: 0, marginTop: '2px' }}>›</span>
-                <span style={{ ...typography.bodySm, color: colors.textSecondary }}>{tip}</span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* STATS */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: spacing[3], padding: `0 ${spacing[5]}` }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr 1fr',
+          gap: spacing[3],
+          padding: `0 ${spacing[5]}`,
+        }}
+      >
         {[
-          { icon: <Clock size={20} color={colors.accent} />, value: formatDuration(session.durationSeconds), label: 'Dauer' },
-          { icon: <Dumbbell size={20} color={colors.accent} />, value: String(session.totalSets), label: 'Sätze' },
-          { icon: <TrendingUp size={20} color={colors.accent} />, value: formatVolume(session.totalVolume), label: 'Volumen' },
-          { icon: <BarChart2 size={20} color={colors.accent} />, value: String(session.exercises.filter((e) => e.sets.some((s) => s.isCompleted)).length), label: 'Übungen' },
+          {
+            icon: <Clock size={20} color={colors.accent} />,
+            value: formatDuration(session.durationSeconds),
+            label: 'Dauer',
+          },
+          {
+            icon: <Dumbbell size={20} color={colors.accent} />,
+            value: String(session.totalSets),
+            label: 'Sätze',
+          },
+          {
+            icon: <TrendingUp size={20} color={colors.accent} />,
+            value: formatVolume(session.totalVolume),
+            label: 'Volumen',
+          },
+          {
+            icon: <BarChart2 size={20} color={colors.accent} />,
+            value: String(
+              session.exercises.filter((e) => e.sets.some((s) => s.isCompleted)).length
+            ),
+            label: 'Übungen',
+          },
         ].map(({ icon, value, label }) => (
-          <div key={label} style={{
-            backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
-            borderRadius: radius.lg, padding: spacing[4],
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing[2], textAlign: 'center',
-          }}>
+          <div
+            key={label}
+            style={{
+              backgroundColor: colors.bgCard,
+              border: `1px solid ${colors.border}`,
+              borderRadius: radius.lg,
+              padding: spacing[4],
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: spacing[2],
+              textAlign: 'center',
+            }}
+          >
             {icon}
             <div style={{ ...typography.monoLg, color: colors.textPrimary }}>{value}</div>
             <div style={{ ...typography.label, color: colors.textMuted }}>{label}</div>
@@ -262,20 +311,33 @@ function SummaryContent() {
       {/* PRs */}
       {session.newPRs.length > 0 && (
         <div style={{ padding: `${spacing[5]} ${spacing[5]} 0` }}>
-          <h3 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>Neue Rekorde</h3>
+          <h3 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>
+            Neue Rekorde
+          </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
             {session.newPRs.map((exId) => {
               const exercise = getExerciseById(exId);
               if (!exercise) return null;
               return (
-                <div key={exId} style={{
-                  display: 'flex', alignItems: 'center', gap: spacing[3],
-                  padding: spacing[3], backgroundColor: colors.accentBg,
-                  border: `1px solid ${colors.accent}30`, borderRadius: radius.lg,
-                }}>
+                <div
+                  key={exId}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: spacing[3],
+                    padding: spacing[3],
+                    backgroundColor: colors.accentBg,
+                    border: `1px solid ${colors.accent}30`,
+                    borderRadius: radius.lg,
+                  }}
+                >
                   <Star size={16} color={colors.accent} />
-                  <span style={{ ...typography.body, color: colors.textPrimary }}>{exercise.nameDE}</span>
-                  <Badge variant="accent" style={{ marginLeft: 'auto' }}>PR</Badge>
+                  <span style={{ ...typography.body, color: colors.textPrimary }}>
+                    {exercise.nameDE}
+                  </span>
+                  <Badge variant="accent" style={{ marginLeft: 'auto' }}>
+                    PR
+                  </Badge>
                 </div>
               );
             })}
@@ -294,15 +356,28 @@ function SummaryContent() {
             if (completedSets.length === 0) return null;
             const maxWeight = Math.max(...completedSets.map((s) => s.weight));
             return (
-              <div key={workoutExercise.id} style={{
-                backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
-                borderRadius: radius.lg, padding: spacing[4],
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}>
+              <div
+                key={workoutExercise.id}
+                style={{
+                  backgroundColor: colors.bgCard,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: radius.lg,
+                  padding: spacing[4],
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
                 <span style={{ ...typography.body, color: colors.textPrimary }}>
                   {workoutExercise.exercise.nameDE}
                 </span>
-                <div style={{ ...typography.mono, color: colors.textSecondary, textAlign: 'right' }}>
+                <div
+                  style={{
+                    ...typography.mono,
+                    color: colors.textSecondary,
+                    textAlign: 'right',
+                  }}
+                >
                   {completedSets.length} × {maxWeight > 0 ? `${maxWeight} kg` : 'BW'}
                 </div>
               </div>
@@ -312,20 +387,44 @@ function SummaryContent() {
       </div>
 
       {/* ACTIONS */}
-      <div style={{
-        padding: spacing[5],
-        paddingBottom: `calc(${spacing[5]} + env(safe-area-inset-bottom))`,
-        display: 'flex', flexDirection: 'column', gap: spacing[3], marginTop: spacing[6],
-      }}>
+      <div
+        style={{
+          padding: spacing[5],
+          paddingBottom: `calc(${spacing[5]} + env(safe-area-inset-bottom))`,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: spacing[3],
+          marginTop: spacing[6],
+        }}
+      >
         <Button fullWidth size="lg" onClick={handleSave}>
           Workout speichern
         </Button>
-        <Button variant="secondary" fullWidth onClick={handleShare}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing[2] }}>
+        <Button
+          variant="secondary"
+          fullWidth
+          onClick={handleShare}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: spacing[2],
+          }}
+        >
           Workout teilen <Share2 size={18} />
         </Button>
-        <Button variant="ghost" fullWidth onClick={handleDownloadPDF} disabled={pdfLoading}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing[2] }}>
+        <Button
+          variant="ghost"
+          fullWidth
+          onClick={handleDownloadPDF}
+          disabled={pdfLoading}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: spacing[2],
+          }}
+        >
           {pdfLoading ? 'Exportiere...' : <><Download size={18} /> Als PDF speichern</>}
         </Button>
         <Button variant="ghost" fullWidth onClick={() => router.push('/log')}>
@@ -338,7 +437,13 @@ function SummaryContent() {
 
 export default function SummaryPage() {
   return (
-    <Suspense fallback={<div style={{ padding: '24px', color: colors.textMuted, textAlign: 'center' }}>Lade...</div>}>
+    <Suspense
+      fallback={
+        <div style={{ padding: '24px', color: colors.textMuted, textAlign: 'center' }}>
+          Lade...
+        </div>
+      }
+    >
       <SummaryContent />
     </Suspense>
   );
