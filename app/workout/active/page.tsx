@@ -5,8 +5,23 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, X, Check, Clock, RotateCcw, Star, Mic, MicOff, Loader2 } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
-import { ExerciseCard } from '@/components/workout/ExerciseCard';
 import { Button } from '@/components/ui/Button';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { SortableExerciseCard } from '@/components/workout/SortableExerciseCard';
 import { RestTimerOverlay } from '@/components/overlays/RestTimerOverlay';
 import { PRMomentOverlay } from '@/components/overlays/PRMomentOverlay';
 import { CancelWorkoutOverlay } from '@/components/overlays/CancelWorkoutOverlay';
@@ -43,10 +58,26 @@ export default function ActiveWorkoutPage() {
     undoStack,
     toggleUnilateral,
     changeSetType,
+    reorderExercises,
   } = useWorkout();
 
   const restTimer = useRestTimer();
   const { sessions } = useHistoryStore();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !activeWorkout) return;
+    const oldIndex = activeWorkout.exercises.findIndex(e => e.id === String(active.id));
+    const newIndex = activeWorkout.exercises.findIndex(e => e.id === String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(activeWorkout.exercises, oldIndex, newIndex);
+    reorderExercises(reordered);
+  };
 
   const [elapsed, setElapsed] = useState(0);
   const [showPR, setShowPR] = useState(false); // end-of-workout overlay
@@ -435,32 +466,42 @@ export default function ActiveWorkoutPage() {
           </div>
         ) : (
           <>
-            {activeWorkout.exercises.map((workoutExercise, index) => {
-              const suggestion = calculateOverloadSuggestion(
-                workoutExercise.exercise.id,
-                sessions,
-                workoutExercise.exercise.repRange?.min,
-                workoutExercise.exercise.repRange?.max
-              );
-              return (
-                <ExerciseCard
-                  key={workoutExercise.id}
-                  workoutExercise={workoutExercise}
-                  restTimerDefault={restTimerDefault}
-                  overloadSuggestion={suggestion}
-                  onAddSet={() => addSet(workoutExercise.id)}
-                  onUpdateSet={(setId, updates) => updateSet(workoutExercise.id, setId, updates)}
-                  onToggleSet={(setId) => handleToggleSet(workoutExercise.id, setId)}
-                  onRemoveSet={(setId) => removeSet(workoutExercise.id, setId)}
-                  onRemoveExercise={() => removeExercise(workoutExercise.id)}
-                  onReplaceExercise={(newEx) => replaceExercise(workoutExercise.id, newEx)}
-                  onStartTimer={(seconds) => startRestTimer(seconds)}
-                  onApplySuggestion={(w, r) => handleApplySuggestion(workoutExercise.id, w, r)}
-                  onToggleUnilateral={() => toggleUnilateral(workoutExercise.id)}
-                  onChangeSetType={(setId, type) => changeSetType(workoutExercise.id, setId, type as any)}
-                />
-              );
-            })}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext
+                items={activeWorkout.exercises.map(e => e.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
+                  {activeWorkout.exercises.map((workoutExercise) => {
+                    const suggestion = calculateOverloadSuggestion(
+                      workoutExercise.exercise.id,
+                      sessions,
+                      workoutExercise.exercise.repRange?.min,
+                      workoutExercise.exercise.repRange?.max
+                    );
+                    return (
+                      <SortableExerciseCard
+                        key={workoutExercise.id}
+                        sortId={workoutExercise.id}
+                        workoutExercise={workoutExercise}
+                        restTimerDefault={restTimerDefault}
+                        overloadSuggestion={suggestion}
+                        onAddSet={() => addSet(workoutExercise.id)}
+                        onUpdateSet={(setId, updates) => updateSet(workoutExercise.id, setId, updates)}
+                        onToggleSet={(setId) => handleToggleSet(workoutExercise.id, setId)}
+                        onRemoveSet={(setId) => removeSet(workoutExercise.id, setId)}
+                        onRemoveExercise={() => removeExercise(workoutExercise.id)}
+                        onReplaceExercise={(newEx) => replaceExercise(workoutExercise.id, newEx)}
+                        onStartTimer={(seconds) => startRestTimer(seconds)}
+                        onApplySuggestion={(w, r) => handleApplySuggestion(workoutExercise.id, w, r)}
+                        onToggleUnilateral={() => toggleUnilateral(workoutExercise.id)}
+                        onChangeSetType={(setId, type) => changeSetType(workoutExercise.id, setId, type as Parameters<typeof changeSetType>[2])}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
 
             {/* Bottom Actions moved inside the scrollable stream */}
             <div className={styles.bottomActions}>

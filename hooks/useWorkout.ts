@@ -126,5 +126,6 @@ export function useWorkout() {
     undoStack: store.undoStack,
     toggleUnilateral: store.toggleUnilateral,
     changeSetType: store.changeSetType,
+    reorderExercises: store.reorderExercises,
   };
 }
