@@ -48,7 +48,8 @@ function SummaryContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session');
   const { profile } = useUserStore();
-  const [rpe, setRpe] = useState<number | undefined>(undefined);
+  // Default RPE = 5 (center of 1–10 scale); always persisted so score always includes RPE
+  const [rpe, setRpe] = useState<number>(5);
 
   const session = useHistoryStore((state) =>
     sessionId ? state.sessions.find((s) => s.id === sessionId) : null
@@ -148,7 +149,7 @@ function SummaryContent() {
         <ScoreBar label="Intensität" value={score.intensityScore} />
         <ScoreBar label="Muskelabdeckung" value={score.coverageScore} color={score.coverageScore < 60 ? colors.danger : undefined} />
         <ScoreBar label="Dauer" value={score.durationScore} />
-        {score.rpeScore !== null && (
+        {score.rpeScore !== null && score.rpeScore !== undefined && (
           <ScoreBar label="RPE" value={score.rpeScore} />
         )}
 
@@ -162,11 +163,11 @@ function SummaryContent() {
           marginTop: spacing[2],
         }}>
           <div style={{ ...typography.label, color: colors.textMuted, marginBottom: spacing[3] }}>
-            WIE ANSTRENGEND? (RPE {rpe !== undefined ? rpe.toFixed(1) : '–'})
+            WIE ANSTRENGEND? (RPE {rpe.toFixed(1)})
           </div>
           <input
             type="range" min={1} max={10} step={0.5}
-            value={rpe ?? 5}
+            value={rpe}
             onChange={(e) => setRpe(parseFloat(e.target.value))}
             style={{ width: '100%', accentColor: colors.accent }}
           />
