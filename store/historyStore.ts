@@ -4,6 +4,7 @@ import { zustandStorage } from '@/utils/storage';
 import type { WorkoutSession } from '@/types/workout';
 import { supabase } from '@/lib/supabase';
 import { getExerciseById } from '@/constants/exercises';
+import { generateShareToken as createToken } from '@/utils/shareToken';
 
 interface HistoryState {
   sessions: WorkoutSession[];
@@ -18,6 +19,7 @@ interface HistoryState {
   getSessionsByExercise: (exerciseId: string) => WorkoutSession[];
   getPersonalRecords: () => Record<string, { weight: number; reps: number; volume: number }>;
   loadFromSupabase: (userId: string) => Promise<void>;
+  generateShareToken: (sessionId: string) => string;
 }
 
 export const useHistoryStore = create<HistoryState>()(
@@ -127,6 +129,16 @@ export const useHistoryStore = create<HistoryState>()(
         }
 
         return prs;
+      },
+
+      generateShareToken: (sessionId) => {
+        const token = createToken();
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId ? { ...s, shareToken: token } : s
+          ),
+        }));
+        return token;
       },
 
       loadFromSupabase: async (userId) => {

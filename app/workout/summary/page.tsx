@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useState } from 'react';
-import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp, Share2, AlertTriangle, BarChart2 } from 'lucide-react';
+import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp, Share2, AlertTriangle, BarChart2, Download } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -10,6 +10,7 @@ import { useHistoryStore } from '@/store/historyStore';
 import { usePlanStore } from '@/store/planStore';
 import { useUserStore } from '@/store/userStore';
 import { formatDuration, formatVolume } from '@/utils/dates';
+import { buildShareUrl } from '@/utils/shareToken';
 import { getExerciseById } from '@/constants/exercises';
 import { calculateWorkoutScore } from '@/utils/scoreEngine';
 import type { WorkoutScore } from '@/types/score';
@@ -50,6 +51,7 @@ function SummaryContent() {
   const { profile } = useUserStore();
   // Default RPE = 5 (center of 1–10 scale); always persisted so score always includes RPE
   const [rpe, setRpe] = useState<number>(5);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const session = useHistoryStore((state) =>
     sessionId ? state.sessions.find((s) => s.id === sessionId) : null
@@ -58,6 +60,7 @@ function SummaryContent() {
     state.sessions.filter((s) => s.id !== sessionId).slice(0, 10)
   );
   const updateSession = useHistoryStore((state) => state.updateSession);
+  const { generateShareToken: createShareToken } = useHistoryStore();
 
   const splits = usePlanStore((state) => state.splits);
 
@@ -93,14 +96,36 @@ function SummaryContent() {
   };
 
   const handleShare = async () => {
-    let text = `💪 Workout: ${session.splitName || 'Freies Training'} — Score: ${score.total}/100\n`;
-    text += `⏱️ ${formatDuration(session.durationSeconds)} · ${session.totalSets} Sätze · ${formatVolume(session.totalVolume)}\n`;
-    text += `Trainiert mit MY LIFE Training.`;
-
+    const token = createShareToken(session.id);
+    const url = buildShareUrl(token);
+    const text = `💪 ${session.splitName || 'Freies Training'} — Score: ${score.total}/100`;
     if (navigator.share) {
-      try { await navigator.share({ title: 'Mein Workout', text }); } catch { /* cancelled */ }
+      try { await navigator.share({ title: 'Mein Workout', text, url }); } catch { /* cancelled */ }
     } else {
-      try { await navigator.clipboard.writeText(text); } catch { /* ignore */ }
+      try { await navigator.clipboard.writeText(url); } catch { /* ignore */ }
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    setPdfLoading(true);
+    try {
+      const res = await fetch('/api/export/workout-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session, score, userName: profile?.name }),
+      });
+      if (!res.ok) throw new Error('PDF failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `workout-${session.id.slice(0, 8)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // silently fail — PDF is optional
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -298,6 +323,10 @@ function SummaryContent() {
         <Button variant="secondary" fullWidth onClick={handleShare}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing[2] }}>
           Workout teilen <Share2 size={18} />
+        </Button>
+        <Button variant="ghost" fullWidth onClick={handleDownloadPDF} disabled={pdfLoading}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing[2] }}>
+          {pdfLoading ? 'Exportiere...' : <><Download size={18} /> Als PDF speichern</>}
         </Button>
         <Button variant="ghost" fullWidth onClick={() => router.push('/log')}>
           Im Verlauf ansehen
