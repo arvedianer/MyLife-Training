@@ -22,6 +22,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { SortableExerciseCard } from '@/components/workout/SortableExerciseCard';
+import { FinishWorkoutModal } from '@/components/workout/FinishWorkoutModal';
 import { RestTimerOverlay } from '@/components/overlays/RestTimerOverlay';
 import { PRMomentOverlay } from '@/components/overlays/PRMomentOverlay';
 import { CancelWorkoutOverlay } from '@/components/overlays/CancelWorkoutOverlay';
@@ -82,6 +83,7 @@ export default function ActiveWorkoutPage() {
   const [elapsed, setElapsed] = useState(0);
   const [showPR, setShowPR] = useState(false); // end-of-workout overlay
   const [showCancel, setShowCancel] = useState(false);
+  const [showFinishModal, setShowFinishModal] = useState(false);
   const [prExerciseName, setPRExerciseName] = useState('');
   const [prBannerName, setPRBannerName] = useState<string | null>(null); // inline banner during workout
 
@@ -146,7 +148,7 @@ export default function ActiveWorkoutPage() {
   // Finishing: blank screen while navigation happens (avoids redirect to /start)
   if (!activeWorkout) return null;
 
-  const handleFinish = () => {
+  const doFinish = () => {
     isFinishing.current = true;
     const session = completeWorkout();
     if (session) {
@@ -154,6 +156,40 @@ export default function ActiveWorkoutPage() {
     } else {
       isFinishing.current = false;
     }
+  };
+
+  const handleFinish = () => {
+    if (!activeWorkout) return;
+    const incompleteSets = activeWorkout.exercises.reduce(
+      (sum, ex) => sum + ex.sets.filter(s => !s.isCompleted).length,
+      0
+    );
+    if (incompleteSets > 0) {
+      setShowFinishModal(true);
+    } else {
+      doFinish();
+    }
+  };
+
+  const handleMarkAllDone = () => {
+    setShowFinishModal(false);
+    if (!activeWorkout) return;
+    const storeState = useWorkoutStore.getState();
+    for (const ex of activeWorkout.exercises) {
+      for (const s of ex.sets) {
+        if (!s.isCompleted) {
+          storeState.toggleSetComplete(ex.id, s.id);
+        }
+      }
+    }
+    doFinish();
+  };
+
+  const handleDiscardIncomplete = () => {
+    setShowFinishModal(false);
+    // completeWorkout() already filters out exercises with no completed sets,
+    // and only saves completed sets — incomplete sets are simply not included in the session.
+    doFinish();
   };
 
   const handleCancelClick = () => {
@@ -695,6 +731,18 @@ export default function ActiveWorkoutPage() {
         onConfirm={handleConfirmCancel}
         onCancel={() => setShowCancel(false)}
       />
+
+      {showFinishModal && (
+        <FinishWorkoutModal
+          incompleteSets={activeWorkout.exercises.reduce(
+            (sum, ex) => sum + ex.sets.filter(s => !s.isCompleted).length,
+            0
+          )}
+          onMarkDone={handleMarkAllDone}
+          onDiscard={handleDiscardIncomplete}
+          onCancel={() => setShowFinishModal(false)}
+        />
+      )}
     </div>
   );
 }
