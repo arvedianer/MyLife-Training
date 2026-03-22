@@ -14,6 +14,7 @@ import { buildShareUrl } from '@/utils/shareToken';
 import { getExerciseById } from '@/constants/exercises';
 import { calculateWorkoutScore } from '@/utils/scoreEngine';
 import type { WorkoutScore } from '@/types/score';
+import { CountUp } from '@/components/ui/CountUp';
 
 /** Compact metric row used in the score breakdown section */
 function MetricRow({
@@ -179,7 +180,7 @@ function SummaryContent() {
 
         {/* Big score number */}
         <div style={{ fontSize: '80px', fontWeight: 800, color: scoreColor, lineHeight: 1 }}>
-          {score.total}
+          <CountUp end={score.total} duration={1400} />
         </div>
 
         {/* Label below the number */}

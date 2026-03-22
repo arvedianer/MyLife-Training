@@ -4,6 +4,7 @@ import { CheckCircle2, Circle, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { colors } from '@/constants/tokens';
 import { NumericInput } from '@/components/ui/Input';
+import { ClickSpark } from '@/components/ui/ClickSpark';
 import type { SetEntry } from '@/types/workout';
 import { formatOneRepMax } from '@/utils/oneRepMax';
 import styles from './SetRow.module.css';
@@ -185,21 +186,23 @@ export function SetRow({
 
       {/* Complete / Delete */}
       <div className={styles.actionsContainer}>
-        <button
-          onClick={() => {
-            handleToggle();
-            if (!set.isCompleted && onStartTimer) {
-              onStartTimer();
-            }
-          }}
-          className={styles.completeBtn}
-        >
-          {set.isCompleted ? (
-            <CheckCircle2 size={22} color={colors.success} style={{ filter: `drop-shadow(0 0 4px ${colors.success}80)` }} />
-          ) : (
-            <Circle size={22} color={colors.border} />
-          )}
-        </button>
+        <ClickSpark enabled={!set.isCompleted} sparkColor="#4DFFED">
+          <button
+            onClick={() => {
+              handleToggle();
+              if (!set.isCompleted && onStartTimer) {
+                onStartTimer();
+              }
+            }}
+            className={styles.completeBtn}
+          >
+            {set.isCompleted ? (
+              <CheckCircle2 size={22} color={colors.success} style={{ filter: `drop-shadow(0 0 4px ${colors.success}80)` }} />
+            ) : (
+              <Circle size={22} color={colors.border} />
+            )}
+          </button>
+        </ClickSpark>
 
         {set.isCompleted && set.weight > 0 && set.reps > 0 && (
           <span style={{
