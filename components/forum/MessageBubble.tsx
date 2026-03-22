@@ -3,6 +3,7 @@
 import { colors, typography, radius, spacing } from '@/constants/tokens';
 import type { Message, ForumProfile } from '@/types/forum';
 import { format, parseISO } from 'date-fns';
+import { displayUsername, cheffeColor } from '@/components/forum/CheffeBadge';
 
 interface MessageBubbleProps {
   message: Message;
@@ -38,8 +39,8 @@ export function MessageBubble({ message, sender, isOwn, onAvatarPress }: Message
       )}
       <div style={{ maxWidth: '72%' }}>
         {!isOwn && sender && (
-          <div style={{ ...typography.label, color: colors.textMuted, marginBottom: 2, paddingLeft: 4 }}>
-            {sender.username}
+          <div style={{ ...typography.label, color: cheffeColor(sender.role) || colors.textMuted, marginBottom: 2, paddingLeft: 4 }}>
+            {displayUsername(sender.username, sender.role)}
           </div>
         )}
         <div style={{

@@ -6,6 +6,7 @@ import { X, UserPlus, MessageCircle } from 'lucide-react';
 import { colors, typography, radius, spacing } from '@/constants/tokens';
 import type { ForumProfile } from '@/types/forum';
 import { sendFriendRequest, createDMChannel } from '@/lib/forum';
+import { displayUsername } from '@/components/forum/CheffeBadge';
 import { useRouter } from 'next/navigation';
 
 interface ProfileSheetProps {
@@ -136,8 +137,8 @@ export function ProfileSheet({
           >
             {profile.username[0].toUpperCase()}
           </div>
-          <div style={{ ...typography.h3, color: colors.textPrimary }}>
-            {profile.username}
+          <div style={{ ...typography.h3, color: profile.role === 'cheffe' ? '#FFD700' : colors.textPrimary }}>
+            {displayUsername(profile.username, profile.role)}
           </div>
           <div
             style={{

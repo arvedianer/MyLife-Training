@@ -5,6 +5,7 @@ import { colors, typography, spacing, radius } from '@/constants/tokens';
 import type { Channel } from '@/types/forum';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { displayUsername } from '@/components/forum/CheffeBadge';
 
 interface ChannelListItemProps {
   channel: Channel;
@@ -14,7 +15,7 @@ interface ChannelListItemProps {
 export function ChannelListItem({ channel, unreadCount }: ChannelListItemProps) {
   const displayName =
     channel.type === 'general' ? 'General Chat' :
-    channel.type === 'dm' ? (channel.otherUser?.username ?? 'Direktnachricht') :
+    channel.type === 'dm' ? displayUsername(channel.otherUser?.username ?? 'Direktnachricht', channel.otherUser?.role) :
     (channel.name ?? 'Gruppe');
 
   const subtitle =
