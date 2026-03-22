@@ -9,6 +9,7 @@ export interface MuscleRecovery {
   label: string;
   status: RecoveryStatus;
   hoursAgo: number;
+  recoveryRatio: number;   // 0.0 = just trained, 1.0+ = fully recovered, capped at 1.0
 }
 
 const HEAVY_MUSCLES = new Set(['chest', 'back', 'quads', 'glutes', 'hamstrings', 'legs']);
@@ -38,6 +39,7 @@ export function computeMuscleRecovery(sessions: WorkoutSession[], now: Date = ne
         label: (MUSCLE_LABELS_DE as Record<string, string>)[muscle] ?? muscle,
         status,
         hoursAgo,
+        recoveryRatio: Math.min(ratio, 1),
       };
     })
     .sort((a, b) => {
