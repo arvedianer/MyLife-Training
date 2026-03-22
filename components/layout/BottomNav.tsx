@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BarChart2, Dumbbell, Layers, Plus } from 'lucide-react';
+import { Home, BarChart2, Layers, MessageCircle, Plus } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
+import { useForumStore } from '@/store/forumStore';
 
 export function BottomNav() {
   const pathname = usePathname();
+  const totalUnread = useForumStore((s) => s.totalUnread);
 
   function isActive(href: string): boolean {
     return pathname.startsWith(href);
@@ -60,7 +62,30 @@ export function BottomNav() {
       </Link>
 
       {/* Right tabs */}
-      <NavTab href="/exercises" icon={<Dumbbell size={22} color={isActive('/exercises') ? colors.accent : colors.textDisabled} />} label="Übungen" active={isActive('/exercises')} />
+      <NavTab
+        href="/forum"
+        icon={
+          <div style={{ position: 'relative', display: 'inline-flex' }}>
+            <MessageCircle size={22} color={isActive('/forum') ? colors.accent : colors.textDisabled} />
+            {totalUnread > 0 && (
+              <div style={{
+                position: 'absolute', top: -4, right: -6,
+                backgroundColor: colors.danger,
+                borderRadius: '10px',
+                minWidth: '16px', height: '16px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '0 3px',
+              }}>
+                <span style={{ fontSize: '9px', fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+                  {totalUnread > 99 ? '99+' : totalUnread}
+                </span>
+              </div>
+            )}
+          </div>
+        }
+        label="Forum"
+        active={isActive('/forum')}
+      />
       <NavTab href="/stats" icon={<BarChart2 size={22} color={isActive('/stats') ? colors.accent : colors.textDisabled} />} label="Stats" active={isActive('/stats')} />
     </nav>
   );

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { User, Mail, Lock, ArrowRight, Loader2, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { upsertProfile } from '@/lib/forum';
 import { colors, spacing, radius, typography } from '@/constants/tokens';
 
 export default function SignupPage() {
@@ -47,6 +48,13 @@ export default function SignupPage() {
       }
       setLoading(false);
       return;
+    }
+
+    // Ensure profile exists with avatar_color set (trigger may not set it)
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const defaultUsername = user.email?.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_') ?? 'user';
+      await upsertProfile(user.id, defaultUsername);
     }
 
     // Go to onboarding to complete profile setup
