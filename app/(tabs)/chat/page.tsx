@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, Sparkles, Dumbbell, TrendingUp, Zap, Plus, Menu, Mic, MicOff, BookOpen, Trash2, X } from 'lucide-react';
+import { Send, Bot, Sparkles, Dumbbell, TrendingUp, Zap, Plus, Menu, Mic, MicOff, BookOpen, Trash2, X, Lock, LockOpen } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { useHistoryStore } from '@/store/historyStore';
 import { useUserStore } from '@/store/userStore';
@@ -104,7 +104,7 @@ const CAPABILITIES = [
 ];
 
 export default function ChatPage() {
-  const { sessions, getPersonalRecords } = useHistoryStore();
+  const { sessions } = useHistoryStore();
   const { profile } = useUserStore();
   const { activeWorkout } = useWorkoutStore();
   const { addSplit } = usePlanStore();
@@ -134,7 +134,8 @@ export default function ChatPage() {
   // Load persisted chat mode
   const [chatMode, setChatMode] = useState<'filtered' | 'unfiltered'>(() => {
     if (typeof window === 'undefined') return 'filtered';
-    return (localStorage.getItem('chatMode') as 'filtered' | 'unfiltered') ?? 'filtered';
+    const stored = localStorage.getItem('chatMode');
+    return stored === 'filtered' || stored === 'unfiltered' ? stored : 'filtered';
   });
 
   const toggleChatMode = () => {
@@ -191,7 +192,7 @@ export default function ChatPage() {
       .reduce((sum, s) => sum + s.totalVolume, 0);
 
     // Personal records: exerciseName → best weight
-    const rawPRs = getPersonalRecords();
+    const rawPRs = useHistoryStore.getState().getPersonalRecords();
     const personalRecords: Record<string, number> = {};
     Object.entries(rawPRs).forEach(([exerciseId, pr]) => {
       const exercise = getExerciseById(exerciseId);
@@ -214,7 +215,7 @@ export default function ChatPage() {
       height: profile?.height,
       personalRecords,
     };
-  }, [sessions, profile, getPersonalRecords]);
+  }, [sessions, profile]);
 
   const buildAppContext = useCallback(() => ({
     page: pathname,
@@ -723,17 +724,17 @@ export default function ChatPage() {
             onClick={toggleChatMode}
             title={chatMode === 'filtered' ? 'Filtered Mode — klick für Unfiltered' : 'Unfiltered Mode — klick für Filtered'}
             style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              padding: '4px 10px',
+              display: 'flex', alignItems: 'center', gap: spacing[1],
+              padding: `${spacing[1]} ${spacing[3]}`,
               backgroundColor: chatMode === 'unfiltered' ? colors.danger + '20' : colors.bgHighest,
               border: `1px solid ${chatMode === 'unfiltered' ? colors.danger + '60' : colors.border}`,
               borderRadius: radius.full,
               color: chatMode === 'unfiltered' ? colors.danger : colors.textMuted,
-              fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              ...typography.label, cursor: 'pointer',
               transition: 'all 0.2s',
             }}
           >
-            {chatMode === 'filtered' ? '🔒' : '🔓'} {chatMode === 'filtered' ? 'Filtered' : 'Unfiltered'}
+            {chatMode === 'filtered' ? <Lock size={12} /> : <LockOpen size={12} />} {chatMode === 'filtered' ? 'Filtered' : 'Unfiltered'}
           </button>
 
           {/* New conversation */}
