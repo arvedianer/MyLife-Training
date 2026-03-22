@@ -10,6 +10,7 @@ interface BodyHeatmapProps {
     muscleSets: Record<string, number>;
     maxSets: number;
     compact?: boolean;
+    mode?: 'weekly' | 'session';
 }
 
 const LEGEND_ITEMS = [
@@ -27,6 +28,11 @@ function getMuscleColor(sets: number, max: number): { fill: string; fillOpacity:
   if (ratio <= 0.5)  return { fill: '#FB923C', fillOpacity: 1.0 };  // vivid orange — moderate
   if (ratio <= 0.75) return { fill: '#EF4444', fillOpacity: 1.0 };  // punch red — high
   return { fill: '#8B5CF6', fillOpacity: 1.0 };                     // bright purple — max
+}
+
+function getMuscleColorSession(sets: number): { fill: string; fillOpacity: number } {
+  if (sets === 0) return { fill: '#FFFFFF', fillOpacity: 0.05 };
+  return { fill: '#4DFFED', fillOpacity: 1.0 };
 }
 
 const BODY_FILL = 'transparent';                  // no background tint — sit on parent background
@@ -51,22 +57,24 @@ const slugMap: Record<string, string[]> = {
   adductors: ['legs'],
 };
 
-function getPartStyle(slug: string, muscleSets: Record<string, number>, maxSets: number): { fill: string; fillOpacity: number } {
+function getPartStyle(slug: string, muscleSets: Record<string, number>, maxSets: number, mode?: 'weekly' | 'session'): { fill: string; fillOpacity: number } {
     const keys = slugMap[slug] || [];
     for (const key of keys) {
         if (muscleSets[key]) {
-            return getMuscleColor(muscleSets[key], maxSets);
+            return mode === 'session'
+                ? getMuscleColorSession(muscleSets[key])
+                : getMuscleColor(muscleSets[key], maxSets);
         }
     }
     // Untrained — use same subtle white so silhouette is visible against dark background
-    return getMuscleColor(0, maxSets);
+    return { fill: '#FFFFFF', fillOpacity: 0.05 };
 }
 
-function BodyPartPaths({ items, isBack, muscleSets, maxSets }: { items: BodyPart[], isBack: boolean, muscleSets: Record<string, number>, maxSets: number }) {
+function BodyPartPaths({ items, isBack, muscleSets, maxSets, mode }: { items: BodyPart[], isBack: boolean, muscleSets: Record<string, number>, maxSets: number, mode?: 'weekly' | 'session' }) {
     return (
         <g>
             {items.map((part) => {
-                const muscleStyle = getPartStyle(part.slug, muscleSets, maxSets);
+                const muscleStyle = getPartStyle(part.slug, muscleSets, maxSets, mode);
                 const isActive = muscleStyle.fill !== '#FFFFFF';
                 const pathGlow = isActive ? (isBack ? 'url(#muscleGlowBack)' : 'url(#muscleGlow)') : undefined;
                 const className = isActive ? styles.muscleActive : styles.muscleOverlay;
@@ -102,7 +110,7 @@ function BodyPartPaths({ items, isBack, muscleSets, maxSets }: { items: BodyPart
 const FRONT_OUTLINE = "";
 const BACK_OUTLINE = "";
 
-function FrontBody({ muscleSets, maxSets }: BodyHeatmapProps) {
+function FrontBody({ muscleSets, maxSets, mode }: BodyHeatmapProps) {
     return (
         <svg viewBox="0 20 724 1400" width="100%" height="100%" style={{ display: 'block', maxHeight: '400px' }}>
             <defs>
@@ -115,12 +123,12 @@ function FrontBody({ muscleSets, maxSets }: BodyHeatmapProps) {
                 </filter>
             </defs>
             <path d={FRONT_OUTLINE} fill={BODY_FILL} stroke={BODY_STROKE} strokeWidth={2.5} />
-            <BodyPartPaths items={bodyFront} isBack={false} muscleSets={muscleSets} maxSets={maxSets} />
+            <BodyPartPaths items={bodyFront} isBack={false} muscleSets={muscleSets} maxSets={maxSets} mode={mode} />
         </svg>
     );
 }
 
-function BackBody({ muscleSets, maxSets }: BodyHeatmapProps) {
+function BackBody({ muscleSets, maxSets, mode }: BodyHeatmapProps) {
     return (
         <svg viewBox="724 20 724 1400" width="100%" height="100%" style={{ display: 'block', maxHeight: '400px' }}>
             <defs>
@@ -133,20 +141,20 @@ function BackBody({ muscleSets, maxSets }: BodyHeatmapProps) {
                 </filter>
             </defs>
             <path d={BACK_OUTLINE} fill={BODY_FILL} stroke={BODY_STROKE} strokeWidth={2.5} />
-            <BodyPartPaths items={bodyBack} isBack={true} muscleSets={muscleSets} maxSets={maxSets} />
+            <BodyPartPaths items={bodyBack} isBack={true} muscleSets={muscleSets} maxSets={maxSets} mode={mode} />
         </svg>
     );
 }
 
-export function BodyHeatmap({ muscleSets, maxSets, compact = false }: BodyHeatmapProps) {
+export function BodyHeatmap({ muscleSets, maxSets, compact = false, mode }: BodyHeatmapProps) {
     if (compact) {
         return (
             <div style={{ display: 'flex', gap: spacing[3], alignItems: 'center', height: '120px' }}>
                 <div style={{ width: '60px', height: '120px' }}>
-                    <FrontBody muscleSets={muscleSets} maxSets={maxSets} />
+                    <FrontBody muscleSets={muscleSets} maxSets={maxSets} mode={mode} />
                 </div>
                 <div style={{ width: '60px', height: '120px' }}>
-                    <BackBody muscleSets={muscleSets} maxSets={maxSets} />
+                    <BackBody muscleSets={muscleSets} maxSets={maxSets} mode={mode} />
                 </div>
             </div>
         );
@@ -157,30 +165,37 @@ export function BodyHeatmap({ muscleSets, maxSets, compact = false }: BodyHeatma
             <div className={styles.bodies}>
                 <div className={styles.bodyColumn}>
                     <span className={styles.viewLabel}>VORNE</span>
-                    <FrontBody muscleSets={muscleSets} maxSets={maxSets} />
+                    <FrontBody muscleSets={muscleSets} maxSets={maxSets} mode={mode} />
                 </div>
                 <div className={styles.bodyColumn}>
                     <span className={styles.viewLabel}>HINTEN</span>
-                    <BackBody muscleSets={muscleSets} maxSets={maxSets} />
+                    <BackBody muscleSets={muscleSets} maxSets={maxSets} mode={mode} />
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'center', marginTop: '8px', flexWrap: 'wrap' }}>
-                {LEGEND_ITEMS.map(item => (
-                    <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <div style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: '50%',
-                            background: item.fill,
-                            opacity: item.opacity,
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            flexShrink: 0,
-                        }} />
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted, #AAAAAA)' }}>{item.label}</span>
-                    </div>
-                ))}
-            </div>
+            {mode !== 'session' && (
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'center', marginTop: '8px', flexWrap: 'wrap' }}>
+                    {LEGEND_ITEMS.map(item => (
+                        <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <div style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: '50%',
+                                background: item.fill,
+                                opacity: item.opacity,
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                flexShrink: 0,
+                            }} />
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted, #AAAAAA)' }}>{item.label}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+            {mode === 'session' && (
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '4px', fontFamily: 'var(--font-manrope)' }}>
+                    Trainierte Muskeln
+                </p>
+            )}
         </div>
     );
 }

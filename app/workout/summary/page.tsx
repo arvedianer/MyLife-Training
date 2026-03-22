@@ -345,7 +345,7 @@ function SummaryContent() {
           >
             Trainierte Muskeln
           </h3>
-          <BodyHeatmap muscleSets={sessionMuscleSets} maxSets={maxSessionSets} />
+          <BodyHeatmap muscleSets={sessionMuscleSets} maxSets={maxSessionSets} mode="session" />
         </section>
       )}
 
