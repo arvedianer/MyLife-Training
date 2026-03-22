@@ -119,6 +119,38 @@ export default function RecordsPage() {
                 </div>
               </div>
 
+              {/* Estimated 1RM */}
+              {r.bestOneRepMax !== null && (
+                <div>
+                  <div
+                    style={{
+                      ...typography.label,
+                      color: colors.textMuted,
+                      marginBottom: '2px',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    1RM EST.
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: 'var(--font-courier, monospace)',
+                      fontSize: '20px',
+                      fontWeight: 700,
+                      color: colors.accent,
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    ≈{r.bestOneRepMax} kg
+                  </div>
+                  {r.bestOneRepMaxDate && (
+                    <div style={{ ...typography.label, color: colors.textFaint, marginTop: '2px' }}>
+                      {format(parseISO(r.bestOneRepMaxDate), 'dd.MM.yy')}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Best Volume */}
               <div>
                 <div
