@@ -30,32 +30,70 @@ Toggle direkt im Coach-Arved-Chat-Interface (nicht in Settings):
 - **🔒 Filtered (Standard):** Witzig, hilfreicher Trainer, klare direkte Sprache, PG-13. Kann klug kontern, aber keine expliziten Beleidigungen.
 - **🔓 Unfiltered:** Volle Arved-Energie. Kann "Kelleck", "Lappen", "Loser" etc. verwenden wenn provoziert. Härter, echter.
 
-Implementierung: Toggle-State im Chat-Interface, wird als Parameter `mode: 'filtered' | 'unfiltered'` an `/api/chat/stream` übergeben. Zwei Systemprompt-Varianten (oder ein Prompt mit Mode-Abschnitt).
+Implementierung: Toggle-State im Chat-Interface als Zustand `chatMode: 'filtered' | 'unfiltered'`, **persistiert in Zustand/localStorage** (unter `chatMode`) — reset nur bei explizitem Logout. Wird als Parameter `mode: 'filtered' | 'unfiltered'` an `/api/chat/stream` übergeben. Ein Systemprompt mit Mode-Abschnitt am Ende:
+
+```
+${mode === 'unfiltered' ? `
+UNFILTERED MODE aktiv:
+- Du darfst "Kelleck", "Lappen", "Loser" verwenden wenn provoziert
+- Kein Zurückhalten bei Kontern — klar, direkt, hart aber witzig
+- Wenn der User anfängt, beendest du es` : `
+FILTERED MODE (Standard):
+- Klare direkte Sprache, humorvoll, aber keine expliziten Beleidigungen
+- Kontern ist erlaubt, aber auf clevere Art`}
+```
 
 ### Dynamische Datenintegration
 
-Beim Chat-Request werden die echten User-Daten in den System-Prompt injiziert:
+Beim Chat-Request werden die echten User-Daten in den System-Prompt injiziert. Der bestehende `ChatRequest` in `/api/chat/stream/route.ts` hat bereits ein `userProfile` Objekt — es wird um folgende Felder erweitert:
+
+```typescript
+// Erweiterung des bestehenden userProfile in ChatRequest:
+userProfile?: {
+  name?: string;
+  goal?: string;
+  level?: string;
+  equipment?: string;
+  weeklyVolume?: number;
+  totalSessions?: number;
+  currentStreak?: number;
+  // NEU:
+  age?: number;               // aus userStore.profile.age
+  bodyWeight?: number;        // aus userStore.profile.bodyWeight (kg)
+  height?: number;            // aus userStore.profile.height (cm)
+  personalRecords?: Record<string, number>; // exerciseName → bestWeight in kg
+  // z.B. { 'Bankdrücken': 100, 'Kniebeugen': 80 }
+}
+```
+
+`age`, `bodyWeight`, `height` existieren bereits in `types/user.ts` → `UserProfile`. `personalRecords` wird client-seitig aus `historyStore.getPersonalRecords()` abgeleitet (beste je gehobene Gewichte pro Übung).
+
+Der Client (`app/(tabs)/chat/page.tsx`) liest diese Werte aus den Stores und schickt sie im Request-Body mit. Der System-Prompt rendert sie als:
 
 ```
 === User-Daten ===
-Name: {username}
-Alter: {age} Jahre | Gewicht: {bodyWeight}kg | Größe: {height}cm
-Ziel: {goal}
-Streak: {streak} Tage
+Name: {name} | {age} J | {bodyWeight}kg | {height}cm
+Ziel: {goal} | Level: {level}
+Streak: {streak} Tage | Sessions gesamt: {totalSessions}
 
-Letzte 3 Sessions:
-- {date}: {exercises mit Gewichten und Sets}
-- ...
+Letzte Sessions: {workoutHistory (bereits vorhanden)}
 
 Persönliche Rekorde:
 - Bankdrücken: {pr}kg
 - Kniebeugen: {pr}kg
-- Kreuzheben: {pr}kg
 - ...
 =================
 ```
 
-Diese Daten kommen aus dem Request-Body (Client schickt sie mit) — kein Server-seitiger DB-Zugriff nötig.
+Insult-Handling Systemprompt-Block:
+
+```
+WENN DER USER UNHÖFLICH WIRD ODER DICH BELEIDIGT:
+- Entschuldige dich NICHT, erkläre dich NICHT
+- Konter ruhig und treffsicher — beziehe dich auf seine echten Zahlen
+- Beispiel: "bro dein letzter Bench war {pr}kg, fang vielleicht damit an bevor du hier redest"
+- Du darfst dominieren, aber bleib witzig — kein echter Hass
+```
 
 ### System-Prompt-Stil
 
@@ -94,9 +132,10 @@ Neue 3-Tab-Struktur oben auf der Forum-Seite (ersetzt die bisherige Liste):
 - Betrifft: MessageBubble, ChannelListItem, ProfileSheet, Community-Tab
 
 **Moderations-Powers:**
-- Long-Press auf jede Nachricht im Chat → "Nachricht löschen" Option (nur wenn eigene Cheffe-Rolle)
-- Nach Löschen: Nachricht-Row in DB mit `content = '[Von Cheffe entfernt 🔥]'` updaten (soft delete, bleibt sichtbar als Platzhalter)
-- Endpoint: `DELETE messages WHERE id = ? AND cheffe check`
+- Long-Press auf jede Nachricht im Chat → "Nachricht löschen" Option (nur sichtbar wenn `myProfile.role === 'cheffe'`)
+- Soft-Delete: neues `softDeleteMessage(id)` in `lib/forum.ts` macht ein UPDATE (nicht DELETE): `SET content = '[Von Cheffe entfernt 🔥]', type = 'text', metadata = null WHERE id = ?`
+- Die bestehende `deleteMessage()` Funktion (hard DELETE) wird ersetzt durch `softDeleteMessage()`
+- RLS-Enforcement: Client-only Guard in Phase 1 (acceptable for MVP — nur der Cheffe sieht den Long-Press Button überhaupt)
 
 **Content-Filter (General Chat):**
 - Client-seitig: Liste von blockierten Wörtern, vor dem Absenden prüfen
@@ -137,9 +176,11 @@ Freunde (12)
 [Avatar] ...
 ```
 
-- Online/Training via Supabase Presence (globaler Channel `community`)
+- Online/Training via Supabase Presence auf globalem Channel `community` — **neuer `useCommunityPresence` Hook** (getrennt von `usePresence`, der an Chat-Channels gebunden ist)
+- `useCommunityPresence` tracked: `{ userId, username, avatarColor, status: 'online' | 'training', exercise?: string, since?: string }`
+- Gibt zurück: `{ onlineUsers: CommunityUser[], trainingUsers: CommunityUser[] }`
+- Supabase Presence räumt bei Disconnect automatisch auf — kein manuelles Timeout nötig
 - Tap auf User → ProfileSheet (mit DM + Freund-Button)
-- "Trainiert gerade" Detection: Beim Start des Workouts (`app/workout/active`) track Presence mit `{ status: 'training', exercise: currentExercise }`; beim Verlassen der Seite auto-cleanup
 
 ### Profil bearbeiten
 
@@ -150,6 +191,8 @@ Erreichbar via eigenem Profil-Sheet (Tap auf eigenen Avatar) → "Bearbeiten"-Bu
 - Avatar-Farbe: 8 Preset-Farben (Accent Cyan, Gold, Orange, Pink, Purple, Green, Red, White)
 
 **Speichern:** UPDATE `profiles` SET `username`, `avatar_color` WHERE `id = auth.uid()`
+
+**Username-Uniqueness:** `profiles.username` hat einen UNIQUE Constraint in der DB. Bei Konflikt: Supabase gibt error code `23505` zurück → Toast anzeigen: *"Dieser Name ist schon vergeben 😅"*
 
 ### General Chat Bugfix
 
@@ -170,15 +213,17 @@ Debugging-Strategie: Error-Boundary um den Chat-Screen, Console-Logs für Supaba
 
 ### Forum v2
 1. General Chat Bugfix (sofort, blockiert alles andere)
-2. DB Migration: `profiles.role` Spalte + Cheffe-Rolle setzen
-3. `types/forum.ts` — `role` Feld zu ForumProfile
-4. Cheffe-Badge in MessageBubble, ChannelListItem, ProfileSheet
-5. Forum Tab-Navigation (3 Tabs: General, Freunde, Community)
-6. Freunde-Tab (Freundesliste + Anfragen)
-7. Community-Tab (Online + Training Presence)
-8. Workout Presence (active.tsx trackt Training-Status)
-9. Profil bearbeiten (ProfileSheet → Edit-Mode)
-10. Content-Filter + Moderations-Long-Press (Cheffe only)
+2. DB Migration: `profiles.role` Spalte + Cheffe-Rolle setzen (SQL: `UPDATE profiles SET role = 'cheffe' WHERE id = '<arved-user-id>'`)
+3. `types/forum.ts` — `role?: string` zu `ForumProfile` hinzufügen
+4. `lib/forum.ts` — `mapProfile()` updaten: `role: r.role as string | undefined`; `softDeleteMessage(id)` neu anlegen (UPDATE statt DELETE)
+5. Cheffe-Badge in MessageBubble, ChannelListItem, ProfileSheet
+6. Forum Tab-Navigation (3 Tabs: General, Freunde, Community)
+7. Freunde-Tab (Freundesliste + Anfragen)
+8. `hooks/useCommunityPresence.ts` — neuer Hook für globale Online/Training-Presence
+9. `app/workout/active` — Presence tracken beim Start/Ende
+10. Community-Tab (nutzt `useCommunityPresence`)
+11. Profil bearbeiten (ProfileSheet → Edit-Mode, username unique check)
+12. Content-Filter + Moderations-Long-Press (Cheffe only, nutzt `softDeleteMessage`)
 
 ---
 
