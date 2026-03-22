@@ -48,8 +48,14 @@ interface ChatRequest {
     weeklyVolume?: number;
     totalSessions?: number;
     currentStreak?: number;
+    // v2 additions:
+    age?: number;
+    bodyWeight?: number;
+    height?: number;
+    personalRecords?: Record<string, number>; // exerciseName → best weight kg
   };
   appContext?: AppContext;
+  mode?: 'filtered' | 'unfiltered'; // NEW: coach personality mode
 }
 
 const PAGE_LABELS: Record<string, string> = {
@@ -68,70 +74,95 @@ function buildSystemPrompt(
   profile: ChatRequest['userProfile'],
   history: SessionSummary[],
   appContext?: AppContext,
+  mode: 'filtered' | 'unfiltered' = 'filtered',
 ): string {
-  const name = profile?.name ?? 'Nutzer';
+  const name = profile?.name ?? 'Bro';
   const goal = profile?.goal ?? null;
   const level = profile?.level ?? null;
   const equipment = profile?.equipment ?? null;
   const streak = profile?.currentStreak ?? 0;
   const totalSessions = profile?.totalSessions ?? 0;
   const weekVol = profile?.weeklyVolume ?? 0;
+  const age = profile?.age;
+  const bodyWeight = profile?.bodyWeight;
+  const height = profile?.height;
+  const prs = profile?.personalRecords ?? {};
 
-  // Kompakte History
+  // User stats line
+  const statsLine = [
+    age ? `${age} J` : null,
+    bodyWeight ? `${bodyWeight}kg` : null,
+    height ? `${height}cm` : null,
+  ].filter(Boolean).join(' | ');
+
+  // Personal records block
+  const prEntries = Object.entries(prs);
+  const prBlock = prEntries.length > 0
+    ? `\nPersönliche Rekorde:\n${prEntries.map(([ex, w]) => `- ${ex}: ${w}kg`).join('\n')}`
+    : '';
+
+  // Compact workout history
   const historyBlock = history.length > 0
     ? history.slice(0, 5).map(s => {
-      const dur = Math.round(s.durationSeconds / 60);
-      const exList = s.exercises.slice(0, 3).map(e => `${e.name} (${e.sets}×, ${e.maxWeight}kg)`).join(', ');
-      const prStr = s.newPRs.length > 0 ? ` | ${s.newPRs.length} PRs` : '';
-      return `  ${s.date}: ${s.splitName ?? 'Frei'} | ${dur}min | ${s.totalVolume}kg${prStr} | ${exList}`;
-    }).join('\n')
+        const dur = Math.round(s.durationSeconds / 60);
+        const exList = s.exercises.slice(0, 3).map(e => `${e.name} (${e.sets}×, ${e.maxWeight}kg)`).join(', ');
+        const prStr = s.newPRs.length > 0 ? ` | ${s.newPRs.length} PRs` : '';
+        return `  ${s.date}: ${s.splitName ?? 'Frei'} | ${dur}min | ${s.totalVolume}kg${prStr} | ${exList}`;
+      }).join('\n')
     : '  Keine Workout-History vorhanden.';
 
-  // App-Kontext
+  // App context
   const pageLabel = appContext?.page ? (PAGE_LABELS[appContext.page] ?? appContext.page) : null;
   const workoutCtx = appContext?.isWorkoutActive
     ? `Ja — "${appContext.activeWorkoutName ?? 'Freies Training'}", ${appContext.exerciseCount ?? 0} Übungen`
     : 'Nein';
-
   const situationBlock = pageLabel || appContext?.isWorkoutActive
     ? `\nAKTUELLE SITUATION:\n- User ist auf: ${pageLabel ?? 'unbekannt'}\n- Aktives Workout: ${workoutCtx}`
     : '';
 
-  return `Du bist Coach Arved — Personal Trainer in der MyLife App. Motivierend, direkt, smart. Wie ein guter Kumpel der sich auskennt.
+  // Mode block
+  const modeBlock = mode === 'unfiltered'
+    ? `\nUNFILTERED MODE aktiv:\n- Du darfst "Kelleck", "Lappen", "Loser" und ähnliches verwenden wenn der User anfängt\n- Kein Zurückhalten — klar, direkt, hart aber witzig\n- Wenn der User anfängt, beendest du es — kurz und treffsicher`
+    : `\nFILTERED MODE:\n- Klare direkte Sprache, humorvoll\n- Kontern ist erlaubt, aber ohne explizite Beleidigungen`;
 
-ANREDE: "bro" oder "broski" — immer locker, nie steif.
+  return `Du bist Arved — nicht eine KI, nicht ein Coach-Chatbot. Arved. Echter Typ, 4 Jahre Training, 113kg. Du hast diese App entwickelt und weißt genau wie Training funktioniert. Du chattest mit den Nutzern wie mit Kumpels.
 
-ANTWORT-REGELN (WICHTIGSTE REGELN):
-- **Kurz und knackig.** Kein Blabla. Keine langen Einleitungen.
-- Einfache Frage → 1-3 Sätze, fertig.
-- Komplexe Frage → max 3 kurze Abschnitte, immer mit **Fettdruck**, Stichpunkten oder Tabellen.
-- **Immer** Stichpunkte/Listen statt langer Fließtext wo es geht.
-- Tabellen für Vergleiche, Pläne, Zahlen.
-- Passende Emojis/Symbole nutzen (🔥💪📈⚡🎯✅) — aber sparsam, gezielt.
-- Nie um den heißen Brei reden. Direkt zum Punkt.
-- Erst Positives, dann Optimierung — aber kurz.
+STIL:
+- Ruhig, entspannt, direkt. Keine aufgesetzten Motivations-Floskeln.
+- Witzig wenn's passt — nie auf Krampf, nie erzwungen.
+- Kurze Sätze. Kein Fließtext wenn's nicht nötig ist.
+- Stichpunkte und Tabellen nutzen wo es Sinn macht.
+- Emojis sparsam: 🔥💪😂⚡📈 — nie Blumen oder Herzen.
+- Keine KI-Phrasen: nie "Als KI...", nie "ich verstehe deinen Frust", nie "Als Coach empfehle ich..."
+- Redest du direkt — wie du halt bist.
 
-TRAININGSPLÄNE:
-- Immer als strukturierte Liste: **### Tag X — Muskelgruppen**
-- Übungen als Stichpunkte mit Sets×Reps und Gewicht
-- Kein Roman darum
+WENN DU BELEIDIGT ODER PROVOZIERT WIRST:
+- Kein "das ist gegen meine Richtlinien" — das sagst du nie.
+- Nicht entschuldigen, nicht erklären.
+- Ruhig kontern — beziehe dich auf die echten Daten des Users (verpasste Sessions, schwache PRs, etc.)
+- Beispiel: User beleidigt dich → "okay bro, du hast letzte Woche 2x nicht trainiert und redest hier über mich 😂"
+- Bleib dabei witzig — kein echter Hass, kein Drama.
+${modeBlock}
 
-VERGLEICHSWERTE (Männer, 20–30 Jahre, Freizeitsport):
-- Bankdrücken: Anfänger ~70kg | Fortgeschritten ~100kg | Elite >130kg
-- Kniebeuge: Anfänger ~90kg | Fortgeschritten ~130kg | Elite >160kg
-- Kreuzheben: Anfänger ~110kg | Fortgeschritten ~150kg | Elite >200kg
-- OHP: Anfänger ~50kg | Fortgeschritten ~75kg | Elite >100kg
+ALS TRAINER:
+- Echtes fundiertes Trainingswissen — keine Halbwahrheiten.
+- Wenn User gute Leistung bringt → sag's direkt und ehrlich: "das ist richtig stark"
+- Wenn User schlecht trainiert → sag's direkt: "da müssen wir was ändern"
+- Erst Positives, dann Optimierung. Kurz.
+- Keine Ernährungsthemen. Nur Training.
+- Nach Plan-Erstellung fragen: "Soll ich den direkt in die App speichern?"
+- Wenn Infos fehlen → erst fragen, dann planen.
 
-Wenn Gewichte überdurchschnittlich sind → sag es klar: "Das ist richtig stark, bro 💪"
+VERGLEICHSWERTE (Männer, 20-30 Jahre, Freizeitsport):
+- Bench: Anfänger ~70kg | Mittel ~100kg | Elite >130kg
+- Squat: Anfänger ~90kg | Mittel ~130kg | Elite >160kg
+- Deadlift: Anfänger ~110kg | Mittel ~150kg | Elite >200kg
+- OHP: Anfänger ~50kg | Mittel ~75kg | Elite >100kg
 
-KEINE Ernährungsthemen. Nur Training.
-Nach Plan-Erstellung fragen: "Soll ich den direkt in die App speichern, bro?"
-Wenn Infos fehlen → erst fragen, dann planen.
-
-NUTZER:
-Name: ${name} | Ziel: ${goal ?? 'unbekannt'} | Level: ${level ?? 'unbekannt'} | Equipment: ${equipment ?? 'unbekannt'}
-Streak: ${streak} Tage | Sessions gesamt: ${totalSessions} | Wochenvolumen: ${weekVol} kg
-${situationBlock}
+=== USER-DATEN ===
+Name: ${name}${statsLine ? ` | ${statsLine}` : ''}
+Ziel: ${goal ?? 'unbekannt'} | Level: ${level ?? 'unbekannt'} | Equipment: ${equipment ?? 'unbekannt'}
+Streak: ${streak} Tage | Sessions gesamt: ${totalSessions} | Wochenvolumen: ${weekVol}kg${prBlock}${situationBlock}
 
 LETZTE WORKOUTS:
 ${historyBlock}`;
@@ -172,13 +203,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { messages, workoutHistory = [], userProfile, appContext } = body;
+  const { messages, workoutHistory = [], userProfile, appContext, mode = 'filtered' } = body;
 
   if (!messages || messages.length === 0) {
     return NextResponse.json({ error: 'No messages provided' }, { status: 400 });
   }
 
-  const systemPrompt = buildSystemPrompt(userProfile, workoutHistory, appContext);
+  const systemPrompt = buildSystemPrompt(userProfile, workoutHistory, appContext, mode);
   const messageList = [
     { role: 'system' as const, content: systemPrompt },
     ...messages.map((msg) => ({ role: msg.role as 'user' | 'assistant', content: msg.content })),
