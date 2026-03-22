@@ -1,8 +1,8 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Suspense, useState, useMemo } from 'react';
-import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp, Share2, BarChart2, Download } from 'lucide-react';
+import { Suspense, useState, useMemo, useEffect } from 'react';
+import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp, Share2, BarChart2, Download, Globe, MessageCircle, Users } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -15,6 +15,9 @@ import { getExerciseById } from '@/constants/exercises';
 import { calculateWorkoutScore } from '@/utils/scoreEngine';
 import type { WorkoutScore } from '@/types/score';
 import { CountUp } from '@/components/ui/CountUp';
+import { supabase } from '@/lib/supabase';
+import { sendWorkoutCard, getMyChannels, getGeneralChannelId } from '@/lib/forum';
+import type { Channel } from '@/types/forum';
 
 /** Compact metric row used in the score breakdown section */
 function MetricRow({
@@ -66,6 +69,11 @@ function SummaryContent() {
   const { profile } = useUserStore();
   const [rpe, setRpe] = useState<number>(5);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareChannels, setShareChannels] = useState<Channel[]>([]);
+  const [shareCaption, setShareCaption] = useState('');
+  const [shareUserId, setShareUserId] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   const session = useHistoryStore((state) =>
     sessionId ? state.sessions.find((s) => s.id === sessionId) : null
@@ -75,6 +83,15 @@ function SummaryContent() {
   );
   const updateSession = useHistoryStore((state) => state.updateSession);
   const { generateShareToken: createShareToken } = useHistoryStore();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setShareUserId(user.id);
+        getMyChannels(user.id).then(setShareChannels);
+      }
+    });
+  }, []);
 
   // Compute muscle coverage for this session only
   const sessionMuscleSets = useMemo<Record<string, number>>(() => {
@@ -153,6 +170,27 @@ function SummaryContent() {
     } finally {
       setPdfLoading(false);
     }
+  };
+
+  const handleShareToChannel = async (channelId: string) => {
+    if (!shareUserId || !session) return;
+    setSharing(true);
+    const exercises = session.exercises.map((ex) => {
+      const done = ex.sets.filter((s) => s.isCompleted);
+      const maxWeight = done.length > 0 ? Math.max(...done.map((s) => s.weight)) : 0;
+      return { nameDE: ex.exercise.nameDE, sets: done.length, maxWeight };
+    });
+    await sendWorkoutCard(channelId, shareUserId, {
+      sessionId: session.id,
+      exercises,
+      totalVolume: session.totalVolume,
+      durationSeconds: session.durationSeconds,
+      score: score.total,
+      muscleSets: sessionMuscleSets,
+    }, shareCaption);
+    setSharing(false);
+    setShareOpen(false);
+    setShareCaption('');
   };
 
   const scoreColor =
@@ -471,7 +509,90 @@ function SummaryContent() {
         <Button variant="ghost" fullWidth onClick={() => router.push('/log')}>
           Im Verlauf ansehen
         </Button>
+        <button
+          onClick={() => setShareOpen(true)}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            width: '100%', padding: spacing[3],
+            backgroundColor: colors.accentBg, border: `1px solid ${colors.accent}40`,
+            borderRadius: radius.xl, color: colors.accent, fontSize: 14, fontWeight: 600,
+            cursor: 'pointer', marginTop: spacing[2],
+          }}
+        >
+          <MessageCircle size={16} />
+          Im Forum teilen
+        </button>
       </div>
+
+      {/* SHARE MODAL */}
+      {shareOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setShareOpen(false)}
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100 }}
+          />
+          {/* Sheet */}
+          <div style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 101,
+            backgroundColor: colors.bgCard,
+            borderRadius: '20px 20px 0 0',
+            padding: spacing[5], maxWidth: 480, margin: '0 auto',
+          }}>
+            <h3 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>
+              Im Forum teilen
+            </h3>
+            <input
+              value={shareCaption}
+              onChange={(e) => setShareCaption(e.target.value)}
+              placeholder="Optionale Nachricht dazu..."
+              style={{
+                width: '100%', backgroundColor: colors.bgHighest, border: `1px solid ${colors.border}`,
+                borderRadius: radius.xl, padding: `${spacing[2]} ${spacing[4]}`,
+                color: colors.textPrimary, fontSize: 14, outline: 'none',
+                marginBottom: spacing[3], boxSizing: 'border-box' as const,
+              }}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
+              {/* General Chat */}
+              <button
+                onClick={async () => {
+                  const genId = await getGeneralChannelId();
+                  if (genId) handleShareToChannel(genId);
+                }}
+                disabled={sharing}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: spacing[3],
+                  padding: `${spacing[3]} ${spacing[4]}`, backgroundColor: colors.bgHighest,
+                  border: `1px solid ${colors.border}`, borderRadius: radius.xl,
+                  color: colors.textPrimary, fontSize: 14, fontWeight: 600, cursor: 'pointer', textAlign: 'left' as const,
+                }}
+              >
+                <Globe size={16} color={colors.textMuted} />
+                General Chat
+              </button>
+              {/* DMs und Gruppen */}
+              {shareChannels.filter((c) => c.type !== 'general').map((ch) => (
+                <button
+                  key={ch.id}
+                  onClick={() => handleShareToChannel(ch.id)}
+                  disabled={sharing}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: spacing[3],
+                    padding: `${spacing[3]} ${spacing[4]}`, backgroundColor: colors.bgHighest,
+                    border: `1px solid ${colors.border}`, borderRadius: radius.xl,
+                    color: colors.textPrimary, fontSize: 14, cursor: 'pointer', textAlign: 'left' as const,
+                  }}
+                >
+                  {ch.type === 'group'
+                    ? <><Users size={16} color={colors.textMuted} />{ch.name}</>
+                    : <><MessageCircle size={16} color={colors.textMuted} />{ch.otherUser?.username ?? 'Direktnachricht'}</>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
