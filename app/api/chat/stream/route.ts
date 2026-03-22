@@ -9,6 +9,12 @@ const groq = new OpenAI({
   baseURL: 'https://api.groq.com/openai/v1',
 });
 
+// Gemini — OpenAI-compatible API (primary model)
+const gemini = new OpenAI({
+  apiKey: process.env.GOOGLE_API_KEY || '',
+  baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+});
+
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -153,14 +159,34 @@ REGELN:
 6. Wenn Informationen fehlen, frage nach bevor du Empfehlungen machst.`;
 }
 
-const NO_KEY_REPLY = 'Kein API-Key konfiguriert. Bitte GROQ_API_KEY in der .env.local hinterlegen (kostenlos auf console.groq.com).';
+const NO_KEY_REPLY = 'Kein API-Key konfiguriert. Bitte GROQ_API_KEY oder GOOGLE_API_KEY in der .env.local hinterlegen.';
 const ERROR_REPLY = 'Verbindungsproblem — bitte erneut versuchen.';
 
-export async function POST(req: NextRequest) {
-  if (!process.env.GROQ_API_KEY) {
-    return new NextResponse(NO_KEY_REPLY, { status: 200, headers: { 'Content-Type': 'text/plain' } });
-  }
+function createStreamResponse(aiStream: AsyncIterable<{ choices: Array<{ delta: { content?: string | null } }> }>): NextResponse {
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of aiStream) {
+          const text = chunk.choices[0]?.delta?.content ?? '';
+          if (text) controller.enqueue(new TextEncoder().encode(text));
+        }
+        controller.close();
+      } catch (error) {
+        console.error('[chat stream] streaming error:', error);
+        controller.error(error);
+      }
+    },
+  });
+  return new NextResponse(stream, {
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Connection': 'keep-alive',
+      'Cache-Control': 'no-cache',
+    },
+  });
+}
 
+export async function POST(req: NextRequest) {
   let body: ChatRequest;
   try {
     body = await req.json();
@@ -175,46 +201,40 @@ export async function POST(req: NextRequest) {
   }
 
   const systemPrompt = buildSystemPrompt(userProfile, workoutHistory, appContext);
+  const messageList = [
+    { role: 'system' as const, content: systemPrompt },
+    ...messages.map((msg) => ({ role: msg.role as 'user' | 'assistant', content: msg.content })),
+  ];
 
+  // Try Gemini first
+  if (process.env.GOOGLE_API_KEY) {
+    try {
+      const geminiStream = await gemini.chat.completions.create({
+        model: 'gemini-2.0-flash',
+        stream: true,
+        max_tokens: 1500,
+        temperature: 0.85,
+        messages: messageList,
+      });
+      return createStreamResponse(geminiStream);
+    } catch (err) {
+      console.warn('[chat stream] Gemini failed, falling back to Groq:', err);
+    }
+  }
+
+  // Fallback: Groq
+  if (!process.env.GROQ_API_KEY) {
+    return new NextResponse(NO_KEY_REPLY, { status: 200, headers: { 'Content-Type': 'text/plain' } });
+  }
   try {
     const groqStream = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       stream: true,
       max_tokens: 1024,
       temperature: 0.9,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages.map((msg) => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content,
-        })),
-      ],
+      messages: messageList,
     });
-
-    const stream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of groqStream) {
-            const text = chunk.choices[0]?.delta?.content ?? '';
-            if (text) {
-              controller.enqueue(new TextEncoder().encode(text));
-            }
-          }
-          controller.close();
-        } catch (error) {
-          console.error('[chat stream] streaming error:', error);
-          controller.error(error);
-        }
-      },
-    });
-
-    return new NextResponse(stream, {
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache',
-      },
-    });
+    return createStreamResponse(groqStream);
   } catch (err) {
     console.error('[chat stream] Groq error:', err);
     return new NextResponse(ERROR_REPLY, { status: 500, headers: { 'Content-Type': 'text/plain' } });

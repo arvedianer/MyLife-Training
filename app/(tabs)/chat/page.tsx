@@ -448,9 +448,53 @@ export default function ChatPage() {
     ul: ({ children }) => <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>{children}</ul>,
     ol: ({ children }) => <ol style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>{children}</ol>,
     li: ({ children }) => <li style={{ marginBottom: '4px' }}>{children}</li>,
+    h1: ({ children }) => <h1 style={{ fontFamily: 'var(--font-barlow)', fontSize: '24px', fontWeight: 700, color: colors.textPrimary, margin: '16px 0 8px 0', lineHeight: 1.2 }}>{children}</h1>,
+    h2: ({ children }) => <h2 style={{ fontFamily: 'var(--font-barlow)', fontSize: '20px', fontWeight: 700, color: colors.textPrimary, margin: '14px 0 6px 0', lineHeight: 1.2 }}>{children}</h2>,
     h3: ({ children }) => <h3 style={{ ...typography.h3, marginTop: '14px', marginBottom: '8px', color: colors.textPrimary }}>{children}</h3>,
     h4: ({ children }) => <h4 style={{ fontWeight: 600, marginTop: '12px', marginBottom: '6px' }}>{children}</h4>,
     strong: ({ children }) => <strong style={{ color: colors.textPrimary }}>{children}</strong>,
+    code: ({ children, className }) => {
+      const isBlock = className?.startsWith('language-');
+      return isBlock ? (
+        <code style={{
+          display: 'block',
+          background: colors.bgHighest,
+          border: `1px solid ${colors.border}`,
+          borderRadius: radius.md,
+          padding: `${spacing[3]} ${spacing[4]}`,
+          fontSize: '12px',
+          fontFamily: 'monospace',
+          color: colors.accent,
+          overflowX: 'auto',
+          margin: '8px 0',
+          whiteSpace: 'pre',
+        }}>{children}</code>
+      ) : (
+        <code style={{
+          background: colors.bgHighest,
+          borderRadius: '4px',
+          padding: '2px 6px',
+          fontSize: '12px',
+          fontFamily: 'monospace',
+          color: colors.accent,
+        }}>{children}</code>
+      );
+    },
+    blockquote: ({ children }) => <blockquote style={{
+      borderLeft: `3px solid ${colors.accent}`,
+      marginLeft: 0,
+      paddingLeft: spacing[4],
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      margin: '8px 0',
+    }}>{children}</blockquote>,
+    hr: () => <hr style={{ border: 'none', borderTop: `1px solid ${colors.border}`, margin: '12px 0' }} />,
+    table: ({ children }) => <div style={{ overflowX: 'auto', margin: '8px 0' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>{children}</table></div>,
+    thead: ({ children }) => <thead>{children}</thead>,
+    tbody: ({ children }) => <tbody>{children}</tbody>,
+    tr: ({ children }) => <tr>{children}</tr>,
+    th: ({ children }) => <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: `1px solid ${colors.border}`, color: colors.textMuted, fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{children}</th>,
+    td: ({ children }) => <td style={{ padding: '6px 10px', borderBottom: `1px solid ${colors.borderLight}`, color: colors.textSecondary, verticalAlign: 'top' }}>{children}</td>,
   };
 
   return (
