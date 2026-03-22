@@ -67,7 +67,7 @@ function BodyPartPaths({ items, isBack, muscleSets, maxSets }: { items: BodyPart
         <g>
             {items.map((part) => {
                 const muscleStyle = getPartStyle(part.slug, muscleSets, maxSets);
-                const isActive = muscleStyle.fillOpacity > 0.04;
+                const isActive = muscleStyle.fill !== '#FFFFFF';
                 const pathGlow = isActive ? (isBack ? 'url(#muscleGlowBack)' : 'url(#muscleGlow)') : undefined;
                 const className = isActive ? styles.muscleActive : styles.muscleOverlay;
 
