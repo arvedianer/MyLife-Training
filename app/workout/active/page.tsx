@@ -93,6 +93,7 @@ export default function ActiveWorkoutPage() {
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isFinishing = useRef(false); // prevents the "no workout" redirect from firing during completion
+  const communityChRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const [isListening, setIsListening] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
@@ -169,9 +170,9 @@ export default function ActiveWorkoutPage() {
         // Re-track on existing channel
         await existingCh.track({
           userId: user.id,
-          username: (profile as ForumProfile).username,
-          avatarColor: (profile as ForumProfile).avatarColor,
-          role: (profile as ForumProfile).role ?? null,
+          username: profile.username,
+          avatarColor: profile.avatarColor,
+          role: profile.role ?? null,
           status: 'training',
           exercise: firstExercise,
           since: new Date().toISOString(),
@@ -182,13 +183,14 @@ export default function ActiveWorkoutPage() {
         ch = supabase.channel('community', {
           config: { presence: { key: user.id } },
         });
+        communityChRef.current = ch;
         ch.subscribe(async (status) => {
           if (status === 'SUBSCRIBED') {
             await ch!.track({
               userId: user.id,
-              username: (profile as ForumProfile).username,
-              avatarColor: (profile as ForumProfile).avatarColor,
-              role: (profile as ForumProfile).role ?? null,
+              username: profile.username,
+              avatarColor: profile.avatarColor,
+              role: profile.role ?? null,
               status: 'training',
               exercise: firstExercise,
               since: new Date().toISOString(),
@@ -201,11 +203,10 @@ export default function ActiveWorkoutPage() {
     void startTracking();
 
     return () => {
-      // On unmount: presence auto-cleans on disconnect.
-      // Don't remove channels we didn't create (existingCh case).
-      // ch is only non-null here if WE created it in the else branch above,
-      // but since ch is a local var in startTracking, we can't remove it here reliably.
-      // This is acceptable for Phase 1 — Supabase Presence auto-cleans on disconnect.
+      if (communityChRef.current) {
+        supabase.removeChannel(communityChRef.current);
+        communityChRef.current = null;
+      }
     };
   }, [activeWorkout?.id]); // re-run when workout changes
 
