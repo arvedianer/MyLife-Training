@@ -62,7 +62,7 @@ export function CommunityTab({ userId, myProfile }: Props) {
   const { onlineUsers, trainingUsers } = useCommunityPresence(
     userId,
     myProfile?.username ?? '',
-    myProfile?.avatarColor ?? '#4DFFED',
+    myProfile?.avatarColor ?? colors.accent,
     myProfile?.role,
   );
 
@@ -73,15 +73,17 @@ export function CommunityTab({ userId, myProfile }: Props) {
     void getAllProfiles().then(setAllProfiles);
   }, []);
 
-  const toForumProfile = (u: CommunityUser): ForumProfile => ({
-    id: u.userId,
-    username: u.username,
-    avatarColor: u.avatarColor,
-    athleteScore: 0,
-    streak: 0,
-    createdAt: '',
-    role: u.role,
-  });
+  const toForumProfile = (u: CommunityUser): ForumProfile => {
+    return allProfiles.find((p) => p.id === u.userId) ?? {
+      id: u.userId,
+      username: u.username,
+      avatarColor: u.avatarColor,
+      athleteScore: 0,
+      streak: 0,
+      createdAt: '',
+      role: u.role,
+    };
+  };
 
   return (
     <div style={{ padding: spacing[4] }}>

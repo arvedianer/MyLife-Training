@@ -39,6 +39,9 @@ export const colors = {
   warning:    '#FF6B35',
   warningBg:  'rgba(255, 107, 53, 0.12)',
 
+  // Cheffe — gold badge color
+  cheffe:     '#FFD700',
+
   // Borders — Glassmorphism style
   border:      'rgba(255, 255, 255, 0.08)',
   borderLight: 'rgba(255, 255, 255, 0.05)',
