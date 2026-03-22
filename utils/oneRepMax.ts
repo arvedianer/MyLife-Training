@@ -4,7 +4,7 @@
  */
 export function estimateOneRepMax(weight: number, reps: number): number | null {
   if (weight <= 0 || reps <= 0 || reps > 10) return null;
-  if (reps === 1) return weight;
+  if (reps === 1) return Math.round(weight);
   return Math.round(weight * (1 + reps / 30));
 }
 
