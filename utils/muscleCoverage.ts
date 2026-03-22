@@ -21,6 +21,7 @@ export const MUSCLE_LABELS_DE: Record<string, string> = {
   glutes: 'Gesäß',
   calves: 'Waden',
   core: 'Core',
+  legs: 'Legs',
 };
 
 export function getWeeklyMuscleStatus(sessions: WorkoutSession[]): MuscleStatus[] {
