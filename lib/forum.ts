@@ -36,6 +36,14 @@ export async function updateProfileScore(userId: string, athleteScore: number, s
   await supabase.from('profiles').update({ athlete_score: athleteScore, streak }).eq('id', userId);
 }
 
+export async function getAllProfiles(): Promise<ForumProfile[]> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('athlete_score', { ascending: false });
+  return (data ?? []).map(mapProfile);
+}
+
 // ── Channels ─────────────────────────────────────────────
 
 export async function getGeneralChannelId(): Promise<string | null> {

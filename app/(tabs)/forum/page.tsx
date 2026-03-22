@@ -6,7 +6,8 @@ import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
-import { getMyChannels, getMessages } from '@/lib/forum';
+import { getMyChannels, getMessages, getMyProfile } from '@/lib/forum';
+import type { ForumProfile } from '@/types/forum';
 import { useForumStore } from '@/store/forumStore';
 import { ChannelListItem } from '@/components/forum/ChannelListItem';
 import { supabase } from '@/lib/supabase';
@@ -28,6 +29,7 @@ export default function ForumPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [myProfile, setMyProfile] = useState<ForumProfile | null>(null);
   const unreadByChannel = useForumStore((s) => s.unreadByChannel);
 
   useEffect(() => {
@@ -35,6 +37,8 @@ export default function ForumPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
+      const profile = await getMyProfile();
+      setMyProfile(profile);
       const chs = await getMyChannels(user.id);
       const sorted = [
         ...chs.filter((c) => c.type === 'general'),
@@ -152,7 +156,7 @@ export default function ForumPage() {
           </div>
         )}
         {activeTab === 'freunde' && <FreundeTab userId={userId} />}
-        {activeTab === 'community' && <CommunityTab userId={userId} />}
+        {activeTab === 'community' && <CommunityTab userId={userId} myProfile={myProfile} />}
       </div>
     </motion.div>
   );
