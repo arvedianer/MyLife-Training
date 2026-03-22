@@ -56,12 +56,14 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
   }, [messages]);
 
   useEffect(() => {
+    let cancelled = false;
     const senderIds = [...new Set(messages.map((m) => m.senderId))].filter((id) => !profiles[id]);
     senderIds.forEach((id) => {
       getProfile(id).then((p) => {
-        if (p) setProfiles((prev) => ({ ...prev, [id]: p }));
+        if (!cancelled && p) setProfiles((prev) => ({ ...prev, [id]: p }));
       });
     });
+    return () => { cancelled = true; };
   }, [messages, profiles]);
 
   const handleSend = async () => {
@@ -99,7 +101,7 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
         </button>
         <div>
           <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: 700 }}>{headerTitle}</div>
-          <div style={{ ...typography.label, color: colors.textMuted, fontSize: '10px' }}>{headerSub}</div>
+          <div style={{ ...typography.label, color: colors.textMuted }}>{headerSub}</div>
         </div>
       </div>
 

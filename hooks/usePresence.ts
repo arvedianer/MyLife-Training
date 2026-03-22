@@ -25,9 +25,12 @@ export function usePresence(channelId: string | null, userId: string | null, use
     // Typing-Events empfangen
     ch.on('broadcast', { event: 'typing' }, ({ payload }) => {
       if (payload.userId === userId) return;
-      setTypingUser(payload.username as string);
-      if (typingTimer.current) clearTimeout(typingTimer.current);
-      typingTimer.current = setTimeout(() => setTypingUser(null), 3000);
+      const name = typeof payload.username === 'string' ? payload.username : null;
+      if (name) {
+        setTypingUser(name);
+        if (typingTimer.current) clearTimeout(typingTimer.current);
+        typingTimer.current = setTimeout(() => setTypingUser(null), 3000);
+      }
     });
 
     ch.subscribe(async (status) => {
