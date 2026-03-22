@@ -85,12 +85,15 @@ function SummaryContent() {
   const { generateShareToken: createShareToken } = useHistoryStore();
 
   useEffect(() => {
+    let alive = true;
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setShareUserId(user.id);
-        getMyChannels(user.id).then(setShareChannels);
-      }
+      if (!alive || !user) return;
+      setShareUserId(user.id);
+      getMyChannels(user.id).then((channels) => {
+        if (alive) setShareChannels(channels);
+      });
     });
+    return () => { alive = false; };
   }, []);
 
   // Compute muscle coverage for this session only
@@ -175,22 +178,25 @@ function SummaryContent() {
   const handleShareToChannel = async (channelId: string) => {
     if (!shareUserId || !session) return;
     setSharing(true);
-    const exercises = session.exercises.map((ex) => {
-      const done = ex.sets.filter((s) => s.isCompleted);
-      const maxWeight = done.length > 0 ? Math.max(...done.map((s) => s.weight)) : 0;
-      return { nameDE: ex.exercise.nameDE, sets: done.length, maxWeight };
-    });
-    await sendWorkoutCard(channelId, shareUserId, {
-      sessionId: session.id,
-      exercises,
-      totalVolume: session.totalVolume,
-      durationSeconds: session.durationSeconds,
-      score: score.total,
-      muscleSets: sessionMuscleSets,
-    }, shareCaption);
-    setSharing(false);
-    setShareOpen(false);
-    setShareCaption('');
+    try {
+      const exercises = session.exercises.map((ex) => {
+        const done = ex.sets.filter((s) => s.isCompleted);
+        const maxWeight = done.length > 0 ? Math.max(...done.map((s) => s.weight)) : 0;
+        return { nameDE: ex.exercise.nameDE, sets: done.length, maxWeight };
+      });
+      await sendWorkoutCard(channelId, shareUserId, {
+        sessionId: session.id,
+        exercises,
+        totalVolume: session.totalVolume,
+        durationSeconds: session.durationSeconds,
+        score: score.total,
+        muscleSets: sessionMuscleSets,
+      }, shareCaption);
+      setShareOpen(false);
+      setShareCaption('');
+    } finally {
+      setSharing(false);
+    }
   };
 
   const scoreColor =
@@ -536,7 +542,7 @@ function SummaryContent() {
           <div style={{
             position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 101,
             backgroundColor: colors.bgCard,
-            borderRadius: '20px 20px 0 0',
+            borderRadius: `${radius.xl} ${radius.xl} 0 0`,
             padding: spacing[5], maxWidth: 480, margin: '0 auto',
           }}>
             <h3 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>
@@ -558,7 +564,7 @@ function SummaryContent() {
               <button
                 onClick={async () => {
                   const genId = await getGeneralChannelId();
-                  if (genId) handleShareToChannel(genId);
+                  if (genId) await handleShareToChannel(genId);
                 }}
                 disabled={sharing}
                 style={{
