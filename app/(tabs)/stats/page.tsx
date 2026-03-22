@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { BodyHeatmap } from '@/components/ui/BodyHeatmap';
+import { StreakCalendar } from '@/components/ui/StreakCalendar';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
@@ -96,7 +97,7 @@ export default function StatsPage() {
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null);
   const [volumeView, setVolumeView] = useState<'weekly' | 'session'>('weekly');
   const [volumeRange, setVolumeRange] = useState<VolumeRange>('8w');
-  const { sessions, getPersonalRecords } = useHistoryStore();
+  const { sessions, restDays, getPersonalRecords } = useHistoryStore();
   const prs = getPersonalRecords();
 
   const { start, end } = useMemo(() => getPeriodRange(period), [period]);
@@ -431,6 +432,23 @@ export default function StatsPage() {
             <LegendDot color={colors.accent} label={`Trainiert (${periodWorkouts})`} />
             <LegendDot color={colors.bgHighest} label={`Ruhetag (${periodDays.length - periodWorkouts})`} />
           </div>
+        </div>
+      </div>
+
+      {/* ── AKTIVITÄTS-KALENDER (GitHub-Style) ── */}
+      <div>
+        <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>
+          Aktivitäts-Kalender
+        </h2>
+        <div style={{
+          backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
+          borderRadius: radius.lg, padding: `${spacing[3]} ${spacing[4]}`,
+        }}>
+          <StreakCalendar
+            trainingDates={sessions.map(s => s.date)}
+            restDays={restDays ?? []}
+            weeks={14}
+          />
         </div>
       </div>
 

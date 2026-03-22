@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useMemo } from 'react';
 import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target, MessageCircle, AlertTriangle } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Card } from '@/components/ui/Card';
@@ -13,6 +14,8 @@ import { formatWorkoutDate, formatDuration, formatVolume, calculateStreak } from
 import { parseISO } from 'date-fns';
 import { getMissingMuscles, getRemainingWeekDays, getWeeklyMuscleStatus, MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
 import { useAutoRestDay } from '@/hooks/useAutoRestDay';
+import { computeMuscleRecovery, RECOVERY_CONFIG } from '@/utils/muscleRecovery';
+import { generateSuggestions } from '@/utils/workoutSuggestions';
 
 export default function DashboardPage() {
   const { profile } = useUserStore();
@@ -52,6 +55,10 @@ export default function DashboardPage() {
   const weeklyStatus = getWeeklyMuscleStatus(sessions);
   const muscleSets = Object.fromEntries(weeklyStatus.map((s) => [s.muscleId, s.setsThisWeek]));
   const maxMuscleSets = Math.max(...weeklyStatus.map((s) => s.setsThisWeek), 1);
+
+  // Muscle recovery & smart suggestions
+  const muscleRecovery = useMemo(() => computeMuscleRecovery(sessions), [sessions]);
+  const suggestions = useMemo(() => generateSuggestions(sessions), [sessions]);
 
   // Goal personalization
   const goal = profile?.goal;
@@ -293,6 +300,54 @@ export default function DashboardPage() {
       }}>
         <BodyHeatmap muscleSets={muscleSets} maxSets={maxMuscleSets} />
       </div>
+
+      {/* Muscle Recovery Tracker */}
+      {muscleRecovery.length > 0 && (
+        <section style={{ marginBottom: '4px' }}>
+          <h2 style={{
+            fontSize: '12px', fontWeight: 600, color: colors.textMuted,
+            textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px',
+            fontFamily: 'var(--font-barlow)',
+          }}>
+            Muskel-Erholung
+          </h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {muscleRecovery.slice(0, 6).map(m => {
+              const cfg = RECOVERY_CONFIG[m.status];
+              return (
+                <div key={m.muscle} style={{
+                  display: 'flex', alignItems: 'center', gap: '5px',
+                  background: colors.bgCard,
+                  border: `1px solid ${cfg.color}33`,
+                  borderRadius: '20px', padding: '5px 10px',
+                }}>
+                  <span style={{ fontSize: '11px' }}>{cfg.icon}</span>
+                  <span style={{ fontSize: '12px', color: colors.textSecondary }}>{m.label}</span>
+                  <span style={{ fontSize: '10px', color: colors.textFaint }}>
+                    {m.hoursAgo < 24 ? `${m.hoursAgo}h` : `${Math.round(m.hoursAgo / 24)}T`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Smart Workout Suggestions */}
+      {suggestions.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {suggestions.map((s, i) => (
+            <div key={i} style={{
+              background: s.priority === 1 ? colors.accentBg : colors.bgCard,
+              border: `1px solid ${s.priority === 1 ? `${colors.accent}1F` : colors.border}`,
+              borderRadius: '10px', padding: '10px 14px',
+              fontSize: '13px', color: colors.textSecondary,
+            }}>
+              💡 {s.message}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Recent Workouts */}
       <div>
