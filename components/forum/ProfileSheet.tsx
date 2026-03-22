@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, UserPlus, MessageCircle } from 'lucide-react';
+import { X, UserPlus, MessageCircle, Pencil } from 'lucide-react';
 import { colors, typography, radius, spacing } from '@/constants/tokens';
 import type { ForumProfile } from '@/types/forum';
 import { sendFriendRequest, createDMChannel, updateProfile } from '@/lib/forum';
@@ -176,7 +176,7 @@ export function ProfileSheet({
           >
             {profile.username[0].toUpperCase()}
           </div>
-          <div style={{ ...typography.h3, color: profile.role === 'cheffe' ? '#FFD700' : colors.textPrimary }}>
+          <div style={{ ...typography.h3, color: profile.role === 'cheffe' ? colors.cheffe : colors.textPrimary }}>
             {displayUsername(profile.username, profile.role)}
           </div>
           <div
@@ -202,9 +202,12 @@ export function ProfileSheet({
                 color: colors.textMuted,
                 fontSize: 12,
                 cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
               }}
             >
-              ✏️ Bearbeiten
+              <Pencil size={12} /> Bearbeiten
             </button>
           )}
         </div>
@@ -262,7 +265,12 @@ export function ProfileSheet({
 
             <div style={{ display: 'flex', gap: spacing[2] }}>
               <button
-                onClick={() => { setEditMode(false); setSaveError(null); }}
+                onClick={() => {
+                  setEditMode(false);
+                  setSaveError(null);
+                  setNewUsername(profile.username);
+                  setNewColor(profile.avatarColor);
+                }}
                 style={{
                   flex: 1,
                   padding: spacing[3],
