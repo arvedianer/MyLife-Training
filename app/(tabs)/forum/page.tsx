@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
-import { getMyChannels } from '@/lib/forum';
+import { getMyChannels, getMessages } from '@/lib/forum';
 import { useForumStore } from '@/store/forumStore';
 import { ChannelListItem } from '@/components/forum/ChannelListItem';
 import { supabase } from '@/lib/supabase';
@@ -18,18 +18,25 @@ export default function ForumPage() {
   const unreadByChannel = useForumStore((s) => s.unreadByChannel);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      getMyChannels(user.id).then((chs) => {
-        const sorted = [
-          ...chs.filter((c) => c.type === 'general'),
-          ...chs.filter((c) => c.type === 'dm'),
-          ...chs.filter((c) => c.type === 'group'),
-        ];
-        setChannels(sorted);
-        setLoading(false);
-      });
-    });
+      const chs = await getMyChannels(user.id);
+      const sorted = [
+        ...chs.filter((c) => c.type === 'general'),
+        ...chs.filter((c) => c.type === 'dm'),
+        ...chs.filter((c) => c.type === 'group'),
+      ];
+      const enriched = await Promise.all(
+        sorted.map(async (ch) => {
+          const msgs = await getMessages(ch.id, 1);
+          return { ...ch, lastMessage: msgs[0] ?? null };
+        })
+      );
+      setChannels(enriched);
+      setLoading(false);
+    }
+    void load();
   }, []);
 
   return (
