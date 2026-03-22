@@ -129,7 +129,7 @@ function scoreBalance(sessions: WorkoutSession[]): { score: number; detail: stri
   let push = 0, pull = 0, legs = 0;
   for (const s of recent) {
     for (const ex of s.exercises) {
-      const pm = ex.exercise?.primaryMuscle as string | undefined;
+      const pm = ex.exercise?.primaryMuscle;
       if (!pm) continue;
       const done = ex.sets.filter(st => st.isCompleted).length;
       if (PUSH_MUSCLES.has(pm)) push += done;
@@ -146,7 +146,7 @@ function scoreBalance(sessions: WorkoutSession[]): { score: number; detail: stri
   const pushR = push / total;
   const pullR = pull / total;
   const legsR = legs / total;
-  // Average absolute deviation from ideal ratios, normalized to score
+  // Sum of absolute deviations divided by 2 (empirical softening — worst realistic case ≈ 1.3)
   const deviation = (Math.abs(pushR - IDEAL_PUSH) + Math.abs(pullR - IDEAL_PULL) + Math.abs(legsR - IDEAL_LEGS)) / 2;
   const score = Math.max(0, Math.round((1 - deviation) * 100));
   const detail = `Push/Pull/Beine: ${Math.round(pushR * 100)}% / ${Math.round(pullR * 100)}% / ${Math.round(legsR * 100)}% (Ideal: 35/35/30).`;
