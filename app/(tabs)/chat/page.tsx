@@ -104,7 +104,7 @@ const CAPABILITIES = [
 ];
 
 export default function ChatPage() {
-  const { sessions } = useHistoryStore();
+  const { sessions, getPersonalRecords } = useHistoryStore();
   const { profile } = useUserStore();
   const { activeWorkout } = useWorkoutStore();
   const { addSplit } = usePlanStore();
@@ -130,6 +130,20 @@ export default function ChatPage() {
   const [savedPlanIds, setSavedPlanIds] = useState<Set<string>>(new Set());
   const [planToast, setPlanToast] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load persisted chat mode
+  const [chatMode, setChatMode] = useState<'filtered' | 'unfiltered'>(() => {
+    if (typeof window === 'undefined') return 'filtered';
+    return (localStorage.getItem('chatMode') as 'filtered' | 'unfiltered') ?? 'filtered';
+  });
+
+  const toggleChatMode = () => {
+    setChatMode((prev) => {
+      const next = prev === 'filtered' ? 'unfiltered' : 'filtered';
+      localStorage.setItem('chatMode', next);
+      return next;
+    });
+  };
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -175,6 +189,17 @@ export default function ChatPage() {
     const weeklyVolume = sessions
       .filter((s) => new Date(s.date).getTime() >= weekAgo)
       .reduce((sum, s) => sum + s.totalVolume, 0);
+
+    // Personal records: exerciseName → best weight
+    const rawPRs = getPersonalRecords();
+    const personalRecords: Record<string, number> = {};
+    Object.entries(rawPRs).forEach(([exerciseId, pr]) => {
+      const exercise = getExerciseById(exerciseId);
+      if (exercise && pr.weight > 0) {
+        personalRecords[exercise.nameDE] = pr.weight;
+      }
+    });
+
     return {
       name: profile?.name,
       goal: profile?.goal,
@@ -183,8 +208,13 @@ export default function ChatPage() {
       weeklyVolume: Math.round(weeklyVolume),
       totalSessions: sessions.length,
       currentStreak: streak,
+      // v2 additions:
+      age: profile?.age,
+      bodyWeight: profile?.bodyWeight,
+      height: profile?.height,
+      personalRecords,
     };
-  }, [sessions, profile]);
+  }, [sessions, profile, getPersonalRecords]);
 
   const buildAppContext = useCallback(() => ({
     page: pathname,
@@ -231,6 +261,7 @@ export default function ChatPage() {
           workoutHistory: buildWorkoutHistory(),
           userProfile: buildUserProfile(),
           appContext: buildAppContext(),
+          mode: chatMode,
         }),
       });
 
@@ -686,14 +717,34 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* New conversation */}
-        <button
-          onClick={startNewConversation}
-          style={{ padding: spacing[2] }}
-          title="Neues Gespräch"
-        >
-          <Plus size={20} color={colors.textMuted} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
+          {/* Filtered/Unfiltered Mode Toggle */}
+          <button
+            onClick={toggleChatMode}
+            title={chatMode === 'filtered' ? 'Filtered Mode — klick für Unfiltered' : 'Unfiltered Mode — klick für Filtered'}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '4px 10px',
+              backgroundColor: chatMode === 'unfiltered' ? colors.danger + '20' : colors.bgHighest,
+              border: `1px solid ${chatMode === 'unfiltered' ? colors.danger + '60' : colors.border}`,
+              borderRadius: radius.full,
+              color: chatMode === 'unfiltered' ? colors.danger : colors.textMuted,
+              fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            {chatMode === 'filtered' ? '🔒' : '🔓'} {chatMode === 'filtered' ? 'Filtered' : 'Unfiltered'}
+          </button>
+
+          {/* New conversation */}
+          <button
+            onClick={startNewConversation}
+            style={{ padding: spacing[2] }}
+            title="Neues Gespräch"
+          >
+            <Plus size={20} color={colors.textMuted} />
+          </button>
+        </div>
       </div>
 
       {/* Messages area */}
