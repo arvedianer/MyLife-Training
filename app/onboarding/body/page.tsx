@@ -22,9 +22,9 @@ export default function BodyPage() {
   );
 
   const handleContinue = () => {
-    const parsedAge = age.trim() !== '' ? Number(age) : undefined;
-    const parsedBodyWeight = bodyWeight.trim() !== '' ? Number(bodyWeight) : undefined;
-    const parsedHeight = height.trim() !== '' ? Number(height) : undefined;
+    const parsedAge = age.trim() !== '' && Number.isFinite(Number(age)) ? Number(age) : undefined;
+    const parsedBodyWeight = bodyWeight.trim() !== '' && Number.isFinite(Number(bodyWeight)) ? Number(bodyWeight) : undefined;
+    const parsedHeight = height.trim() !== '' && Number.isFinite(Number(height)) ? Number(height) : undefined;
 
     useUserStore.setState((s) => ({
       profile: {
