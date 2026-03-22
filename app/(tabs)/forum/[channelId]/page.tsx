@@ -32,6 +32,7 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
   const { onlineUsers, typingUser, broadcastTyping } = usePresence(channelId, userId, myUsername);
   const bottomRef = useRef<HTMLDivElement>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const filterToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clearUnread = useForumStore((s) => s.clearUnread);
 
   useEffect(() => {
@@ -72,6 +73,13 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
     return () => { cancelled = true; };
   }, [messages, profiles]);
 
+  useEffect(() => {
+    return () => {
+      if (filterToastTimerRef.current) clearTimeout(filterToastTimerRef.current);
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    };
+  }, []);
+
   const handleSend = async () => {
     if (!userId || !input.trim()) return;
 
@@ -79,7 +87,8 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
     if (channelMeta?.type === 'general' && myProfile?.role !== 'cheffe') {
       if (containsBlockedWord(input)) {
         setFilterToast(true);
-        setTimeout(() => setFilterToast(false), 3000);
+        if (filterToastTimerRef.current) clearTimeout(filterToastTimerRef.current);
+        filterToastTimerRef.current = setTimeout(() => { setFilterToast(false); }, 3000);
         return;
       }
     }
@@ -175,7 +184,7 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
         <div style={{
           position: 'absolute', bottom: 80, left: '50%', transform: 'translateX(-50%)',
           backgroundColor: colors.danger, borderRadius: radius.full,
-          padding: '8px 16px', color: '#fff', fontSize: 13, fontWeight: 600,
+          padding: '8px 16px', color: colors.textPrimary, fontSize: 13, fontWeight: 600,
           whiteSpace: 'nowrap', zIndex: 10,
         }}>
           Nicht so bitte 🫵
