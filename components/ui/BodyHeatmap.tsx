@@ -6,11 +6,13 @@ import { bodyFront, BodyPart } from './bodyFront';
 import { bodyBack } from './bodyBack';
 import { spacing } from '@/constants/tokens';
 
+type HeatmapMode = 'weekly' | 'session';
+
 interface BodyHeatmapProps {
     muscleSets: Record<string, number>;
     maxSets: number;
     compact?: boolean;
-    mode?: 'weekly' | 'session';
+    mode?: HeatmapMode;
 }
 
 const LEGEND_ITEMS = [
@@ -57,7 +59,7 @@ const slugMap: Record<string, string[]> = {
   adductors: ['legs'],
 };
 
-function getPartStyle(slug: string, muscleSets: Record<string, number>, maxSets: number, mode?: 'weekly' | 'session'): { fill: string; fillOpacity: number } {
+function getPartStyle(slug: string, muscleSets: Record<string, number>, maxSets: number, mode?: HeatmapMode): { fill: string; fillOpacity: number } {
     const keys = slugMap[slug] || [];
     for (const key of keys) {
         if (muscleSets[key]) {
@@ -70,7 +72,7 @@ function getPartStyle(slug: string, muscleSets: Record<string, number>, maxSets:
     return { fill: '#FFFFFF', fillOpacity: 0.05 };
 }
 
-function BodyPartPaths({ items, isBack, muscleSets, maxSets, mode }: { items: BodyPart[], isBack: boolean, muscleSets: Record<string, number>, maxSets: number, mode?: 'weekly' | 'session' }) {
+function BodyPartPaths({ items, isBack, muscleSets, maxSets, mode }: { items: BodyPart[], isBack: boolean, muscleSets: Record<string, number>, maxSets: number, mode?: HeatmapMode }) {
     return (
         <g>
             {items.map((part) => {
@@ -190,11 +192,6 @@ export function BodyHeatmap({ muscleSets, maxSets, compact = false, mode }: Body
                         </div>
                     ))}
                 </div>
-            )}
-            {mode === 'session' && (
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '4px', fontFamily: 'var(--font-manrope)' }}>
-                    Trainierte Muskeln
-                </p>
             )}
         </div>
     );
