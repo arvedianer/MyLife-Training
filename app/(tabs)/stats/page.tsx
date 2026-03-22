@@ -115,6 +115,7 @@ export default function StatsPage() {
   const totalWorkouts = sessions.length;
   const totalDurSec = sessions.reduce((sum, s) => sum + s.durationSeconds, 0);
   const totalDurH = Math.floor(totalDurSec / 3600);
+  const totalVolumeTons = sessions.reduce((sum, s) => sum + s.totalVolume, 0) / 1000;
   const currentStreak = calculateStreak(sessions.map(s => s.date));
 
   // Available muscles for filter (from all sessions)
@@ -524,6 +525,40 @@ export default function StatsPage() {
               </p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── LIFETIME STATS ── */}
+      {timeRange === 'lifetime' && (
+        <div style={{ marginBottom: spacing[4] }}>
+          <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: 'var(--font-barlow)' }}>
+            Lebenszeit
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing[2], marginBottom: spacing[2] }}>
+            <div style={{ background: colors.bgCard, border: `1px solid ${colors.border}`, borderRadius: radius.md, padding: spacing[3], textAlign: 'center' }}>
+              <p style={{ fontSize: '26px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', margin: 0, lineHeight: 1 }}>
+                {totalVolumeTons.toFixed(1)}t
+              </p>
+              <p style={{ fontSize: '10px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', marginTop: spacing[1] }}>Bewegt</p>
+            </div>
+            <div style={{ background: colors.bgCard, border: `1px solid ${colors.border}`, borderRadius: radius.md, padding: spacing[3], textAlign: 'center' }}>
+              <p style={{ fontSize: '26px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', margin: 0, lineHeight: 1 }}>
+                {totalWorkouts}
+              </p>
+              <p style={{ fontSize: '10px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', marginTop: spacing[1] }}>Sessions</p>
+            </div>
+            <div style={{ background: colors.bgCard, border: `1px solid ${colors.border}`, borderRadius: radius.md, padding: spacing[3], textAlign: 'center' }}>
+              <p style={{ fontSize: '26px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', margin: 0, lineHeight: 1 }}>
+                {totalDurH}h
+              </p>
+              <p style={{ fontSize: '10px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', marginTop: spacing[1] }}>Trainiert</p>
+            </div>
+          </div>
+          {totalVolumeTons > 0 && (
+            <p style={{ fontSize: '12px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', textAlign: 'center', fontStyle: 'italic' }}>
+              Du hast {(totalVolumeTons / 7300 * 100).toFixed(1)}% des Eiffelturms gehoben (7.300 Tonnen).
+            </p>
+          )}
         </div>
       )}
 
