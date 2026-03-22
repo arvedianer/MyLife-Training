@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target, MessageCircle, AlertTriangle } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Card } from '@/components/ui/Card';
@@ -14,7 +14,6 @@ import { formatWorkoutDate, formatDuration, formatVolume, calculateStreak } from
 import { parseISO } from 'date-fns';
 import { getMissingMuscles, getRemainingWeekDays, getWeeklyMuscleStatus, MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
 import { useAutoRestDay } from '@/hooks/useAutoRestDay';
-import { computeMuscleRecovery, RECOVERY_CONFIG } from '@/utils/muscleRecovery';
 import { generateSuggestions } from '@/utils/workoutSuggestions';
 
 export default function DashboardPage() {
@@ -30,12 +29,6 @@ export default function DashboardPage() {
   // Streak berechnen (Trainingstage + Rest Days zählen beide)
   const trainingDates = sessions.map((s) => s.date);
   const streak = calculateStreak(trainingDates, restDays);
-
-  // Streak-Warnung: heute weder trainiert noch Rest Day eingelegt
-  const todayISO = new Date().toISOString().split('T')[0];
-  const hasTodayActivity =
-    trainingDates.includes(todayISO) || restDays.includes(todayISO);
-  const showStreakWarning = !hasTodayActivity;
 
   // Wochenvolumen (parseISO für konsistente Timezone-Behandlung)
   const weekAgo = new Date();
@@ -56,9 +49,21 @@ export default function DashboardPage() {
   const muscleSets = Object.fromEntries(weeklyStatus.map((s) => [s.muscleId, s.setsThisWeek]));
   const maxMuscleSets = Math.max(...weeklyStatus.map((s) => s.setsThisWeek), 1);
 
-  // Muscle recovery & smart suggestions
-  const muscleRecovery = useMemo(() => computeMuscleRecovery(sessions), [sessions]);
+  // Smart suggestions
   const suggestions = useMemo(() => generateSuggestions(sessions), [sessions]);
+
+  // Streak modal
+  const [showStreakModal, setShowStreakModal] = useState(false);
+
+  useEffect(() => {
+    // Show modal if streak is at risk (no training today, no rest day today)
+    const today = new Date().toISOString().split('T')[0];
+    const trainedToday = sessions.some(s => s.date === today);
+    const restToday = restDays?.includes(today);
+    if (!trainedToday && !restToday && streak > 0) {
+      setShowStreakModal(true);
+    }
+  }, [sessions, restDays, streak]);
 
   // Goal personalization
   const goal = profile?.goal;
@@ -239,23 +244,6 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Streak Warning */}
-      {showStreakWarning && (
-        <div style={{
-          backgroundColor: `${colors.danger}10`,
-          border: `1px solid ${colors.danger}30`,
-          borderRadius: radius.xl,
-          padding: spacing[4],
-          display: 'flex',
-          alignItems: 'center',
-          gap: spacing[3],
-        }}>
-          <Flame size={20} color={colors.danger} />
-          <p style={{ ...typography.body, color: colors.danger, flex: 1 }}>
-            Trainiere heute oder leg einen Rest Day ein — sonst bricht dein Streak!
-          </p>
-        </div>
-      )}
 
       {/* Muscle Coverage Warning */}
       {showMuscleWarning && (
@@ -301,37 +289,6 @@ export default function DashboardPage() {
         <BodyHeatmap muscleSets={muscleSets} maxSets={maxMuscleSets} />
       </div>
 
-      {/* Muscle Recovery Tracker */}
-      {muscleRecovery.length > 0 && (
-        <section style={{ marginBottom: '4px' }}>
-          <h2 style={{
-            fontSize: '12px', fontWeight: 600, color: colors.textMuted,
-            textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px',
-            fontFamily: 'var(--font-barlow)',
-          }}>
-            Muskel-Erholung
-          </h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {muscleRecovery.slice(0, 6).map(m => {
-              const cfg = RECOVERY_CONFIG[m.status];
-              return (
-                <div key={m.muscle} style={{
-                  display: 'flex', alignItems: 'center', gap: '5px',
-                  background: colors.bgCard,
-                  border: `1px solid ${cfg.color}33`,
-                  borderRadius: '20px', padding: '5px 10px',
-                }}>
-                  <span style={{ fontSize: '11px' }}>{cfg.icon}</span>
-                  <span style={{ fontSize: '12px', color: colors.textSecondary }}>{m.label}</span>
-                  <span style={{ fontSize: '10px', color: colors.textFaint }}>
-                    {m.hoursAgo < 24 ? `${m.hoursAgo}h` : `${Math.round(m.hoursAgo / 24)}T`}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       {/* Smart Workout Suggestions */}
       {suggestions.length > 0 && (
@@ -447,6 +404,67 @@ export default function DashboardPage() {
           <ChevronRight size={18} color={colors.textDisabled} />
         </div>
       </Link>
+
+      {/* Streak Warning Modal */}
+      {showStreakModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          padding: '0 16px 32px',
+        }} onClick={() => setShowStreakModal(false)}>
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+              borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '420px',
+            }}
+          >
+            <div style={{
+              width: 48, height: 4, borderRadius: 2,
+              background: 'var(--border)', margin: '0 auto 20px',
+            }} />
+            <div style={{ fontSize: '32px', textAlign: 'center', marginBottom: '8px' }}>
+              🔥
+            </div>
+            <h3 style={{
+              fontFamily: 'var(--font-barlow)', fontSize: '22px', fontWeight: 700,
+              color: 'var(--text-primary)', textAlign: 'center', marginBottom: '8px',
+            }}>
+              Streak in Gefahr!
+            </h3>
+            <p style={{
+              fontSize: '14px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '24px',
+            }}>
+              Trainiere heute oder trag einen Rest Day ein — sonst bricht dein Streak.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => setShowStreakModal(false)}
+                style={{
+                  flex: 1, padding: '14px', borderRadius: '12px',
+                  background: 'var(--bg-card)', border: '1px solid var(--border)',
+                  color: 'var(--text-muted)', fontSize: '14px', cursor: 'pointer',
+                  fontFamily: 'var(--font-manrope)',
+                }}
+              >
+                Rest Day
+              </button>
+              <button
+                onClick={() => setShowStreakModal(false)}
+                style={{
+                  flex: 2, padding: '14px', borderRadius: '12px',
+                  background: 'var(--accent)', border: 'none',
+                  color: '#000', fontSize: '14px', fontWeight: 700, cursor: 'pointer',
+                  fontFamily: 'var(--font-manrope)',
+                }}
+              >
+                Training starten
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

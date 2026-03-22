@@ -17,6 +17,7 @@ import {
   subWeeks, subMonths, addWeeks, parseISO, isSameDay, eachDayOfInterval, isAfter,
 } from 'date-fns';
 import { MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
+import { computeMuscleRecovery, RECOVERY_CONFIG } from '@/utils/muscleRecovery';
 import { de } from 'date-fns/locale';
 
 type Period = 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
@@ -197,6 +198,8 @@ export default function StatsPage() {
     return MAJOR_MUSCLES.filter(m => !trainedMuscles.has(m));
   }, [sessions]);
 
+  const muscleRecovery = useMemo(() => computeMuscleRecovery(sessions), [sessions]);
+
   const exercisesWithPRs = exercises.filter(e => prs[e.id]).slice(0, 10);
 
   // Previous period (for comparison strip)
@@ -351,6 +354,48 @@ export default function StatsPage() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* ── MUSCLE RECOVERY ── */}
+      {muscleRecovery.length > 0 && (
+        <section style={{ marginBottom: '20px' }}>
+          <h2 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px', fontFamily: 'var(--font-barlow)' }}>
+            Muskel-Erholung
+          </h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {muscleRecovery.slice(0, 8).map(m => {
+              const cfg = RECOVERY_CONFIG[m.status];
+              return (
+                <div key={m.muscle} style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  background: 'var(--bg-card)', border: '1px solid var(--border)',
+                  borderRadius: '20px', padding: '5px 12px',
+                }}>
+                  <span style={{
+                    width: 7, height: 7, borderRadius: '50%',
+                    background: cfg.color, flexShrink: 0, display: 'inline-block',
+                  }} />
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-manrope)' }}>
+                    {m.label}
+                  </span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-faint)' }}>
+                    {m.hoursAgo < 24 ? `${m.hoursAgo}h` : `${Math.round(m.hoursAgo / 24)}d`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+            {(['fatigued', 'recovering', 'recovered'] as const).map(s => (
+              <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: RECOVERY_CONFIG[s].color, display: 'inline-block' }} />
+                <span style={{ fontSize: '10px', color: 'var(--text-faint)' }}>
+                  {s === 'fatigued' ? 'Erholt sich' : s === 'recovering' ? 'Fast bereit' : 'Bereit'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* ── 3 KEY METRICS ── */}
