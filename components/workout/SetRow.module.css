@@ -9,7 +9,7 @@
 }
 
 .setRowCompleted {
-    background-color: var(--success-10, rgba(50, 215, 75, 0.05));
+    border-left: 2px solid rgba(52, 199, 89, 0.35);
 }
 
 .setNumberBox {
@@ -44,9 +44,13 @@
 }
 
 .volumeContainer {
-    width: 44px;
+    width: 56px;
     text-align: right;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
 }
 
 .volumeText {
@@ -105,23 +109,12 @@
 
 .unilateralReps {
     display: flex;
-    gap: 8px;
+    align-items: center;
+    gap: 6px;
     flex: 1;
     min-width: 0;
 }
 
-.sideRepInput {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex: 1;
-    min-width: 0;
-    background: var(--bg-elevated, #1E1E1E);
-    border: 1px solid var(--border, #262626);
-    border-radius: 8px;
-    padding: 0 8px;
-    min-height: 44px;
-}
 
 .sideLabel {
     font-family: var(--font-courier, 'Courier New', Courier, monospace);
@@ -160,4 +153,38 @@
 
 .sideIndicatorActive {
     color: var(--accent, #4DFFED);
+}
+
+/* Divider between L and R inputs in unilateral edit mode */
+.unilateralDivider {
+    color: var(--border, #333333);
+    font-size: 14px;
+    flex-shrink: 0;
+    user-select: none;
+    opacity: 0.6;
+}
+
+/* Unilateral completed: summary text instead of dimmed inputs */
+.unilateralSummary {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    opacity: 0.6;
+}
+
+.unilateralSummaryText {
+    font-family: var(--font-courier, 'Courier New', Courier, monospace);
+    font-size: 13px;
+    color: var(--text-secondary, #F5F5F5);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+/* 1RM hint shown below volume when set is completed */
+.ormHint {
+    font-family: var(--font-courier, 'Courier New', Courier, monospace);
+    font-size: 9px;
+    color: var(--accent, #4DFFED);
+    opacity: 0.65;
+    white-space: nowrap;
 }

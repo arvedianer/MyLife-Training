@@ -64,6 +64,11 @@ export function SetRow({
       if (set.reps === 0 && previousReps !== undefined && previousReps > 0) {
         onUpdateReps(previousReps);
       }
+      // Unilateral: auto-fill L/R reps from previousReps if neither was entered
+      if (isUnilateral && previousReps !== undefined && previousReps > 0) {
+        if (!set.repsL && localRepsL === undefined) onUpdateRepsL?.(previousReps);
+        if (!set.repsR && localRepsR === undefined) onUpdateRepsR?.(previousReps);
+      }
     }
     onToggleComplete();
   };
@@ -123,30 +128,31 @@ export function SetRow({
 
       {/* Wiederholungen — L/R side-by-side for unilateral, single input otherwise */}
       {isUnilateral ? (
-        <div className={styles.unilateralReps} style={{ opacity: set.isCompleted ? 0.55 : 1, transition: 'opacity 0.2s ease' }}>
-          <div className={styles.sideRepInput}>
+        set.isCompleted ? (
+          /* Completed: clean summary text, no inputs */
+          <div className={styles.unilateralSummary}>
+            <span className={styles.unilateralSummaryText}>
+              L&nbsp;{set.repsL ?? set.reps}× · R&nbsp;{set.repsR ?? set.reps}×
+            </span>
+          </div>
+        ) : (
+          /* Editing: flat L | R layout */
+          <div className={styles.unilateralReps}>
             <span className={styles.sideLabel}>L</span>
             <NumericInput
               value={localRepsL ?? set.repsL ?? set.reps}
-              onChange={(val) => {
-                setLocalRepsL(val);
-                onUpdateRepsL?.(val);
-              }}
+              onChange={(val) => { setLocalRepsL(val); onUpdateRepsL?.(val); }}
               step={1}
               min={1}
               placeholder={String(set.repsL ?? set.reps ?? previousReps ?? 10)}
               ghost={localRepsL === undefined && !set.repsL && set.reps === 0 && previousReps !== undefined}
               style={{ flex: 1 }}
             />
-          </div>
-          <div className={styles.sideRepInput}>
+            <span className={styles.unilateralDivider}>|</span>
             <span className={styles.sideLabel}>R</span>
             <NumericInput
               value={localRepsR ?? set.repsR ?? set.reps}
-              onChange={(val) => {
-                setLocalRepsR(val);
-                onUpdateRepsR?.(val);
-              }}
+              onChange={(val) => { setLocalRepsR(val); onUpdateRepsR?.(val); }}
               step={1}
               min={1}
               placeholder={String(set.repsR ?? set.reps ?? previousReps ?? 10)}
@@ -154,7 +160,7 @@ export function SetRow({
               style={{ flex: 1 }}
             />
           </div>
-        </div>
+        )
       ) : (
         <NumericInput
           value={set.reps}
@@ -174,7 +180,7 @@ export function SetRow({
         />
       )}
 
-      {/* Volumen (readonly) */}
+      {/* Volumen + 1RM hint (readonly) */}
       <div className={styles.volumeContainer}>
         <div
           className={`${styles.volumeText} ${!(set.weight > 0 && set.reps > 0) ? styles.volumeTextFaint : ''}`}
@@ -182,6 +188,11 @@ export function SetRow({
         >
           {set.weight > 0 && set.reps > 0 ? `${set.weight * set.reps}` : '—'}
         </div>
+        {set.isCompleted && formatOneRepMax(set.weight, set.reps) && (
+          <div className={styles.ormHint}>
+            {formatOneRepMax(set.weight, set.reps)}
+          </div>
+        )}
       </div>
 
       {/* Complete / Delete */}
@@ -203,19 +214,6 @@ export function SetRow({
             )}
           </button>
         </ClickSpark>
-
-        {set.isCompleted && set.weight > 0 && set.reps > 0 && (
-          <span style={{
-            fontSize: '10px',
-            color: colors.textFaint,
-            fontFamily: 'var(--font-courier, monospace)',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-            marginLeft: '2px',
-          }}>
-            {formatOneRepMax(set.weight, set.reps)}
-          </span>
-        )}
 
         <button
           onClick={onRemove}
