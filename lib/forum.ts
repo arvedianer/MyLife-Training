@@ -121,6 +121,38 @@ export async function deleteMessage(messageId: string): Promise<void> {
   await supabase.from('messages').delete().eq('id', messageId);
 }
 
+// Soft delete: replaces content with a placeholder (Cheffe-only)
+export async function softDeleteMessage(messageId: string): Promise<void> {
+  await supabase
+    .from('messages')
+    .update({
+      content: '[Von Cheffe entfernt 🔥]',
+      type: 'text',
+      metadata: null,
+    })
+    .eq('id', messageId);
+}
+
+export async function updateProfile(
+  userId: string,
+  updates: { username?: string; avatarColor?: string }
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      ...(updates.username ? { username: updates.username } : {}),
+      ...(updates.avatarColor ? { avatar_color: updates.avatarColor } : {}),
+    })
+    .eq('id', userId);
+
+  if (error) {
+    // Unique constraint violation
+    if (error.code === '23505') return { error: 'Dieser Name ist schon vergeben 😅' };
+    return { error: 'Speichern fehlgeschlagen — bitte erneut versuchen.' };
+  }
+  return { error: null };
+}
+
 // ── Friendships ───────────────────────────────────────────
 
 export async function getFriendships(userId: string): Promise<Friendship[]> {
@@ -149,6 +181,7 @@ function mapProfile(r: Record<string, unknown>): ForumProfile {
     athleteScore: (r.athlete_score as number) ?? 0,
     streak: (r.streak as number) ?? 0,
     createdAt: r.created_at as string,
+    role: (r.role as string | null) ?? null,
   };
 }
 

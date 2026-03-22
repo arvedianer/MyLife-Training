@@ -5,6 +5,7 @@ export interface ForumProfile {
   athleteScore: number;
   streak: number;
   createdAt: string;
+  role?: string | null; // e.g. 'cheffe', null for regular users
 }
 
 export type ChannelType = 'general' | 'dm' | 'group';
