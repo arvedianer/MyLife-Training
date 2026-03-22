@@ -249,15 +249,17 @@ export default function SettingsPage() {
                 <input
                   type="number"
                   min="1"
+                  max={120}
+                  step={1}
                   value={ageInput}
-                  placeholder={profile?.age != null ? String(profile.age) : ''}
+                  placeholder="z.B. 20"
                   onChange={(e) => {
                     setAgeInput(e.target.value);
                     updateProfile({ age: Number(e.target.value) || undefined });
                   }}
                   style={{
                     backgroundColor: colors.bgHighest,
-                    border: `1px solid ${colors.border}`,
+                    border: `1px solid ${colors.accent}`,
                     borderRadius: radius.md,
                     padding: `${spacing[1]} ${spacing[2]}`,
                     ...typography.body,
@@ -278,15 +280,17 @@ export default function SettingsPage() {
                 <input
                   type="number"
                   min="1"
+                  max={500}
+                  step={0.5}
                   value={bodyWeightInput}
-                  placeholder={profile?.bodyWeight != null ? String(profile.bodyWeight) : ''}
+                  placeholder="z.B. 75"
                   onChange={(e) => {
                     setBodyWeightInput(e.target.value);
                     updateProfile({ bodyWeight: Number(e.target.value) || undefined });
                   }}
                   style={{
                     backgroundColor: colors.bgHighest,
-                    border: `1px solid ${colors.border}`,
+                    border: `1px solid ${colors.accent}`,
                     borderRadius: radius.md,
                     padding: `${spacing[1]} ${spacing[2]}`,
                     ...typography.body,
