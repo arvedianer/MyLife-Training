@@ -13,34 +13,20 @@ interface BodyHeatmapProps {
 }
 
 const LEGEND_ITEMS = [
-    { color: '#FFFFFF', opacity: 0.05, label: 'Kein Training' },
-    { color: '#6B21A8', opacity: 0.80, label: 'Wenig' },
-    { color: '#C2185B', opacity: 0.85, label: 'Aktiv' },
-    { color: '#EF4444', opacity: 0.85, label: 'Intensiv' },
-    { color: '#FACC15', opacity: 0.90, label: 'Max 🔥' },
+    { fill: '#FFFFFF', opacity: 0.04, label: 'Kein Training' },
+    { fill: '#EAB308', opacity: 0.75, label: 'Wenig' },
+    { fill: '#F97316', opacity: 0.80, label: 'Mittel' },
+    { fill: '#EF4444', opacity: 0.85, label: 'Viel' },
+    { fill: '#7C3AED', opacity: 0.90, label: 'Maximum' },
 ];
 
-function getMuscleStyle(sets: number, max: number): { fill: string; fillOpacity: number } {
-    if (sets === 0 || max === 0) {
-        // Untrained: very subtle but visible so the silhouette shows
-        return { fill: '#FFFFFF', fillOpacity: 0.05 };
-    }
-    const ratio = sets / Math.max(max, 1);
-
-    if (ratio <= 0.25) {
-        // Low volume — deep purple
-        return { fill: '#6B21A8', fillOpacity: 0.80 };
-    }
-    if (ratio <= 0.5) {
-        // Medium volume — magenta-red
-        return { fill: '#C2185B', fillOpacity: 0.85 };
-    }
-    if (ratio <= 0.75) {
-        // High volume — bright red
-        return { fill: '#EF4444', fillOpacity: 0.85 };
-    }
-    // Max volume — yellow (inferno peak)
-    return { fill: '#FACC15', fillOpacity: 0.90 };
+function getMuscleColor(sets: number, max: number): { fill: string; fillOpacity: number } {
+  if (sets === 0) return { fill: '#FFFFFF', fillOpacity: 0.04 };
+  const ratio = sets / Math.max(max, 1);
+  if (ratio <= 0.25) return { fill: '#EAB308', fillOpacity: 0.75 }; // yellow — low
+  if (ratio <= 0.5)  return { fill: '#F97316', fillOpacity: 0.80 }; // orange — moderate
+  if (ratio <= 0.75) return { fill: '#EF4444', fillOpacity: 0.85 }; // red — high
+  return { fill: '#7C3AED', fillOpacity: 0.90 };                    // purple — max
 }
 
 const BODY_FILL = 'transparent';                  // no background tint — sit on parent background
@@ -69,11 +55,11 @@ function getPartStyle(slug: string, muscleSets: Record<string, number>, maxSets:
     const keys = slugMap[slug] || [];
     for (const key of keys) {
         if (muscleSets[key]) {
-            return getMuscleStyle(muscleSets[key], maxSets);
+            return getMuscleColor(muscleSets[key], maxSets);
         }
     }
     // Untrained — use same subtle white so silhouette is visible against dark background
-    return getMuscleStyle(0, maxSets);
+    return getMuscleColor(0, maxSets);
 }
 
 function BodyPartPaths({ items, isBack, muscleSets, maxSets }: { items: BodyPart[], isBack: boolean, muscleSets: Record<string, number>, maxSets: number }) {
@@ -186,7 +172,7 @@ export function BodyHeatmap({ muscleSets, maxSets, compact = false }: BodyHeatma
                             width: 10,
                             height: 10,
                             borderRadius: '50%',
-                            background: item.color,
+                            background: item.fill,
                             opacity: item.opacity,
                             border: '1px solid rgba(255,255,255,0.2)',
                             flexShrink: 0,
