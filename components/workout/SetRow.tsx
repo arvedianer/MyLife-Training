@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { colors } from '@/constants/tokens';
 import { NumericInput } from '@/components/ui/Input';
 import type { SetEntry } from '@/types/workout';
+import { formatOneRepMax } from '@/utils/oneRepMax';
 import styles from './SetRow.module.css';
 
 interface SetRowProps {
@@ -199,6 +200,19 @@ export function SetRow({
             <Circle size={22} color={colors.border} />
           )}
         </button>
+
+        {set.isCompleted && set.weight > 0 && set.reps > 0 && (
+          <span style={{
+            fontSize: '10px',
+            color: colors.textFaint,
+            fontFamily: 'var(--font-courier, monospace)',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            marginLeft: '2px',
+          }}>
+            {formatOneRepMax(set.weight, set.reps)}
+          </span>
+        )}
 
         <button
           onClick={onRemove}
