@@ -22,6 +22,8 @@ import { computeMuscleRecovery } from '@/utils/muscleRecovery';
 import { de } from 'date-fns/locale';
 import { computeAthleteScore, athleteScoreLabel } from '@/utils/athleteScore';
 import { useUserStore } from '@/store/userStore';
+import { computeStrengthPercentiles } from '@/utils/strengthStandards';
+import { estimateOneRepMax } from '@/utils/oneRepMax';
 
 type TimeRange = 'week' | 'month' | 'lifetime';
 
@@ -142,6 +144,28 @@ export default function StatsPage() {
   }, [athleteResult.total, updateLifetimeAthleteScore]);
 
   const displayScore = Math.max(lifetimeAthleteScore, athleteResult.total);
+
+  // Best 1RM per exercise across all sessions (for benchmarks)
+  const bestOrmByExercise = useMemo(() => {
+    const best: Record<string, number> = {};
+    for (const session of sessions) {
+      for (const ex of session.exercises) {
+        const id = ex.exercise?.id ?? '';
+        if (!id) continue;
+        for (const set of ex.sets) {
+          if (!set.isCompleted || !set.weight || !set.reps) continue;
+          const orm = estimateOneRepMax(set.weight, set.reps);
+          if (orm && orm > (best[id] ?? 0)) best[id] = orm;
+        }
+      }
+    }
+    return best;
+  }, [sessions]);
+
+  const strengthPercentiles = useMemo(
+    () => computeStrengthPercentiles(bestOrmByExercise, profile?.bodyWeight ?? 0),
+    [bestOrmByExercise, profile?.bodyWeight],
+  );
 
   // Volume chart — respects volumeRange state
   const weeksToShow = RANGE_WEEKS[volumeRange] ?? 8;
@@ -431,6 +455,77 @@ export default function StatsPage() {
           ))}
         </div>
       </div>
+
+      {/* ── BENCHMARKS ── */}
+      {(strengthPercentiles.length > 0 || sessions.length >= 3) && (
+        <div style={{ marginBottom: spacing[4] }}>
+          <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: 'var(--font-barlow)' }}>
+            Vergleiche
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
+
+            {/* Strength percentile cards */}
+            {strengthPercentiles.map(p => (
+              <div key={p.exercise} style={{
+                background: colors.bgCard, border: `1px solid ${colors.border}`,
+                borderRadius: radius.md, padding: `${spacing[3]} ${spacing[4]}`,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <div>
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: colors.textSecondary, fontFamily: 'var(--font-manrope)', margin: 0 }}>
+                    {p.exerciseDE}
+                  </p>
+                  <p style={{ fontSize: '11px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', margin: `${spacing[1]} 0 0` }}>
+                    {p.orm} kg · Top {100 - p.percentile}%
+                  </p>
+                </div>
+                <span style={{
+                  fontSize: '22px', fontWeight: 800, color: colors.accent,
+                  fontFamily: 'var(--font-barlow)', lineHeight: 1,
+                }}>
+                  ~{p.percentile}%
+                </span>
+              </div>
+            ))}
+
+            {/* Frequency benchmark */}
+            {(() => {
+              const now = new Date();
+              const cutoff = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000);
+              const recentCount = sessions.filter(s => parseISO(s.date) >= cutoff).length;
+              const perWeek = Math.round((recentCount / 4) * 10) / 10;
+              const freqPct = Math.min(95, Math.round(perWeek * 20 + 10));
+              if (recentCount < 2) return null;
+              return (
+                <div style={{
+                  background: colors.bgCard, border: `1px solid ${colors.border}`,
+                  borderRadius: radius.md, padding: `${spacing[3]} ${spacing[4]}`,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                  <div>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: colors.textSecondary, fontFamily: 'var(--font-manrope)', margin: 0 }}>
+                      Trainingsfrequenz
+                    </p>
+                    <p style={{ fontSize: '11px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', margin: `${spacing[1]} 0 0` }}>
+                      Du trainierst {perWeek}× pro Woche
+                    </p>
+                  </div>
+                  <span style={{ fontSize: '22px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', lineHeight: 1 }}>
+                    ~{freqPct}%
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* No body weight prompt */}
+            {!profile?.bodyWeight && strengthPercentiles.length === 0 && (
+              <p style={{ fontSize: '12px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', textAlign: 'center', padding: spacing[3] }}>
+                Trage dein Körpergewicht in den Einstellungen ein, um Kraftvergleiche zu sehen.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── 3 KEY METRICS ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing[3] }}>
