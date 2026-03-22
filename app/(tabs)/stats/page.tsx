@@ -365,11 +365,9 @@ export default function StatsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             {muscleRecovery.slice(0, 8).map(m => {
               const pct = Math.round(m.recoveryRatio * 100);
-              const isReady = m.recoveryRatio >= 0.9;
-              const barColor = m.recoveryRatio < 0.33
-                ? '#FF3B30'
-                : m.recoveryRatio < 0.66
-                ? '#FF9F0A'
+              const isReady = m.status === 'recovered';
+              const barColor = m.status === 'fatigued' ? '#FF3B30'
+                : m.status === 'recovering' ? '#FF9F0A'
                 : '#34C759';
               return (
                 <div key={m.muscle} style={{
@@ -381,7 +379,7 @@ export default function StatsPage() {
                       {m.label}
                     </span>
                     <span style={{ fontSize: '11px', color: isReady ? '#34C759' : 'var(--text-muted)', fontFamily: 'var(--font-manrope)' }}>
-                      {isReady ? 'Bereit ✓' : `~${m.hoursAgo}h`}
+                      {isReady ? 'Bereit' : m.hoursAgo < 24 ? `~${m.hoursAgo}h` : `~${Math.round(m.hoursAgo / 24)}d`}
                     </span>
                   </div>
                   <div style={{ height: '4px', background: 'var(--border)', borderRadius: '2px', overflow: 'hidden' }}>

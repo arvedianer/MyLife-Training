@@ -9,7 +9,7 @@ export interface MuscleRecovery {
   label: string;
   status: RecoveryStatus;
   hoursAgo: number;
-  recoveryRatio: number;   // 0.0 = just trained, 1.0+ = fully recovered, capped at 1.0
+  recoveryRatio: number;   // 0.0 = just trained · 1.0 = fully recovered (clamped, never exceeds 1.0)
 }
 
 const HEAVY_MUSCLES = new Set(['chest', 'back', 'quads', 'glutes', 'hamstrings', 'legs']);
