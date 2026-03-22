@@ -55,27 +55,6 @@ function getPeriodRange(period: Period): { start: Date; end: Date } {
   }
 }
 
-function getPreviousPeriodRange(period: Period): { start: Date; end: Date } {
-  const now = new Date();
-  switch (period) {
-    case 'thisWeek': {
-      const lw = subWeeks(now, 1);
-      return { start: startOfWeek(lw, { weekStartsOn: 1 }), end: endOfWeek(lw, { weekStartsOn: 1 }) };
-    }
-    case 'lastWeek': {
-      const tw = subWeeks(now, 2);
-      return { start: startOfWeek(tw, { weekStartsOn: 1 }), end: endOfWeek(tw, { weekStartsOn: 1 }) };
-    }
-    case 'thisMonth': {
-      const lm = subMonths(now, 1);
-      return { start: startOfMonth(lm), end: endOfMonth(lm) };
-    }
-    case 'lastMonth': {
-      const pm = subMonths(now, 2);
-      return { start: startOfMonth(pm), end: endOfMonth(pm) };
-    }
-  }
-}
 
 function heatBarColor(r: number): string {
   if (r < 0.25) return 'rgba(255, 80, 50, 0.72)';
@@ -202,17 +181,7 @@ export default function StatsPage() {
 
   const exercisesWithPRs = exercises.filter(e => prs[e.id]).slice(0, 10);
 
-  // Previous period (for comparison strip)
-  const { start: prevStart, end: prevEnd } = useMemo(() => getPreviousPeriodRange(period), [period]);
-  const prevPeriodSessions = useMemo(
-    () => sessions.filter(s => { const d = parseISO(s.date); return d >= prevStart && d <= prevEnd; }),
-    [sessions, prevStart, prevEnd],
-  );
-  const prevWorkouts = prevPeriodSessions.length;
-  const prevVolume = prevPeriodSessions.reduce((sum, s) => sum + s.totalVolume, 0);
-  const prevDurSec = prevPeriodSessions.reduce((sum, s) => sum + s.durationSeconds, 0);
-
-  // Strength progression: top 5 most-trained exercises with max-weight history
+// Strength progression: top 5 most-trained exercises with max-weight history
   const strengthData = useMemo(() => {
     const counts: Record<string, { name: string; count: number }> = {};
     for (const session of sessions) {
@@ -415,25 +384,7 @@ export default function StatsPage() {
         />
       </div>
 
-      {/* ── PERIOD COMPARISON STRIP ── */}
-      {(prevWorkouts > 0 || periodWorkouts > 0) && (
-        <div style={{
-          backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
-          borderRadius: radius.lg, padding: `${spacing[3]} ${spacing[4]}`,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: spacing[2],
-        }}>
-          <span style={{ ...typography.bodySm, color: colors.textMuted, flexShrink: 0 }}>
-            vs. Vorherige Periode
-          </span>
-          <div style={{ display: 'flex', gap: spacing[3] }}>
-            <CompareChip current={periodWorkouts} prev={prevWorkouts} unit="" suffix="WO" />
-            <CompareChip current={Math.round(periodVolume / 100) / 10} prev={Math.round(prevVolume / 100) / 10} unit="t" suffix="Vol" />
-            <CompareChip current={Math.round(periodDurSec / 60)} prev={Math.round(prevDurSec / 60)} unit="min" suffix="Zeit" />
-          </div>
-        </div>
-      )}
-
-      {/* ── TRAINING CALENDAR ── */}
+{/* ── TRAINING CALENDAR ── */}
       <div>
         <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>
           Trainingstage
@@ -780,19 +731,6 @@ function MetricCard({ label, value, sub }: { label: string; value: string; sub: 
   );
 }
 
-function CompareChip({ current, prev, unit, suffix }: { current: number; prev: number; unit: string; suffix: string }) {
-  const delta = current - prev;
-  const sign = delta > 0 ? '+' : '';
-  const color = delta > 0 ? colors.success : delta < 0 ? colors.danger : colors.textMuted;
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-      <span style={{ ...typography.monoSm, color: delta !== 0 ? color : colors.textMuted, fontSize: '11px' }}>
-        {delta !== 0 ? `${sign}${delta}${unit}` : `—`}
-      </span>
-      <span style={{ ...typography.label, color: colors.textDisabled, fontSize: '9px' }}>{suffix}</span>
-    </div>
-  );
-}
 
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
