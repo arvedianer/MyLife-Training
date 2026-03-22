@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState, useEffect } from 'react';
-import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target, MessageCircle, AlertTriangle } from 'lucide-react';
+import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target, MessageCircle, AlertTriangle, X } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -18,7 +18,7 @@ import { generateSuggestions } from '@/utils/workoutSuggestions';
 
 export default function DashboardPage() {
   const { profile } = useUserStore();
-  const { sessions, restDays } = useHistoryStore();
+  const { sessions, restDays, addRestDay } = useHistoryStore();
   const { getActiveSplit, getTodaysSplitDay } = usePlanStore();
   const { notification: autoRestNotification, dismiss: dismissAutoRest } = useAutoRestDay();
 
@@ -56,14 +56,34 @@ export default function DashboardPage() {
   const [showStreakModal, setShowStreakModal] = useState(false);
 
   useEffect(() => {
-    // Show modal if streak is at risk (no training today, no rest day today)
     const today = new Date().toISOString().split('T')[0];
-    const trainedToday = sessions.some(s => s.date === today);
-    const restToday = restDays?.includes(today);
-    if (!trainedToday && !restToday && streak > 0) {
-      setShowStreakModal(true);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const dayBefore  = new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0];
+
+    // Once-per-day guard
+    const lastShown = localStorage.getItem('streakWarningShown');
+    if (lastShown === today) return;
+
+    const trainedToday     = sessions.some(s => s.date === today);
+    const trainedYesterday = sessions.some(s => s.date === yesterday);
+    const restYesterday    = restDays?.includes(yesterday);
+    const restToday        = restDays?.includes(today);
+
+    if (!trainedToday && !restToday && !trainedYesterday && !restYesterday && streak > 0) {
+      const trainedDayBefore = sessions.some(s => s.date === dayBefore);
+      const restDayBefore    = restDays?.includes(dayBefore);
+      if (trainedDayBefore || restDayBefore) {
+        // Only 1 day missed → silent auto rest day for yesterday
+        addRestDay(yesterday);
+        return;
+      }
+      // 2+ days missed → show popup once per day
+      if (streak > 1) {
+        setShowStreakModal(true);
+        localStorage.setItem('streakWarningShown', today);
+      }
     }
-  }, [sessions, restDays, streak]);
+  }, [sessions, restDays, streak, addRestDay]);
 
   // Goal personalization
   const goal = profile?.goal;
@@ -407,59 +427,81 @@ export default function DashboardPage() {
 
       {/* Streak Warning Modal */}
       {showStreakModal && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 1000,
-          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-          padding: '0 16px 32px',
-        }} onClick={() => setShowStreakModal(false)}>
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '0 16px',
+          }}
+          onClick={() => setShowStreakModal(false)}
+        >
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-              borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '420px',
+              background: colors.bgElevated, border: `1px solid ${colors.border}`,
+              borderRadius: radius['2xl'], padding: spacing[6],
+              width: '100%', maxWidth: '360px', position: 'relative',
             }}
           >
-            <div style={{
-              width: 48, height: 4, borderRadius: 2,
-              background: 'var(--border)', margin: '0 auto 20px',
-            }} />
-            <div style={{ fontSize: '32px', textAlign: 'center', marginBottom: '8px' }}>
-              🔥
+            {/* X-Button */}
+            <button
+              onClick={() => setShowStreakModal(false)}
+              style={{
+                position: 'absolute', top: spacing[4], right: spacing[4],
+                background: 'none', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <X size={18} color={colors.textMuted} />
+            </button>
+
+            {/* Icon */}
+            <div style={{ textAlign: 'center', marginBottom: spacing[3] }}>
+              <Flame size={36} color={colors.danger} />
             </div>
+
             <h3 style={{
               fontFamily: 'var(--font-barlow)', fontSize: '22px', fontWeight: 700,
-              color: 'var(--text-primary)', textAlign: 'center', marginBottom: '8px',
+              color: colors.textPrimary, textAlign: 'center', marginBottom: spacing[2],
+              margin: `0 0 ${spacing[2]} 0`,
             }}>
               Streak in Gefahr!
             </h3>
             <p style={{
-              fontSize: '14px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '24px',
+              ...typography.body, color: colors.textMuted,
+              textAlign: 'center', marginBottom: spacing[5],
+              margin: `0 0 ${spacing[5]} 0`,
             }}>
-              Trainiere heute oder trag einen Rest Day ein — sonst bricht dein Streak.
+              Du hast mehrere Tage nicht trainiert. Trag einen Rest Day ein um deinen Streak zu retten.
             </p>
-            <div style={{ display: 'flex', gap: '10px' }}>
+
+            <div style={{ display: 'flex', gap: spacing[3] }}>
               <button
                 onClick={() => setShowStreakModal(false)}
                 style={{
-                  flex: 1, padding: '14px', borderRadius: '12px',
-                  background: 'var(--bg-card)', border: '1px solid var(--border)',
-                  color: 'var(--text-muted)', fontSize: '14px', cursor: 'pointer',
+                  flex: 1, padding: spacing[4], borderRadius: radius.xl,
+                  background: colors.bgCard, border: `1px solid ${colors.border}`,
+                  color: colors.textMuted, fontSize: '14px', cursor: 'pointer',
                   fontFamily: 'var(--font-manrope)',
+                }}
+              >
+                Schliessen
+              </button>
+              <button
+                onClick={() => {
+                  const today = new Date().toISOString().split('T')[0];
+                  addRestDay(today);
+                  setShowStreakModal(false);
+                }}
+                style={{
+                  flex: 1, padding: spacing[4], borderRadius: radius.xl,
+                  background: colors.accent, border: 'none',
+                  color: colors.bgPrimary, fontSize: '14px', fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'var(--font-manrope)',
                 }}
               >
                 Rest Day
-              </button>
-              <button
-                onClick={() => setShowStreakModal(false)}
-                style={{
-                  flex: 2, padding: '14px', borderRadius: '12px',
-                  background: 'var(--accent)', border: 'none',
-                  color: '#000', fontSize: '14px', fontWeight: 700, cursor: 'pointer',
-                  fontFamily: 'var(--font-manrope)',
-                }}
-              >
-                Training starten
               </button>
             </div>
           </div>
