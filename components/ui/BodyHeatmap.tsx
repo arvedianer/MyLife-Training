@@ -13,20 +13,20 @@ interface BodyHeatmapProps {
 }
 
 const LEGEND_ITEMS = [
-    { fill: '#FFFFFF', opacity: 0.04, label: 'Kein Training' },
-    { fill: '#EAB308', opacity: 0.75, label: 'Wenig' },
-    { fill: '#F97316', opacity: 0.80, label: 'Mittel' },
-    { fill: '#EF4444', opacity: 0.85, label: 'Viel' },
-    { fill: '#7C3AED', opacity: 0.90, label: 'Maximum' },
+  { fill: '#FFFFFF',  opacity: 0.05,  label: 'Kein Training' },
+  { fill: '#FACC15',  opacity: 1.0,   label: 'Wenig' },
+  { fill: '#FB923C',  opacity: 1.0,   label: 'Mittel' },
+  { fill: '#EF4444',  opacity: 1.0,   label: 'Viel' },
+  { fill: '#8B5CF6',  opacity: 1.0,   label: 'Maximum' },
 ];
 
 function getMuscleColor(sets: number, max: number): { fill: string; fillOpacity: number } {
-  if (sets === 0) return { fill: '#FFFFFF', fillOpacity: 0.04 };
+  if (sets === 0) return { fill: '#FFFFFF', fillOpacity: 0.05 };
   const ratio = sets / Math.max(max, 1);
-  if (ratio <= 0.25) return { fill: '#EAB308', fillOpacity: 0.75 }; // yellow — low
-  if (ratio <= 0.5)  return { fill: '#F97316', fillOpacity: 0.80 }; // orange — moderate
-  if (ratio <= 0.75) return { fill: '#EF4444', fillOpacity: 0.85 }; // red — high
-  return { fill: '#7C3AED', fillOpacity: 0.90 };                    // purple — max
+  if (ratio <= 0.25) return { fill: '#FACC15', fillOpacity: 1.0 };  // bright yellow — low
+  if (ratio <= 0.5)  return { fill: '#FB923C', fillOpacity: 1.0 };  // vivid orange — moderate
+  if (ratio <= 0.75) return { fill: '#EF4444', fillOpacity: 1.0 };  // punch red — high
+  return { fill: '#8B5CF6', fillOpacity: 1.0 };                     // bright purple — max
 }
 
 const BODY_FILL = 'transparent';                  // no background tint — sit on parent background
