@@ -77,15 +77,24 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  const headerTitle =
+  const channelTitle =
     channelMeta?.type === 'general' ? 'General Chat' :
     channelMeta?.type === 'group' ? (channelMeta.name ?? 'Gruppe') :
-    (channelMeta?.otherUser?.username ?? 'Direktnachricht');
+    channelMeta?.otherUser?.username ?? 'Chat';
 
-  const headerSub =
+  const channelSubtitle =
     channelMeta?.type === 'general' ? 'Alle Mitglieder' :
     channelMeta?.type === 'group' ? `${(channelMeta?.participants ?? []).length} Mitglieder` :
     'Direktnachricht';
+
+  if (loading && messages.length === 0) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh',
+        backgroundColor: colors.bgPrimary, alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: colors.textMuted, fontSize: 14 }}>Lädt...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', backgroundColor: colors.bgPrimary }}>
@@ -100,8 +109,8 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
           <ArrowLeft size={22} color={colors.textSecondary} />
         </button>
         <div>
-          <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: 700 }}>{headerTitle}</div>
-          <div style={{ ...typography.label, color: colors.textMuted }}>{headerSub}</div>
+          <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: 700 }}>{channelTitle}</div>
+          <div style={{ ...typography.label, color: colors.textMuted }}>{channelSubtitle}</div>
         </div>
       </div>
 

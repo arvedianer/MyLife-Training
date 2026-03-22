@@ -48,10 +48,11 @@ export async function getGeneralChannelId(): Promise<string | null> {
 }
 
 export async function getMyChannels(userId: string): Promise<Channel[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('channels')
     .select('*')
     .or(`type.eq.general,participants.cs.{${userId}}`);
+  if (error) console.error('[getMyChannels]', error);
   return (data ?? []).map(mapChannel);
 }
 
