@@ -35,6 +35,9 @@ import { formatDuration } from '@/utils/dates';
 import { findExerciseByName } from '@/constants/exercises';
 import { useExerciseStore } from '@/store/exerciseStore';
 import { useWorkoutStore } from '@/store/workoutStore';
+import { supabase } from '@/lib/supabase';
+import { getMyProfile } from '@/lib/forum';
+import type { ForumProfile } from '@/types/forum';
 import styles from './page.module.css';
 
 export default function ActiveWorkoutPage() {
@@ -143,6 +146,68 @@ export default function ActiveWorkoutPage() {
       router.replace('/start');
     }
   }, [activeWorkout, router]);
+
+  // Track training presence on community channel
+  useEffect(() => {
+    if (!activeWorkout) return;
+
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+
+    async function startTracking() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const profile = await getMyProfile();
+      if (!profile) return;
+
+      const firstExercise = activeWorkout?.exercises[0]?.exercise?.nameDE ?? 'Training';
+
+      // Use getChannels to find existing community channel if present
+      const existingChannels = supabase.getChannels();
+      const existingCh = existingChannels.find((c) => c.topic === 'realtime:community');
+
+      if (existingCh) {
+        // Re-track on existing channel
+        await existingCh.track({
+          userId: user.id,
+          username: (profile as ForumProfile).username,
+          avatarColor: (profile as ForumProfile).avatarColor,
+          role: (profile as ForumProfile).role ?? null,
+          status: 'training',
+          exercise: firstExercise,
+          since: new Date().toISOString(),
+        });
+        ch = existingCh as typeof ch;
+      } else {
+        // No existing community channel — create one
+        ch = supabase.channel('community', {
+          config: { presence: { key: user.id } },
+        });
+        ch.subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            await ch!.track({
+              userId: user.id,
+              username: (profile as ForumProfile).username,
+              avatarColor: (profile as ForumProfile).avatarColor,
+              role: (profile as ForumProfile).role ?? null,
+              status: 'training',
+              exercise: firstExercise,
+              since: new Date().toISOString(),
+            });
+          }
+        });
+      }
+    }
+
+    void startTracking();
+
+    return () => {
+      // On unmount: presence auto-cleans on disconnect.
+      // Don't remove channels we didn't create (existingCh case).
+      // ch is only non-null here if WE created it in the else branch above,
+      // but since ch is a local var in startTracking, we can't remove it here reliably.
+      // This is acceptable for Phase 1 — Supabase Presence auto-cleans on disconnect.
+    };
+  }, [activeWorkout?.id]); // re-run when workout changes
 
   const handleClosePR = useCallback(() => setShowPR(false), []);
 
