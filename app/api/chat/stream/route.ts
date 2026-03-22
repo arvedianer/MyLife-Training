@@ -93,7 +93,7 @@ function buildSystemPrompt(
     age ? `${age} J` : null,
     bodyWeight ? `${bodyWeight}kg` : null,
     height ? `${height}cm` : null,
-  ].filter(Boolean).join(' | ');
+  ].filter((x): x is string => x !== null).join(' | ');
 
   // Personal records block
   const prEntries = Object.entries(prs);
