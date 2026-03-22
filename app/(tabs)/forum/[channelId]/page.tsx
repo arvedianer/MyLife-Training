@@ -9,10 +9,11 @@ import { MessageBubble } from '@/components/forum/MessageBubble';
 import { WorkoutCardMessage } from '@/components/forum/WorkoutCardMessage';
 import { ProfileSheet } from '@/components/forum/ProfileSheet';
 import { TypingIndicator } from '@/components/forum/TypingIndicator';
-import { getProfile, getMyChannels, getMyProfile } from '@/lib/forum';
+import { getProfile, getMyChannels, getMyProfile, softDeleteMessage } from '@/lib/forum';
 import { usePresence } from '@/hooks/usePresence';
 import { useForumStore } from '@/store/forumStore';
 import { supabase } from '@/lib/supabase';
+import { containsBlockedWord } from '@/constants/chatFilter';
 import type { ForumProfile, Channel } from '@/types/forum';
 
 export default function ChatPage({ params }: { params: Promise<{ channelId: string }> }) {
@@ -22,11 +23,15 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
   const [input, setInput] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
   const [myUsername, setMyUsername] = useState('');
+  const [myProfile, setMyProfile] = useState<ForumProfile | null>(null);
   const [profiles, setProfiles] = useState<Record<string, ForumProfile>>({});
   const [selectedProfile, setSelectedProfile] = useState<ForumProfile | null>(null);
   const [channelMeta, setChannelMeta] = useState<Channel | null>(null);
+  const [filterToast, setFilterToast] = useState(false);
+  const [longPressedMsgId, setLongPressedMsgId] = useState<string | null>(null);
   const { onlineUsers, typingUser, broadcastTyping } = usePresence(channelId, userId, myUsername);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clearUnread = useForumStore((s) => s.clearUnread);
 
   useEffect(() => {
@@ -35,6 +40,7 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
         setUserId(user.id);
         const profile = await getMyProfile();
         setMyUsername(profile?.username ?? '');
+        setMyProfile(profile);
       }
     });
   }, []);
@@ -68,6 +74,16 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
 
   const handleSend = async () => {
     if (!userId || !input.trim()) return;
+
+    // Content filter (only for non-cheffe users in general channel)
+    if (channelMeta?.type === 'general' && myProfile?.role !== 'cheffe') {
+      if (containsBlockedWord(input)) {
+        setFilterToast(true);
+        setTimeout(() => setFilterToast(false), 3000);
+        return;
+      }
+    }
+
     const text = input;
     setInput('');
     await send(userId, text);
@@ -97,7 +113,7 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', backgroundColor: colors.bgPrimary }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', backgroundColor: colors.bgPrimary, position: 'relative' }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: spacing[3],
@@ -121,13 +137,90 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
           const sender = profiles[msg.senderId] ?? null;
           const isOwn = msg.senderId === userId;
           const commonProps = { message: msg, sender, isOwn, onAvatarPress: () => { if (sender) setSelectedProfile(sender); } };
-          return msg.type === 'workout_card'
-            ? <WorkoutCardMessage key={msg.id} {...commonProps} />
-            : <MessageBubble key={msg.id} {...commonProps} />;
+          return (
+            <div
+              key={msg.id}
+              onPointerDown={() => {
+                if (myProfile?.role !== 'cheffe') return;
+                longPressTimerRef.current = setTimeout(() => {
+                  setLongPressedMsgId(msg.id);
+                }, 600);
+              }}
+              onPointerUp={() => {
+                if (longPressTimerRef.current) {
+                  clearTimeout(longPressTimerRef.current);
+                  longPressTimerRef.current = null;
+                }
+              }}
+              onPointerLeave={() => {
+                if (longPressTimerRef.current) {
+                  clearTimeout(longPressTimerRef.current);
+                  longPressTimerRef.current = null;
+                }
+              }}
+              style={{ touchAction: 'pan-y' }}
+            >
+              {msg.type === 'workout_card'
+                ? <WorkoutCardMessage {...commonProps} />
+                : <MessageBubble {...commonProps} />}
+            </div>
+          );
         })}
         {typingUser && <TypingIndicator name={typingUser} />}
         <div ref={bottomRef} />
       </div>
+
+      {/* Filter toast */}
+      {filterToast && (
+        <div style={{
+          position: 'absolute', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+          backgroundColor: colors.danger, borderRadius: radius.full,
+          padding: '8px 16px', color: '#fff', fontSize: 13, fontWeight: 600,
+          whiteSpace: 'nowrap', zIndex: 10,
+        }}>
+          Nicht so bitte 🫵
+        </div>
+      )}
+
+      {/* Cheffe delete confirmation popup */}
+      {longPressedMsgId && (
+        <>
+          <div
+            onClick={() => setLongPressedMsgId(null)}
+            style={{ position: 'fixed', inset: 0, zIndex: 100 }}
+          />
+          <div style={{
+            position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+            backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
+            borderRadius: radius.xl, padding: spacing[3], zIndex: 101,
+            display: 'flex', gap: spacing[2],
+          }}>
+            <button
+              onClick={async () => {
+                await softDeleteMessage(longPressedMsgId);
+                setLongPressedMsgId(null);
+              }}
+              style={{
+                padding: `${spacing[2]} ${spacing[3]}`,
+                backgroundColor: colors.danger, border: 'none', borderRadius: radius.full,
+                color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              🔥 Nachricht entfernen
+            </button>
+            <button
+              onClick={() => setLongPressedMsgId(null)}
+              style={{
+                padding: `${spacing[2]} ${spacing[3]}`,
+                backgroundColor: colors.bgHighest, border: `1px solid ${colors.border}`,
+                borderRadius: radius.full, color: colors.textMuted, fontSize: 12, cursor: 'pointer',
+              }}
+            >
+              Abbrechen
+            </button>
+          </div>
+        </>
+      )}
 
       {/* Input */}
       <div style={{
