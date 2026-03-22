@@ -42,6 +42,14 @@ interface ExerciseSettingsSheetProps {
 const EQUIPMENT_OPTIONS: ExerciseEquipment[] = ['barbell', 'dumbbell', 'cable', 'machine', 'bodyweight', 'other'];
 const REST_PRESETS = [60, 90, 120, 180, 300];
 const WARMUP_COUNTS = [1, 2, 3];
+const REP_RANGE_PRESETS: Array<{ label: string; min: number; max: number }> = [
+  { label: '1–5',   min: 1,  max: 5  },
+  { label: '5–8',   min: 5,  max: 8  },
+  { label: '8–12',  min: 8,  max: 12 },
+  { label: '10–15', min: 10, max: 15 },
+  { label: '12–20', min: 12, max: 20 },
+  { label: '20+',   min: 20, max: 30 },
+];
 
 export function ExerciseSettingsSheet({
   isOpen, onClose, exercise,
@@ -238,19 +246,54 @@ export function ExerciseSettingsSheet({
               {/* WIEDERHOLUNGSBEREICH */}
               <div className={styles.section}>
                 <div className={styles.sectionLabel}>WIEDERHOLUNGSBEREICH</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
-                  <span className={styles.rangeLabel}>{safeMin}</span>
-                  <input
-                    type="range" min={1} max={safeMax - 1} value={safeMin}
-                    onChange={(e) => onRepRangeChange(Number(e.target.value), safeMax)}
-                    className={styles.slider}
-                  />
-                  <input
-                    type="range" min={safeMin + 1} max={30} value={safeMax}
-                    onChange={(e) => onRepRangeChange(safeMin, Number(e.target.value))}
-                    className={styles.slider}
-                  />
-                  <span className={styles.rangeLabel}>{safeMax}</span>
+
+                {/* Preset chips — tap to set common range instantly */}
+                <div className={styles.chipRow}>
+                  {REP_RANGE_PRESETS.map((preset) => {
+                    const isActive = safeMin === preset.min && safeMax === preset.max;
+                    return (
+                      <button
+                        key={preset.label}
+                        onClick={() => onRepRangeChange(preset.min, preset.max)}
+                        className={`${styles.chip} ${isActive ? styles.chipActive : ''}`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Manual steppers for fine-tuning */}
+                <div className={styles.rangeStepperRow}>
+                  <div className={styles.rangeStepper}>
+                    <span className={styles.rangeStepperLabel}>MIN</span>
+                    <button
+                      onClick={() => onRepRangeChange(Math.max(1, safeMin - 1), safeMax)}
+                      className={styles.stepperBtn}
+                      aria-label="Min verringern"
+                    >−</button>
+                    <span className={styles.rangeValue}>{safeMin}</span>
+                    <button
+                      onClick={() => onRepRangeChange(Math.min(safeMax - 1, safeMin + 1), safeMax)}
+                      className={styles.stepperBtn}
+                      aria-label="Min erhöhen"
+                    >+</button>
+                  </div>
+                  <span className={styles.rangeSeparator}>—</span>
+                  <div className={styles.rangeStepper}>
+                    <span className={styles.rangeStepperLabel}>MAX</span>
+                    <button
+                      onClick={() => onRepRangeChange(safeMin, Math.max(safeMin + 1, safeMax - 1))}
+                      className={styles.stepperBtn}
+                      aria-label="Max verringern"
+                    >−</button>
+                    <span className={styles.rangeValue}>{safeMax}</span>
+                    <button
+                      onClick={() => onRepRangeChange(safeMin, Math.min(30, safeMax + 1))}
+                      className={styles.stepperBtn}
+                      aria-label="Max erhöhen"
+                    >+</button>
+                  </div>
                 </div>
               </div>
 
