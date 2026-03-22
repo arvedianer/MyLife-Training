@@ -9,7 +9,8 @@ import { MessageBubble } from '@/components/forum/MessageBubble';
 import { WorkoutCardMessage } from '@/components/forum/WorkoutCardMessage';
 import { ProfileSheet } from '@/components/forum/ProfileSheet';
 import { TypingIndicator } from '@/components/forum/TypingIndicator';
-import { getProfile, getMyChannels } from '@/lib/forum';
+import { getProfile, getMyChannels, getMyProfile } from '@/lib/forum';
+import { usePresence } from '@/hooks/usePresence';
 import { useForumStore } from '@/store/forumStore';
 import { supabase } from '@/lib/supabase';
 import type { ForumProfile, Channel } from '@/types/forum';
@@ -20,16 +21,21 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
   const { messages, loading, send } = useChannel(channelId);
   const [input, setInput] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
+  const [myUsername, setMyUsername] = useState('');
   const [profiles, setProfiles] = useState<Record<string, ForumProfile>>({});
   const [selectedProfile, setSelectedProfile] = useState<ForumProfile | null>(null);
   const [channelMeta, setChannelMeta] = useState<Channel | null>(null);
-  const isTyping: string | null = null; // Presence implemented in later task
+  const { onlineUsers, typingUser, broadcastTyping } = usePresence(channelId, userId, myUsername);
   const bottomRef = useRef<HTMLDivElement>(null);
   const clearUnread = useForumStore((s) => s.clearUnread);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (user) {
+        setUserId(user.id);
+        const profile = await getMyProfile();
+        setMyUsername(profile?.username ?? '');
+      }
     });
   }, []);
 
@@ -108,7 +114,7 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
             ? <WorkoutCardMessage key={msg.id} {...commonProps} />
             : <MessageBubble key={msg.id} {...commonProps} />;
         })}
-        {isTyping && <TypingIndicator name={isTyping} />}
+        {typingUser && <TypingIndicator name={typingUser} />}
         <div ref={bottomRef} />
       </div>
 
@@ -120,7 +126,7 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
       }}>
         <input
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => { setInput(e.target.value); broadcastTyping(); }}
           onKeyDown={handleKeyDown}
           placeholder="Nachricht..."
           style={{
