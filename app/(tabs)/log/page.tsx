@@ -82,6 +82,26 @@ export default function LogPage() {
         )}
       </div>
 
+      {/* Records Link */}
+      <Link
+        href="/log/records"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          backgroundColor: colors.bgCard,
+          border: `1px solid ${colors.border}`,
+          borderRadius: '20px',
+          padding: `${spacing[2]} ${spacing[4]}`,
+          ...typography.bodySm,
+          color: colors.textSecondary,
+          textDecoration: 'none',
+          fontWeight: '600',
+        }}
+      >
+        🏆 Bestleistungen
+      </Link>
+
       {/* Sessions */}
       {sessions.length === 0 ? (
         <div
