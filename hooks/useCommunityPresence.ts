@@ -22,6 +22,12 @@ export function useCommunityPresence(
   const [onlineUsers, setOnlineUsers] = useState<CommunityUser[]>([]);
   const [trainingUsers, setTrainingUsers] = useState<CommunityUser[]>([]);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const profileRef = useRef({ username, avatarColor, role: role ?? null });
+
+  // Keep profileRef in sync with latest profile values
+  useEffect(() => {
+    profileRef.current = { username, avatarColor, role: role ?? null };
+  }, [username, avatarColor, role]);
 
   // Effect 1: Subscribe to channel — only re-run when userId changes (not on profile updates)
   useEffect(() => {
@@ -46,9 +52,9 @@ export function useCommunityPresence(
       if (status === 'SUBSCRIBED') {
         await ch.track({
           userId,
-          username,
-          avatarColor,
-          role: role ?? null,
+          username: profileRef.current.username,
+          avatarColor: profileRef.current.avatarColor,
+          role: profileRef.current.role,
           status: 'online',
           since: new Date().toISOString(),
         });
@@ -77,7 +83,7 @@ export function useCommunityPresence(
 
   // Function to update own status to 'training'
   const setTraining = useCallback(async (exercise?: string) => {
-    if (!channelRef.current) return;
+    if (!channelRef.current || !userId) return;
     await channelRef.current.track({
       userId,
       username,
@@ -90,7 +96,7 @@ export function useCommunityPresence(
   }, [userId, username, avatarColor, role]);
 
   const setOnline = useCallback(async () => {
-    if (!channelRef.current) return;
+    if (!channelRef.current || !userId) return;
     await channelRef.current.track({
       userId,
       username,
