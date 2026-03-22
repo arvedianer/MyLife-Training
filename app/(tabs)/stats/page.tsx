@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { BodyHeatmap } from '@/components/ui/BodyHeatmap';
@@ -20,6 +20,8 @@ import {
 import { MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
 import { computeMuscleRecovery } from '@/utils/muscleRecovery';
 import { de } from 'date-fns/locale';
+import { computeAthleteScore, athleteScoreLabel } from '@/utils/athleteScore';
+import { useUserStore } from '@/store/userStore';
 
 type TimeRange = 'week' | 'month' | 'lifetime';
 
@@ -123,6 +125,23 @@ export default function StatsPage() {
     }
     return Array.from(ms).sort();
   }, [sessions]);
+
+  // Athlete Score
+  const profile = useUserStore(s => s.profile);
+  const lifetimeAthleteScore = useUserStore(s => s.lifetimeAthleteScore);
+  const updateLifetimeAthleteScore = useUserStore(s => s.updateLifetimeAthleteScore);
+
+  const athleteResult = useMemo(
+    () => computeAthleteScore(sessions, profile?.bodyWeight ?? 0),
+    [sessions, profile?.bodyWeight],
+  );
+
+  // Persist the lifetime best — useEffect is correct for side effects
+  useEffect(() => {
+    if (athleteResult.total > 0) updateLifetimeAthleteScore(athleteResult.total);
+  }, [athleteResult.total, updateLifetimeAthleteScore]);
+
+  const displayScore = Math.max(lifetimeAthleteScore, athleteResult.total);
 
   // Volume chart — respects volumeRange state
   const weeksToShow = RANGE_WEEKS[volumeRange] ?? 8;
@@ -356,6 +375,62 @@ export default function StatsPage() {
           </div>
         </section>
       )}
+
+      {/* ── ATHLETE SCORE ── */}
+      <div style={{
+        background: colors.bgCard, border: `1px solid ${colors.border}`,
+        borderRadius: radius.lg, padding: spacing[5],
+        textAlign: 'center', marginBottom: spacing[4],
+      }}>
+        <p style={{ fontSize: '11px', fontWeight: 600, color: colors.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'var(--font-barlow)', marginBottom: spacing[2] }}>
+          Athleten-Score
+        </p>
+        <p style={{ fontSize: '64px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', lineHeight: 1, margin: 0 }}>
+          {displayScore}
+        </p>
+        <p style={{ fontSize: '16px', fontWeight: 600, color: colors.textSecondary, fontFamily: 'var(--font-manrope)', marginTop: spacing[1] }}>
+          {athleteScoreLabel(displayScore)}
+        </p>
+        {athleteResult.total !== displayScore && (
+          <p style={{ fontSize: '11px', color: colors.textMuted, marginTop: spacing[1], fontFamily: 'var(--font-manrope)' }}>
+            Aktuell: {athleteResult.total} · Rekord: {displayScore}
+          </p>
+        )}
+      </div>
+
+      {/* ── 5 DIMENSIONS ── */}
+      <div style={{ marginBottom: spacing[4] }}>
+        <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: 'var(--font-barlow)' }}>
+          Dimensionen
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing[2] }}>
+          {athleteResult.dimensions.map((dim, index) => (
+            <div key={dim.name} style={{
+              background: colors.bgCard, border: `1px solid ${colors.border}`,
+              borderRadius: radius.md, padding: spacing[3],
+              ...(index === 4 ? { gridColumn: 'span 2' } : {}),
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[2] }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: colors.textSecondary, fontFamily: 'var(--font-manrope)' }}>
+                  {dim.nameDE}
+                </span>
+                <span style={{ fontSize: '18px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', lineHeight: 1 }}>
+                  {dim.score}
+                </span>
+              </div>
+              <div style={{ height: '3px', background: colors.border, borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', width: `${dim.score}%`,
+                  background: colors.accent, borderRadius: '2px',
+                }} />
+              </div>
+              <p style={{ fontSize: '10px', color: colors.textFaint, marginTop: spacing[1], fontFamily: 'var(--font-manrope)', lineHeight: 1.4 }}>
+                {dim.detail}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* ── 3 KEY METRICS ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing[3] }}>
