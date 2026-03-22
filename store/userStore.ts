@@ -16,6 +16,9 @@ interface UserState {
   restTimerDefault: number; // Sekunden
   language: 'de' | 'en';
 
+  // Scores
+  lifetimeAthleteScore: number; // 0–1000, never decreases
+
   // Actions
   setOnboardingStep: (step: number) => void;
   completeOnboarding: (profile: UserProfile) => void;
@@ -24,6 +27,7 @@ interface UserState {
   setRestTimerDefault: (seconds: number) => void;
   setLanguage: (lang: 'de' | 'en') => void;
   resetUser: () => void;
+  updateLifetimeAthleteScore: (score: number) => void;
 }
 
 const initialState = {
@@ -33,6 +37,7 @@ const initialState = {
   weightUnit: 'kg' as const,
   restTimerDefault: 150,
   language: 'de' as const,
+  lifetimeAthleteScore: 0,
 };
 
 export const useUserStore = create<UserState>()(
@@ -62,6 +67,11 @@ export const useUserStore = create<UserState>()(
       setLanguage: (lang) => set({ language: lang }),
 
       resetUser: () => set(initialState),
+
+      updateLifetimeAthleteScore: (score) =>
+        set((state) => ({
+          lifetimeAthleteScore: Math.max(state.lifetimeAthleteScore, score),
+        })),
     }),
     {
       name: 'mylife-user',

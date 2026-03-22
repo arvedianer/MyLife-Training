@@ -49,6 +49,10 @@ export default function SettingsPage() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(profile?.name ?? '');
+  const [ageInput, setAgeInput] = useState<string>(profile?.age != null ? String(profile.age) : '');
+  const [bodyWeightInput, setBodyWeightInput] = useState<string>(
+    profile?.bodyWeight != null ? String(profile.bodyWeight) : ''
+  );
 
   useEffect(() => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -236,6 +240,64 @@ export default function SettingsPage() {
                   </button>
                 )}
               </div>
+              {/* Alter */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: `${spacing[3]} 0`, borderBottom: `1px solid ${colors.borderLight}`,
+              }}>
+                <span style={{ ...typography.body, color: colors.textMuted }}>Alter (Jahre)</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={ageInput}
+                  placeholder={profile?.age != null ? String(profile.age) : ''}
+                  onChange={(e) => {
+                    setAgeInput(e.target.value);
+                    updateProfile({ age: Number(e.target.value) || undefined });
+                  }}
+                  style={{
+                    backgroundColor: colors.bgHighest,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: radius.md,
+                    padding: `${spacing[1]} ${spacing[2]}`,
+                    ...typography.body,
+                    color: colors.textPrimary,
+                    outline: 'none',
+                    width: '80px',
+                    textAlign: 'right',
+                  }}
+                />
+              </div>
+
+              {/* Körpergewicht */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: `${spacing[3]} 0`, borderBottom: `1px solid ${colors.borderLight}`,
+              }}>
+                <span style={{ ...typography.body, color: colors.textMuted }}>Körpergewicht (kg)</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={bodyWeightInput}
+                  placeholder={profile?.bodyWeight != null ? String(profile.bodyWeight) : ''}
+                  onChange={(e) => {
+                    setBodyWeightInput(e.target.value);
+                    updateProfile({ bodyWeight: Number(e.target.value) || undefined });
+                  }}
+                  style={{
+                    backgroundColor: colors.bgHighest,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: radius.md,
+                    padding: `${spacing[1]} ${spacing[2]}`,
+                    ...typography.body,
+                    color: colors.textPrimary,
+                    outline: 'none',
+                    width: '80px',
+                    textAlign: 'right',
+                  }}
+                />
+              </div>
+
               <InfoRow label="Ziel" value={profile.goal} />
               <InfoRow label="Level" value={profile.level} />
               <InfoRow label="Trainingstage" value={`${profile.trainingDays}x / Woche`} />
