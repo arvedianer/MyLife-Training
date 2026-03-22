@@ -37,7 +37,6 @@ import { useExerciseStore } from '@/store/exerciseStore';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { supabase } from '@/lib/supabase';
 import { getMyProfile } from '@/lib/forum';
-import type { ForumProfile } from '@/types/forum';
 import styles from './page.module.css';
 
 export default function ActiveWorkoutPage() {
