@@ -13,34 +13,34 @@ interface BodyHeatmapProps {
 }
 
 const LEGEND_ITEMS = [
-    { color: '#FFFFFF', opacity: 0.04, label: 'Kein Training' },
-    { color: '#4A9EFF', opacity: 0.55, label: 'Wenig' },
-    { color: '#34C759', opacity: 0.65, label: 'Gut' },
-    { color: '#FF9F0A', opacity: 0.75, label: 'Intensiv' },
-    { color: '#FF3B30', opacity: 0.85, label: 'Max' },
+    { color: '#FFFFFF', opacity: 0.05, label: 'Kein Training' },
+    { color: '#6B21A8', opacity: 0.80, label: 'Wenig' },
+    { color: '#C2185B', opacity: 0.85, label: 'Aktiv' },
+    { color: '#EF4444', opacity: 0.85, label: 'Intensiv' },
+    { color: '#FACC15', opacity: 0.90, label: 'Max 🔥' },
 ];
 
 function getMuscleStyle(sets: number, max: number): { fill: string; fillOpacity: number } {
     if (sets === 0 || max === 0) {
         // Untrained: very subtle but visible so the silhouette shows
-        return { fill: '#FFFFFF', fillOpacity: 0.04 };
+        return { fill: '#FFFFFF', fillOpacity: 0.05 };
     }
     const ratio = sets / Math.max(max, 1);
 
     if (ratio <= 0.25) {
-        // Low volume — blue (calm, "just getting started")
-        return { fill: '#4A9EFF', fillOpacity: 0.55 };
+        // Low volume — deep purple
+        return { fill: '#6B21A8', fillOpacity: 0.80 };
     }
     if (ratio <= 0.5) {
-        // Medium volume — green (positive, "good work")
-        return { fill: '#34C759', fillOpacity: 0.65 };
+        // Medium volume — magenta-red
+        return { fill: '#C2185B', fillOpacity: 0.85 };
     }
     if (ratio <= 0.75) {
-        // High volume — orange (alert, "pushing hard")
-        return { fill: '#FF9F0A', fillOpacity: 0.75 };
+        // High volume — bright red
+        return { fill: '#EF4444', fillOpacity: 0.85 };
     }
-    // Max volume — red (intense, "maxed out")
-    return { fill: '#FF3B30', fillOpacity: 0.85 };
+    // Max volume — yellow (inferno peak)
+    return { fill: '#FACC15', fillOpacity: 0.90 };
 }
 
 const BODY_FILL = 'transparent';                  // no background tint — sit on parent background
