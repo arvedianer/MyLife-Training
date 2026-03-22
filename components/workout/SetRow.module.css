@@ -10,6 +10,7 @@
 
 .setRowCompleted {
     border-left: 2px solid rgba(52, 199, 89, 0.35);
+    padding-left: 6px;
 }
 
 .setNumberBox {
