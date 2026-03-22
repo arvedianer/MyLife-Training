@@ -143,19 +143,6 @@
     color: #007AFF;
 }
 
-.sideIndicator {
-    font-family: var(--font-courier, 'Courier New', Courier, monospace);
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--text-muted, #8E8E93);
-    width: 12px;
-    flex-shrink: 0;
-}
-
-.sideIndicatorActive {
-    color: var(--accent, #4DFFED);
-}
-
 /* Divider between L and R inputs in unilateral edit mode */
 .unilateralDivider {
     color: var(--border, #333333);
