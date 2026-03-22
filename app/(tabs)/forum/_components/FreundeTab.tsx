@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { getFriendships, getProfile, acceptFriendRequest, createDMChannel } from '@/lib/forum';
 import type { ForumProfile, Friendship } from '@/types/forum';
-import { displayUsername } from '@/components/forum/CheffeBadge';
+import { displayUsername, cheffeColor } from '@/components/forum/CheffeBadge';
 
 interface Props {
   userId: string | null;
@@ -66,34 +66,42 @@ export function FreundeTab({ userId }: Props) {
 
   const handleAccept = async (friendshipId: string) => {
     if (!userId) return;
-    await acceptFriendRequest(friendshipId);
-    // Reload pending list
-    const friendships = await getFriendships(userId);
-    const pendingReceived = friendships.filter(
-      (f) => f.status === 'pending' && f.userB === userId
-    );
-    const profiles = await Promise.all(pendingReceived.map((f) => getProfile(f.userA)));
-    setPending(
-      pendingReceived
-        .map((f, i) => ({ friendship: f, profile: profiles[i]! }))
-        .filter((e): e is { friendship: Friendship; profile: ForumProfile } => e.profile !== null)
-    );
-    // Also refresh friends list
-    const accepted = friendships.filter((f) => f.status === 'accepted');
-    const friendProfiles = await Promise.all(
-      accepted.map((f) => getProfile(f.userA === userId ? f.userB : f.userA))
-    );
-    setFriends(
-      accepted
-        .map((f, i) => ({ friendship: f, profile: friendProfiles[i]! }))
-        .filter((e): e is { friendship: Friendship; profile: ForumProfile } => e.profile !== null)
-    );
+    try {
+      await acceptFriendRequest(friendshipId);
+      // Reload pending list
+      const friendships = await getFriendships(userId);
+      const pendingReceived = friendships.filter(
+        (f) => f.status === 'pending' && f.userB === userId
+      );
+      const profiles = await Promise.all(pendingReceived.map((f) => getProfile(f.userA)));
+      setPending(
+        pendingReceived
+          .map((f, i) => ({ friendship: f, profile: profiles[i]! }))
+          .filter((e): e is { friendship: Friendship; profile: ForumProfile } => e.profile !== null)
+      );
+      // Also refresh friends list
+      const accepted = friendships.filter((f) => f.status === 'accepted');
+      const friendProfiles = await Promise.all(
+        accepted.map((f) => getProfile(f.userA === userId ? f.userB : f.userA))
+      );
+      setFriends(
+        accepted
+          .map((f, i) => ({ friendship: f, profile: friendProfiles[i]! }))
+          .filter((e): e is { friendship: Friendship; profile: ForumProfile } => e.profile !== null)
+      );
+    } catch (err) {
+      console.error('[FreundeTab] handleAccept error:', err);
+    }
   };
 
   const handleOpenDM = async (friendId: string) => {
     if (!userId) return;
-    const channelId = await createDMChannel(userId, friendId);
-    router.push(`/forum/${channelId}`);
+    try {
+      const channelId = await createDMChannel(userId, friendId);
+      router.push(`/forum/${channelId}`);
+    } catch (err) {
+      console.error('[FreundeTab] handleOpenDM error:', err);
+    }
   };
 
   if (loading) {
@@ -148,7 +156,7 @@ export function FreundeTab({ userId }: Props) {
                 <span
                   style={{
                     ...typography.body,
-                    color: profile.role === 'cheffe' ? '#FFD700' : colors.textPrimary,
+                    color: cheffeColor(profile.role) || colors.textPrimary,
                     flex: 1,
                   }}
                 >
@@ -222,7 +230,7 @@ export function FreundeTab({ userId }: Props) {
               style={{
                 ...typography.body,
                 flex: 1,
-                color: profile.role === 'cheffe' ? '#FFD700' : colors.textPrimary,
+                color: cheffeColor(profile.role) || colors.textPrimary,
               }}
             >
               {displayUsername(profile.username, profile.role)}
