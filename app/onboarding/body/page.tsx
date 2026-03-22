@@ -90,7 +90,7 @@ export default function BodyPage() {
         {/* Age */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
           <span style={{ ...typography.label, color: colors.textMuted }}>
-            ALTER (JAHRE)
+            ALTER (Jahre)
           </span>
           <input
             type="number"
@@ -106,7 +106,7 @@ export default function BodyPage() {
         {/* Body Weight */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
           <span style={{ ...typography.label, color: colors.textMuted }}>
-            KÖRPERGEWICHT (KG)
+            KÖRPERGEWICHT (kg)
           </span>
           <input
             type="number"
@@ -123,7 +123,7 @@ export default function BodyPage() {
         {/* Height */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
           <span style={{ ...typography.label, color: colors.textMuted }}>
-            KÖRPERGRÖSSE (CM)
+            KÖRPERGRÖSSE (cm)
           </span>
           <input
             type="number"
