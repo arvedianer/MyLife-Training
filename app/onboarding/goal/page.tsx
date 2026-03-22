@@ -49,9 +49,9 @@ export default function GoalPage() {
       {/* Progress */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
         <span style={{ ...typography.label, color: colors.textMuted }}>
-          SCHRITT 2 VON 6
+          SCHRITT 3 VON 7
         </span>
-        <ProgressBar progress={2 / 6} />
+        <ProgressBar progress={3 / 7} />
       </div>
 
       {/* Heading */}

@@ -18,12 +18,12 @@ export default function NamePage() {
       profile: { ...s.profile, name: name.trim() || undefined } as typeof s.profile,
       onboardingStep: 2,
     }));
-    router.push('/onboarding/goal');
+    router.push('/onboarding/body');
   };
 
   const handleSkip = () => {
     useUserStore.setState({ onboardingStep: 2 });
-    router.push('/onboarding/goal');
+    router.push('/onboarding/body');
   };
 
   return (
@@ -40,9 +40,9 @@ export default function NamePage() {
       {/* Progress */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
         <span style={{ ...typography.label, color: colors.textMuted }}>
-          SCHRITT 1 VON 6
+          SCHRITT 1 VON 7
         </span>
-        <ProgressBar progress={1 / 6} />
+        <ProgressBar progress={1 / 7} />
       </div>
 
       {/* Heading */}

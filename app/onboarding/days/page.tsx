@@ -46,9 +46,9 @@ export default function DaysPage() {
       {/* Progress */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
         <span style={{ ...typography.label, color: colors.textMuted }}>
-          SCHRITT 4 VON 6
+          SCHRITT 5 VON 7
         </span>
-        <ProgressBar progress={4 / 6} />
+        <ProgressBar progress={5 / 7} />
       </div>
 
       {/* Heading */}

@@ -66,9 +66,9 @@ export default function EquipmentPage() {
       {/* Progress */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
         <span style={{ ...typography.label, color: colors.textMuted }}>
-          SCHRITT 5 VON 6
+          SCHRITT 6 VON 7
         </span>
-        <ProgressBar progress={5 / 6} />
+        <ProgressBar progress={6 / 7} />
       </div>
 
       {/* Heading */}

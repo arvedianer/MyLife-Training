@@ -15,6 +15,7 @@ export interface UserProfile {
   createdAt: number; // Unix timestamp
   age?: number;         // years
   bodyWeight?: number;  // kg (always stored in kg regardless of weightUnit)
+  height?: number;      // cm
 }
 
 export interface OnboardingState {
