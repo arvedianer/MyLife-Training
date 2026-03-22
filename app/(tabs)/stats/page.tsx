@@ -9,25 +9,35 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
+import type { WorkoutSession } from '@/types/workout';
 import { useHistoryStore } from '@/store/historyStore';
 import { exercises } from '@/constants/exercises';
 import { formatVolume, calculateStreak } from '@/utils/dates';
 import {
   format, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
-  subWeeks, subMonths, addWeeks, parseISO, isSameDay, eachDayOfInterval, isAfter,
+  subWeeks, addWeeks, parseISO, isSameDay, eachDayOfInterval, isAfter,
 } from 'date-fns';
 import { MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
 import { computeMuscleRecovery } from '@/utils/muscleRecovery';
 import { de } from 'date-fns/locale';
 
-type Period = 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
+type TimeRange = 'week' | 'month' | 'lifetime';
 
-const PERIOD_LABELS: Record<Period, string> = {
-  thisWeek: 'Diese Woche',
-  lastWeek: 'Letzte Woche',
-  thisMonth: 'Dieser Monat',
-  lastMonth: 'Letzter Monat',
-};
+function getPeriodRange(range: TimeRange, allSessions: WorkoutSession[]): { start: Date; end: Date; sessions: WorkoutSession[] } {
+  const now = new Date();
+  if (range === 'week') {
+    const start = startOfWeek(now, { weekStartsOn: 1 });
+    const end = endOfWeek(now, { weekStartsOn: 1 });
+    return { start, end, sessions: allSessions.filter(s => { const d = parseISO(s.date); return d >= start && d <= end; }) };
+  }
+  if (range === 'month') {
+    const start = startOfMonth(now);
+    const end = endOfMonth(now);
+    return { start, end, sessions: allSessions.filter(s => { const d = parseISO(s.date); return d >= start && d <= end; }) };
+  }
+  // lifetime
+  return { start: new Date(0), end: now, sessions: allSessions };
+}
 
 const MUSCLE_LABELS: Record<string, string> = {
   chest: 'Brust', back: 'Rücken', shoulders: 'Schultern',
@@ -36,25 +46,6 @@ const MUSCLE_LABELS: Record<string, string> = {
   glutes: 'Gesäß', calves: 'Waden', forearms: 'Unterarme',
   neck: 'Nacken', adductors: 'Adduktoren', abductors: 'Abduktoren',
 };
-
-function getPeriodRange(period: Period): { start: Date; end: Date } {
-  const now = new Date();
-  switch (period) {
-    case 'thisWeek':
-      return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
-    case 'lastWeek': {
-      const lw = subWeeks(now, 1);
-      return { start: startOfWeek(lw, { weekStartsOn: 1 }), end: endOfWeek(lw, { weekStartsOn: 1 }) };
-    }
-    case 'thisMonth':
-      return { start: startOfMonth(now), end: endOfMonth(now) };
-    case 'lastMonth': {
-      const lm = subMonths(now, 1);
-      return { start: startOfMonth(lm), end: endOfMonth(lm) };
-    }
-  }
-}
-
 
 function heatBarColor(r: number): string {
   if (r < 0.25) return 'rgba(255, 80, 50, 0.72)';
@@ -73,18 +64,16 @@ const LEGS_MUSCLES = new Set(['legs', 'quads', 'hamstrings', 'glutes', 'calves',
 const CORE_MUSCLES = new Set(['core', 'abs']);
 
 export default function StatsPage() {
-  const [period, setPeriod] = useState<Period>('thisWeek');
+  const [timeRange, setTimeRange] = useState<TimeRange>('week');
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null);
   const [volumeView, setVolumeView] = useState<'weekly' | 'session'>('weekly');
   const [volumeRange, setVolumeRange] = useState<VolumeRange>('8w');
   const { sessions, restDays, getPersonalRecords } = useHistoryStore();
   const prs = getPersonalRecords();
 
-  const { start, end } = useMemo(() => getPeriodRange(period), [period]);
-
-  const periodSessions = useMemo(
-    () => sessions.filter(s => { const d = parseISO(s.date); return d >= start && d <= end; }),
-    [sessions, start, end],
+  const { start, end, sessions: periodSessions } = useMemo(
+    () => getPeriodRange(timeRange, sessions),
+    [timeRange, sessions],
   );
 
   // Key metrics
@@ -114,8 +103,8 @@ export default function StatsPage() {
   const maxMuscleSets = Math.max(...Object.values(muscleSets), 1);
   const hasMuscleData = Object.keys(muscleSets).length > 0;
 
-  // Training days calendar
-  const periodDays = eachDayOfInterval({ start, end });
+  // Training days calendar (only computed for week/month — lifetime has too many days)
+  const periodDays = timeRange !== 'lifetime' ? eachDayOfInterval({ start, end }) : [];
   const trainedDays = new Set(periodSessions.map(s => format(parseISO(s.date), 'yyyy-MM-dd')));
 
   // All-time
@@ -228,25 +217,28 @@ export default function StatsPage() {
         </p>
       </div>
 
-      {/* ── PERIOD TABS ── */}
-      <div style={{ display: 'flex', gap: spacing[2], overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: '2px' }}>
-        {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (
+      {/* ── TIME RANGE TOGGLE ── */}
+      <div style={{
+        display: 'flex', gap: '4px',
+        background: 'var(--bg-card)', border: `1px solid ${colors.border}`,
+        borderRadius: '10px', padding: '3px',
+        marginBottom: spacing[4],
+      }}>
+        {(['week', 'month', 'lifetime'] as const).map(r => (
           <button
-            key={p}
-            onClick={() => setPeriod(p)}
+            key={r}
+            onClick={() => setTimeRange(r)}
             style={{
-              flexShrink: 0,
-              padding: `${spacing[2]} ${spacing[3]}`,
-              borderRadius: radius.full,
-              border: `1px solid ${period === p ? colors.accent : colors.border}`,
-              backgroundColor: period === p ? colors.accentBg : 'transparent',
-              ...typography.label,
-              color: period === p ? colors.accent : colors.textMuted,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
+              flex: 1, padding: '7px 0',
+              borderRadius: '7px', border: 'none', cursor: 'pointer',
+              background: timeRange === r ? colors.accent : 'transparent',
+              color: timeRange === r ? colors.bgPrimary : colors.textMuted,
+              fontSize: '13px', fontWeight: 600,
+              fontFamily: 'var(--font-manrope)',
+              transition: 'all 0.15s ease',
             }}
           >
-            {PERIOD_LABELS[p].toUpperCase()}
+            {r === 'week' ? 'Woche' : r === 'month' ? 'Monat' : 'Lebenszeit'}
           </button>
         ))}
       </div>
@@ -385,6 +377,8 @@ export default function StatsPage() {
       </div>
 
 {/* ── TRAINING CALENDAR ── */}
+      {/* Only show calendar for week/month — lifetime has too many days */}
+      {timeRange !== 'lifetime' && (
       <div>
         <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>
           Trainingstage
@@ -428,6 +422,7 @@ export default function StatsPage() {
           </div>
         </div>
       </div>
+      )}
 
       {/* ── AKTIVITÄTS-KALENDER (GitHub-Style) ── */}
       <div>
