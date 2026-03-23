@@ -18,16 +18,14 @@ const LEVELS: { id: TrainingLevel; label: string; sub: string }[] = [
 function LevelContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { profile, setOnboardingStep } = useUserStore();
+  const { profile, setOnboardingStep, updateProfile } = useUserStore();
   const [selected, setSelected] = useState<TrainingLevel | null>(
     (profile?.level as TrainingLevel) ?? null
   );
 
   const handleContinue = () => {
     if (!selected) return;
-    useUserStore.setState((s) => ({
-      profile: { ...s.profile, level: selected } as typeof s.profile,
-    }));
+    updateProfile({ level: selected });
     setOnboardingStep(4);
     const editParam = searchParams.get('edit');
     const target = editParam === 'true'
