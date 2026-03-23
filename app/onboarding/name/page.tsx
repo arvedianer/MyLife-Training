@@ -1,29 +1,30 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
-import { ProgressBar } from '@/components/ui/ProgressBar';
+import { ProgressDots } from '@/components/onboarding/ProgressDots';
 import { useUserStore } from '@/store/userStore';
 
-export default function NamePage() {
+function NamePageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isEdit = searchParams.get('edit') === 'true';
   const { profile } = useUserStore();
   const [name, setName] = useState(profile?.name ?? '');
 
   const handleContinue = () => {
-    // Save name (even if empty — optional)
     useUserStore.setState((s) => ({
       profile: { ...s.profile, name: name.trim() || undefined } as typeof s.profile,
       onboardingStep: 2,
     }));
-    router.push('/onboarding/body');
+    router.push(isEdit ? '/onboarding/body?edit=true' : '/onboarding/body');
   };
 
   const handleSkip = () => {
     useUserStore.setState({ onboardingStep: 2 });
-    router.push('/onboarding/body');
+    router.push(isEdit ? '/onboarding/body?edit=true' : '/onboarding/body');
   };
 
   return (
@@ -37,21 +38,16 @@ export default function NamePage() {
         gap: spacing[6],
       }}
     >
-      {/* Progress */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
-        <span style={{ ...typography.label, color: colors.textMuted }}>
-          SCHRITT 1 VON 7
-        </span>
-        <ProgressBar progress={1 / 7} />
-      </div>
+      {/* Progress Dots */}
+      <ProgressDots total={6} current={1} />
 
       {/* Heading */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
         <h1 style={{ ...typography.h1, color: colors.textPrimary }}>
-          Wie heißt du?
+          Wie soll ich dich nennen?
         </h1>
         <p style={{ ...typography.body, color: colors.textMuted }}>
-          Damit wir dich persönlich ansprechen können.
+          Damit ich dich nicht die ganze Zeit &apos;du&apos; nenne.
         </p>
       </div>
 
@@ -62,7 +58,7 @@ export default function NamePage() {
           placeholder="Dein Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
+          onKeyDown={(e) => e.key === 'Enter' && name.trim().length >= 2 && handleContinue()}
           autoFocus
           maxLength={30}
           style={{
@@ -95,10 +91,23 @@ export default function NamePage() {
         >
           Überspringen
         </button>
-        <Button fullWidth size="lg" onClick={handleContinue}>
-          {name.trim() ? `Weiter, ${name.trim()}!` : 'Weiter'}
+        <Button
+          fullWidth
+          size="lg"
+          onClick={handleContinue}
+          disabled={name.trim().length < 2}
+        >
+          {name.trim().length >= 2 ? `Weiter, ${name.trim()}!` : 'Weiter'}
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function NamePage() {
+  return (
+    <Suspense>
+      <NamePageInner />
+    </Suspense>
   );
 }
