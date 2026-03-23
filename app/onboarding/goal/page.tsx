@@ -1,38 +1,53 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Target, Dumbbell, Flame, Heart, Wind } from 'lucide-react';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Zap, Dumbbell, TrendingDown, Activity, Target } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
-import { ProgressBar } from '@/components/ui/ProgressBar';
+import { ProgressDots } from '@/components/onboarding/ProgressDots';
 import { useUserStore } from '@/store/userStore';
 import { GOAL_THEMES } from '@/utils/theme';
 import type { WorkoutGoal } from '@/types/workout';
 
-const goals: { id: WorkoutGoal; label: string; description: string; icon: React.ElementType }[] = [
-  { id: 'muskelaufbau', label: 'Muskelaufbau',  description: 'Muskeln aufbauen & Definition verbessern', icon: Dumbbell },
-  { id: 'kraft',        label: 'Maximalkraft',  description: 'Maximalstärke & Kraftwerte steigern',      icon: Target   },
-  { id: 'abnehmen',     label: 'Abnehmen',      description: 'Körperfett reduzieren & fit werden',       icon: Flame    },
-  { id: 'fitness',      label: 'Fitness',       description: 'Allgemeine Fitness & Gesundheit',          icon: Heart    },
-  { id: 'ausdauer',     label: 'Ausdauer',      description: 'Kondition & Cardio verbessern',            icon: Wind     },
+const GOALS: { id: WorkoutGoal; icon: React.ElementType; label: string; sub: string }[] = [
+  { id: 'kraft',        icon: Zap,         label: 'Kraft aufbauen',  sub: 'Schwerer heben, Bestleistungen brechen' },
+  { id: 'muskelaufbau', icon: Dumbbell,    label: 'Muskeln aufbauen', sub: 'Mehr Masse, bessere Optik' },
+  { id: 'abnehmen',     icon: TrendingDown, label: 'Abnehmen',        sub: 'Fett verlieren, Form halten' },
+  { id: 'fitness',      icon: Activity,    label: 'Fit bleiben',      sub: 'Energie, Gesundheit, Ausdauer' },
+  { id: 'alles',        icon: Target,      label: 'Alles davon',      sub: 'Rundum besser werden' },
 ];
 
-export default function GoalPage() {
+function GoalPageInner() {
   const router = useRouter();
-  const { profile, setOnboardingStep } = useUserStore();
-  const [selected, setSelected] = useState<WorkoutGoal | null>(
-    (profile?.goal as WorkoutGoal) ?? null
-  );
+  const searchParams = useSearchParams();
+  const isEdit = searchParams.get('edit') === 'true';
+
+  const updateProfile = useUserStore((s) => s.updateProfile);
+  const profile = useUserStore((s) => s.profile);
+
+  const initialSelected: WorkoutGoal[] = [
+    ...(profile?.goal ? [profile.goal as WorkoutGoal] : []),
+    ...(profile?.secondaryGoal ? [profile.secondaryGoal] : []),
+  ];
+
+  const [selected, setSelected] = useState<WorkoutGoal[]>(initialSelected);
+
+  const toggle = (g: WorkoutGoal) => {
+    setSelected((prev) => {
+      if (prev.includes(g)) return prev.filter((x) => x !== g);
+      if (prev.length >= 2) return [prev[0], g];
+      return [...prev, g];
+    });
+  };
 
   const handleContinue = () => {
-    if (!selected) return;
-    useUserStore.setState((s) => ({
-      profile: { ...s.profile, goal: selected } as typeof s.profile,
-      onboardingStep: 3,
-    }));
-    setOnboardingStep(3);
-    router.push('/onboarding/level');
+    if (selected.length === 0) return;
+    updateProfile({
+      goal: selected[0],
+      secondaryGoal: selected[1] ?? null,
+    });
+    router.push(isEdit ? '/onboarding/level?edit=true' : '/onboarding/level');
   };
 
   return (
@@ -47,11 +62,8 @@ export default function GoalPage() {
       }}
     >
       {/* Progress */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
-        <span style={{ ...typography.label, color: colors.textMuted }}>
-          SCHRITT 3 VON 7
-        </span>
-        <ProgressBar progress={3 / 7} />
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <ProgressDots total={6} current={3} />
       </div>
 
       {/* Heading */}
@@ -60,23 +72,24 @@ export default function GoalPage() {
           Was ist dein Ziel?
         </h1>
         <p style={{ ...typography.body, color: colors.textMuted }}>
-          Wir passen deinen Trainingsplan genau darauf an.
+          Wähle bis zu 2 Ziele. Wir passen deinen Trainingsplan genau darauf an.
         </p>
       </div>
 
       {/* Goal Options */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
-        {goals.map((goal) => {
+        {GOALS.map((goal) => {
           const Icon = goal.icon;
-          const isSelected = selected === goal.id;
-          const goalTheme = GOAL_THEMES[goal.id];
+          const isSelected = selected.includes(goal.id);
+          const isPrimary = selected[0] === goal.id;
+          const goalTheme = GOAL_THEMES[goal.id] ?? GOAL_THEMES['fitness'];
           const accentColor = isSelected ? goalTheme.accent : colors.accent;
           const accentBgColor = isSelected ? goalTheme.accentBg : colors.accentBg;
 
           return (
             <button
               key={goal.id}
-              onClick={() => setSelected(goal.id)}
+              onClick={() => toggle(goal.id)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -88,6 +101,7 @@ export default function GoalPage() {
                 cursor: 'pointer',
                 textAlign: 'left',
                 transition: 'all 0.15s',
+                position: 'relative',
               }}
             >
               <div
@@ -108,9 +122,21 @@ export default function GoalPage() {
               <div style={{ flex: 1 }}>
                 <div style={{ ...typography.bodyLg, color: colors.textPrimary, fontWeight: '600' }}>
                   {goal.label}
+                  {isPrimary && selected.length >= 2 && (
+                    <span
+                      style={{
+                        ...typography.label,
+                        color: accentColor,
+                        marginLeft: spacing[2],
+                        opacity: 0.8,
+                      }}
+                    >
+                      Primär
+                    </span>
+                  )}
                 </div>
                 <div style={{ ...typography.bodySm, color: colors.textMuted, marginTop: '2px' }}>
-                  {goal.description}
+                  {goal.sub}
                 </div>
               </div>
               <div
@@ -144,10 +170,18 @@ export default function GoalPage() {
         >
           ← Zurück
         </button>
-        <Button fullWidth size="lg" disabled={!selected} onClick={handleContinue}>
+        <Button fullWidth size="lg" disabled={selected.length === 0} onClick={handleContinue}>
           Weiter
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function GoalPage() {
+  return (
+    <Suspense>
+      <GoalPageInner />
+    </Suspense>
   );
 }
