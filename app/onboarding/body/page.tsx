@@ -1,15 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
-import { ProgressBar } from '@/components/ui/ProgressBar';
+import { ProgressDots } from '@/components/onboarding/ProgressDots';
 import { useUserStore } from '@/store/userStore';
 
 export default function BodyPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isEdit = searchParams.get('edit') === 'true';
+
   const { profile } = useUserStore();
+  const name = useUserStore((s) => s.profile?.name);
 
   const [age, setAge] = useState<string>(
     profile?.age !== undefined ? String(profile.age) : ''
@@ -35,12 +39,12 @@ export default function BodyPage() {
       } as typeof s.profile,
       onboardingStep: 3,
     }));
-    router.push('/onboarding/goal');
+    router.push(isEdit ? '/onboarding/confirm-body?edit=true' : '/onboarding/confirm-body');
   };
 
   const handleSkip = () => {
     useUserStore.setState({ onboardingStep: 3 });
-    router.push('/onboarding/goal');
+    router.push(isEdit ? '/onboarding/confirm-body?edit=true' : '/onboarding/confirm-body');
   };
 
   const inputStyle = (hasValue: boolean): React.CSSProperties => ({
@@ -56,6 +60,10 @@ export default function BodyPage() {
     boxSizing: 'border-box',
   });
 
+  const heading = name
+    ? `Und ein paar Zahlen, ${name}.`
+    : 'Und ein paar Zahlen.';
+
   return (
     <div
       style={{
@@ -68,20 +76,15 @@ export default function BodyPage() {
       }}
     >
       {/* Progress */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
-        <span style={{ ...typography.label, color: colors.textMuted }}>
-          SCHRITT 2 VON 7
-        </span>
-        <ProgressBar progress={2 / 7} />
-      </div>
+      <ProgressDots total={6} current={2} />
 
       {/* Heading */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
         <h1 style={{ ...typography.h1, color: colors.textPrimary }}>
-          Deine Körperdaten
+          {heading}
         </h1>
         <p style={{ ...typography.body, color: colors.textMuted }}>
-          Optional — hilft uns, deinen Fortschritt besser zu messen.
+          Für realistische Gewichtsvorschläge und Leistungsvergleiche.
         </p>
       </div>
 
