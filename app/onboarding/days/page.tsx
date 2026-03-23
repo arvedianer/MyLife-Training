@@ -23,7 +23,7 @@ function DaysInner() {
   const searchParams = useSearchParams();
   const isEdit = searchParams.get('edit') === 'true';
   const updateProfile = useUserStore((s) => s.updateProfile);
-  const goal = useUserStore((s) => s.profile.goal);
+  const goal = useUserStore((s) => s.profile?.goal);
   const [selected, setSelected] = useState<number[]>([]); // [0=Mo, ..., 6=So]
 
   const toggle = (i: number) => {
