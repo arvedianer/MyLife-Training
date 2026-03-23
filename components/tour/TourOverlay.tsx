@@ -209,7 +209,7 @@ export function TourOverlay() {
                 }}
               >
                 <span style={{ ...typography.monoSm, color: colors.textFaint }}>
-                  Schritt {step.id} von 24
+                  Schritt {step.id} von {TOUR_STEPS.length}
                 </span>
 
                 <div style={{ display: 'flex', gap: sp(3) }}>
@@ -229,22 +229,25 @@ export function TourOverlay() {
                       Zurück
                     </button>
                   )}
-                  {step.action === 'next' && (
-                    <button
-                      onClick={tourStep === 23 ? skipTour : nextStep}
-                      style={{
-                        backgroundColor: tourStep === 23 ? colors.success : colors.accent,
-                        border: 'none',
-                        borderRadius: radius.md,
-                        padding: `${sp(2)}px ${sp(4)}px`,
-                        color: colors.bgPrimary,
-                        cursor: 'pointer',
-                        ...typography.label,
-                      }}
-                    >
-                      {tourStep === 23 ? "Los geht's" : 'Weiter'}
-                    </button>
-                  )}
+                  {step.action === 'next' && (() => {
+                    const isLastStep = tourStep === TOUR_STEPS.length - 1;
+                    return (
+                      <button
+                        onClick={isLastStep ? skipTour : nextStep}
+                        style={{
+                          backgroundColor: isLastStep ? colors.success : colors.accent,
+                          border: 'none',
+                          borderRadius: radius.md,
+                          padding: `${sp(2)}px ${sp(4)}px`,
+                          color: colors.bgPrimary,
+                          cursor: 'pointer',
+                          ...typography.label,
+                        }}
+                      >
+                        {isLastStep ? "Los geht's" : 'Weiter'}
+                      </button>
+                    );
+                  })()}
                   {step.action === 'tap' && (
                     <span style={{ ...typography.bodySm, color: colors.textMuted }}>
                       Tippe auf das markierte Element
