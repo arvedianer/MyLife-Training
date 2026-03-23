@@ -50,7 +50,7 @@ export const useUserStore = create<UserState>()(
       completeOnboarding: (profile) =>
         set({
           onboardingCompleted: true,
-          onboardingStep: 5,
+          onboardingStep: 8,
           profile,
           weightUnit: 'kg',
         }),
