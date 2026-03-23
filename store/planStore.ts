@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { zustandStorage } from '@/utils/storage';
 import type { TrainingSplit, SplitDay } from '@/types/splits';
 import { supabase } from '@/lib/supabase';
+import { useUserStore } from '@/store/userStore';
 
 interface PlanState {
   // Splits
@@ -166,9 +167,24 @@ export const usePlanStore = create<PlanState>()(
         const activeSplit = state.splits.find((s) => s.id === state.activeSplitId);
         if (!activeSplit) return undefined;
 
-        // Rotierender Wochentag (Montag = 0)
         const dayOfWeek = new Date().getDay();
-        const adjustedDay = (dayOfWeek + 6) % 7; // Montag als 0
+        const adjustedDay = (dayOfWeek + 6) % 7; // [0=Mo, 1=Di, ..., 6=So]
+
+        // Access userStore state directly (non-hook access — safe inside a Zustand action)
+        const weekdays = (useUserStore.getState() as { profile?: { trainingWeekdays?: number[] } }).profile?.trainingWeekdays;
+
+        if (Array.isArray(weekdays) && weekdays.length > 0) {
+          if (!weekdays.includes(adjustedDay)) return undefined; // rest day
+
+          // Map training weekday to split day index
+          const sortedWeekdays = [...weekdays].sort((a, b) => a - b);
+          const dayIndex = sortedWeekdays.indexOf(adjustedDay);
+          return dayIndex >= 0 && dayIndex < activeSplit.days.length
+            ? activeSplit.days[dayIndex]
+            : undefined;
+        }
+
+        // Fallback: rotate through split days (original behavior for profiles without trainingWeekdays)
         const dayIndex = adjustedDay % activeSplit.days.length;
         return activeSplit.days[dayIndex];
       },
