@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
 import { ProgressDots } from '@/components/onboarding/ProgressDots';
 import { useUserStore } from '@/store/userStore';
 
-export default function BodyPage() {
+function BodyPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isEdit = searchParams.get('edit') === 'true';
@@ -160,5 +160,13 @@ export default function BodyPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function BodyPage() {
+  return (
+    <Suspense>
+      <BodyPageInner />
+    </Suspense>
   );
 }
