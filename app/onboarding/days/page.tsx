@@ -9,11 +9,11 @@ import type { TrainingDays } from '@/types/workout';
 
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
-function getFeedback(count: number): string {
+function getFeedback(count: number, goal: string): string {
   if (count === 0) return 'Wähle mindestens 2 Tage.';
   if (count === 1) return '1 Tag — wähle noch einen weiteren.';
   if (count === 2) return '2 Tage — Minimalismus. Funktioniert mit dem richtigen Plan.';
-  if (count === 3) return '3 Tage — das ideale Volumen für dein Ziel.';
+  if (count === 3) return `3 Tage — das ideale Volumen${goal ? ' für dein Ziel' : ''}.`;
   if (count === 4) return '4 Tage — solid. Genug Regeneration zwischen den Einheiten.';
   return `${count} Tage — ambitioniert. Schlaf und Ernährung nicht vergessen.`;
 }
@@ -23,6 +23,7 @@ function DaysInner() {
   const searchParams = useSearchParams();
   const isEdit = searchParams.get('edit') === 'true';
   const updateProfile = useUserStore((s) => s.updateProfile);
+  const goal = useUserStore((s) => s.profile.goal);
   const [selected, setSelected] = useState<number[]>([]); // [0=Mo, ..., 6=So]
 
   const toggle = (i: number) => {
@@ -88,7 +89,7 @@ function DaysInner() {
         </div>
 
         <p style={{ ...typography.body, color: colors.textMuted, margin: 0 }}>
-          {getFeedback(selected.length)}
+          {getFeedback(selected.length, goal ?? '')}
         </p>
       </motion.div>
 

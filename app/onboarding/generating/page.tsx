@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUserStore } from '@/store/userStore';
@@ -23,14 +23,14 @@ export default function GeneratingPage() {
   const goalLabel = GOAL_LABELS[profile?.goal ?? 'fitness'] ?? profile?.goal ?? 'Ziel';
   const equipLabel = EQUIPMENT_LABELS[profile?.equipment ?? 'vollausgestattet'] ?? profile?.equipment ?? 'Equipment';
 
-  const items = [
+  const items = useMemo(() => [
     '✓ Körperdaten analysiert',
     `✓ Ziel: ${goalLabel}`,
     `✓ ${dayCount} Trainingstage geplant`,
     `✓ Equipment: ${equipLabel}`,
     '⏳ Split wird berechnet...',
     '✓ Plan steht.',
-  ];
+  ], [goalLabel, dayCount, equipLabel]);
 
   useEffect(() => {
     if (step < items.length) {
@@ -40,7 +40,7 @@ export default function GeneratingPage() {
       const t = setTimeout(() => router.push('/onboarding/done'), 800);
       return () => clearTimeout(t);
     }
-  }, [step, items.length, router]);
+  }, [step, items, router]);
 
   return (
     <div style={{
@@ -56,7 +56,7 @@ export default function GeneratingPage() {
         <AnimatePresence>
           {items.slice(0, step).map((item, i) => (
             <motion.p
-              key={i}
+              key={item}
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               style={{

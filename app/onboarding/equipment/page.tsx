@@ -34,17 +34,15 @@ function EquipmentPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isEdit = searchParams.get('edit') === 'true';
-  const { profile, setOnboardingStep } = useUserStore();
+  const { profile } = useUserStore();
+  const updateProfile = useUserStore((s) => s.updateProfile);
   const [selected, setSelected] = useState<EquipmentType | null>(
     (profile?.equipment as EquipmentType) ?? null
   );
 
   const handleContinue = () => {
     if (!selected) return;
-    useUserStore.setState((s) => ({
-      profile: { ...s.profile, equipment: selected } as typeof s.profile,
-    }));
-    setOnboardingStep(6);
+    updateProfile({ equipment: selected });
     router.push(isEdit ? '/settings' : '/onboarding/generating');
   };
 
@@ -103,7 +101,7 @@ function EquipmentPageInner() {
             >
               <Icon size={22} color={isSelected ? colors.accent : colors.textMuted} />
               <div>
-                <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600', marginBottom: '2px' }}>
+                <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600', marginBottom: spacing[1] }}>
                   {option.label}
                 </div>
                 <div style={{ ...typography.bodySm, color: colors.textMuted }}>
