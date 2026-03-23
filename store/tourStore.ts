@@ -57,13 +57,7 @@ export const useTourStore = create<TourState>()(
       partialize: (state) => ({
         tourCompleted: state.tourCompleted,
         tourStep: state.tourStep,
-        tourActive: state.tourActive,
-        startTour: state.startTour,
-        nextStep: state.nextStep,
-        prevStep: state.prevStep,
-        skipTour: state.skipTour,
-        resetTour: state.resetTour,
-      }),
+      }) as unknown as TourState,
     }
   )
 );
