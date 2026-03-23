@@ -221,7 +221,7 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
               style={{
                 padding: `${spacing[2]} ${spacing[3]}`,
                 backgroundColor: colors.danger, border: 'none', borderRadius: radius.full,
-                color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                color: colors.textPrimary, fontSize: 12, fontWeight: 700, cursor: 'pointer',
               }}
             >
               🔥 Nachricht entfernen

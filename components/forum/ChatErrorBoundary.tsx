@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { colors, typography, spacing } from '@/constants/tokens';
+import { colors, typography, spacing, radius } from '@/constants/tokens';
 
 interface State { hasError: boolean; error?: Error }
 
@@ -42,7 +42,7 @@ export class ChatErrorBoundary extends React.Component<
               backgroundColor: colors.accent,
               color: colors.bgPrimary,
               border: 'none',
-              borderRadius: 8,
+              borderRadius: radius.lg,
               padding: `${spacing[3]}px ${spacing[5]}px`,
               cursor: 'pointer',
               ...typography.label,
