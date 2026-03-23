@@ -1,40 +1,23 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Sprout, TrendingUp, Trophy } from 'lucide-react';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
-import { ProgressBar } from '@/components/ui/ProgressBar';
+import { ProgressDots } from '@/components/onboarding/ProgressDots';
 import { useUserStore } from '@/store/userStore';
 import type { TrainingLevel } from '@/types/workout';
 
-const levels: { id: TrainingLevel; label: string; description: string; detail: string; icon: React.ElementType }[] = [
-  {
-    id: 'anfaenger',
-    label: 'Anfänger',
-    description: 'Weniger als 1 Jahr Erfahrung',
-    detail: 'Wir starten mit den Grundübungen und bauen Schritt für Schritt auf.',
-    icon: Sprout,
-  },
-  {
-    id: 'fortgeschritten',
-    label: 'Fortgeschritten',
-    description: '1–3 Jahre Erfahrung',
-    detail: 'Du kennst die Basics und willst systematisch vorankommen.',
-    icon: TrendingUp,
-  },
-  {
-    id: 'profi',
-    label: 'Profi',
-    description: 'Über 3 Jahre Erfahrung',
-    detail: 'Du trainierst seit Jahren konsequent und kennst deinen Körper.',
-    icon: Trophy,
-  },
+const LEVELS: { id: TrainingLevel; label: string; sub: string }[] = [
+  { id: 'anfaenger',     label: 'Gerade gestartet',       sub: 'Weniger als 6 Monate' },
+  { id: 'fortgeschritten', label: 'Ich kenn mich aus',    sub: '6 Monate bis 2 Jahre' },
+  { id: 'profi',         label: 'Ich weiß was ich tue',   sub: '2 bis 4 Jahre' },
+  { id: 'experte',       label: 'Ich trainiere schon lang', sub: '4+ Jahre, ich hab einen Plan' },
 ];
 
-export default function LevelPage() {
+function LevelContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { profile, setOnboardingStep } = useUserStore();
   const [selected, setSelected] = useState<TrainingLevel | null>(
     (profile?.level as TrainingLevel) ?? null
@@ -46,7 +29,11 @@ export default function LevelPage() {
       profile: { ...s.profile, level: selected } as typeof s.profile,
     }));
     setOnboardingStep(4);
-    router.push('/onboarding/days');
+    const editParam = searchParams.get('edit');
+    const target = editParam === 'true'
+      ? '/onboarding/plan-preview?edit=true'
+      : '/onboarding/plan-preview';
+    router.push(target);
   };
 
   return (
@@ -61,12 +48,7 @@ export default function LevelPage() {
       }}
     >
       {/* Progress */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
-        <span style={{ ...typography.label, color: colors.textMuted }}>
-          SCHRITT 4 VON 7
-        </span>
-        <ProgressBar progress={4 / 7} />
-      </div>
+      <ProgressDots total={6} current={4} />
 
       {/* Heading */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
@@ -80,8 +62,7 @@ export default function LevelPage() {
 
       {/* Level Options */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
-        {levels.map((level) => {
-          const Icon = level.icon;
+        {LEVELS.map((level) => {
           const isSelected = selected === level.id;
           return (
             <button
@@ -89,8 +70,8 @@ export default function LevelPage() {
               onClick={() => setSelected(level.id)}
               style={{
                 display: 'flex',
-                flexDirection: 'column',
-                gap: spacing[2],
+                alignItems: 'center',
+                gap: spacing[3],
                 padding: spacing[4],
                 backgroundColor: isSelected ? colors.accentBg : colors.bgCard,
                 border: `1px solid ${isSelected ? colors.accent : colors.border}`,
@@ -100,34 +81,25 @@ export default function LevelPage() {
                 transition: 'all 0.15s',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
-                <Icon size={20} color={isSelected ? colors.accent : colors.textMuted} />
-                <div>
-                  <div style={{ ...typography.bodyLg, color: colors.textPrimary, fontWeight: '600' }}>
-                    {level.label}
-                  </div>
-                  <div style={{ ...typography.bodySm, color: colors.textMuted }}>
-                    {level.description}
-                  </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ ...typography.bodyLg, color: colors.textPrimary, fontWeight: '600' }}>
+                  {level.label}
                 </div>
-                <div
-                  style={{
-                    marginLeft: 'auto',
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    border: `2px solid ${isSelected ? colors.accent : colors.border}`,
-                    backgroundColor: isSelected ? colors.accent : 'transparent',
-                    transition: 'all 0.15s',
-                    flexShrink: 0,
-                  }}
-                />
+                <div style={{ ...typography.bodySm, color: colors.textMuted }}>
+                  {level.sub}
+                </div>
               </div>
-              {isSelected && (
-                <p style={{ ...typography.bodySm, color: colors.accent, marginLeft: '32px' }}>
-                  {level.detail}
-                </p>
-              )}
+              <div
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  border: `2px solid ${isSelected ? colors.accent : colors.border}`,
+                  backgroundColor: isSelected ? colors.accent : 'transparent',
+                  transition: 'all 0.15s',
+                  flexShrink: 0,
+                }}
+              />
             </button>
           );
         })}
@@ -152,5 +124,13 @@ export default function LevelPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function LevelPage() {
+  return (
+    <Suspense>
+      <LevelContent />
+    </Suspense>
   );
 }
