@@ -26,7 +26,7 @@ export default function RootPage() {
       if (onboardingCompleted) {
         router.replace('/dashboard');
       } else {
-        router.replace('/onboarding/name');
+        router.replace('/onboarding/welcome');
       }
     };
 
