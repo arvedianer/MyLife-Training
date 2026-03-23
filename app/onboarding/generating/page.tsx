@@ -1,202 +1,75 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2 } from 'lucide-react';
-import { colors, typography, spacing } from '@/constants/tokens';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useUserStore } from '@/store/userStore';
-import { usePlanStore } from '@/store/planStore';
-import { generateSplitForUser } from '@/constants/splits';
-import { supabase } from '@/lib/supabase';
-import type { UserProfile } from '@/types/user';
+import { colors, spacing, typography } from '@/constants/tokens';
 
-const steps = [
-  'Ziele analysieren...',
-  'Trainingsplan erstellen...',
-  'Übungen auswählen...',
-  'Progressive Overload konfigurieren...',
-  'Plan ist bereit!',
-];
+const GOAL_LABELS: Record<string, string> = {
+  kraft: 'Kraft aufbauen', muskelaufbau: 'Muskeln aufbauen',
+  abnehmen: 'Abnehmen', fitness: 'Fit bleiben', alles: 'Alles', ausdauer: 'Ausdauer',
+};
+const EQUIPMENT_LABELS: Record<string, string> = {
+  vollausgestattet: 'Fitnessstudio', kurzhanteln: 'Zuhause + Equipment',
+  eigengewicht: 'Bodyweight', minimalistisch: 'Minimalistisch',
+};
 
 export default function GeneratingPage() {
   const router = useRouter();
-  const { profile } = useUserStore();
-  const firstName = profile?.name?.split(' ')[0];
+  const profile = useUserStore((s) => s.profile);
+  const [step, setStep] = useState(0);
 
-  const [currentStep, setCurrentStep] = useState(0);
-  const [done, setDone] = useState(false);
+  const dayCount = profile?.trainingWeekdays?.length ?? profile?.trainingDays ?? 3;
+  const goalLabel = GOAL_LABELS[profile?.goal ?? 'fitness'] ?? profile?.goal ?? 'Ziel';
+  const equipLabel = EQUIPMENT_LABELS[profile?.equipment ?? 'vollausgestattet'] ?? profile?.equipment ?? 'Equipment';
 
-  useEffect(() => {
-    // Simulierter Plan-Generierungsprozess
-    let step = 0;
-    const interval = setInterval(() => {
-      step++;
-      setCurrentStep(step);
-      if (step >= steps.length - 1) {
-        clearInterval(interval);
-        setDone(true);
-      }
-    }, 600);
-
-    return () => clearInterval(interval);
-  }, []);
+  const items = [
+    '✓ Körperdaten analysiert',
+    `✓ Ziel: ${goalLabel}`,
+    `✓ ${dayCount} Trainingstage geplant`,
+    `✓ Equipment: ${equipLabel}`,
+    '⏳ Split wird berechnet...',
+    '✓ Plan steht.',
+  ];
 
   useEffect(() => {
-    if (!done || !profile) return;
-
-    // Store-Methoden imperativ aufrufen (vermeidet Endlos-Loop durch instabile Referenzen)
-    const fullProfile: UserProfile = {
-      name: profile.name,
-      goal: profile.goal ?? 'muskelaufbau',
-      level: profile.level ?? 'anfaenger',
-      trainingDays: profile.trainingDays ?? 3,
-      equipment: profile.equipment ?? 'vollausgestattet',
-      weightUnit: 'kg',
-      createdAt: Date.now(),
-    };
-
-    const split = generateSplitForUser(
-      fullProfile.trainingDays,
-      fullProfile.level,
-      fullProfile.goal,
-      fullProfile.equipment
-    );
-
-    usePlanStore.getState().addSplit(split);
-    useUserStore.getState().completeOnboarding(fullProfile);
-
-    // Save onboarding data to Supabase profiles table (best-effort, fire-and-forget)
-    void supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        void supabase
-          .from('profiles')
-          .update({
-            goal: fullProfile.goal,
-            level: fullProfile.level,
-            training_days: fullProfile.trainingDays,
-            equipment: fullProfile.equipment,
-          })
-          .eq('id', user.id);
-      }
-    });
-
-    const timeout = setTimeout(() => {
-      router.replace('/dashboard');
-    }, 1200);
-
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [done]);
+    if (step < items.length) {
+      const t = setTimeout(() => setStep((s) => s + 1), 400);
+      return () => clearTimeout(t);
+    } else {
+      const t = setTimeout(() => router.push('/onboarding/done'), 800);
+      return () => clearTimeout(t);
+    }
+  }, [step, items.length, router]);
 
   return (
-    <div
-      style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: spacing[6],
-        gap: spacing[8],
-      }}
-    >
-      {/* Logo / Brand */}
-      <div style={{ textAlign: 'center' }}>
-        <h1
-          style={{
-            ...typography.display,
-            color: colors.accent,
-            letterSpacing: '-0.02em',
-          }}
-        >
-          MY LIFE
-        </h1>
-        <p style={{ ...typography.body, color: colors.textMuted, marginTop: spacing[2] }}>
-          {done && firstName ? `Bereit, ${firstName}!` : 'Training'}
-        </p>
-      </div>
-
-      {/* Steps */}
-      <div
-        style={{
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: spacing[3],
-        }}
-      >
-        {steps.map((step, index) => {
-          const isCompleted = index < currentStep;
-          const isCurrent = index === currentStep;
-          return (
-            <div
-              key={index}
+    <div style={{
+      minHeight: '100dvh',
+      backgroundColor: colors.bgPrimary,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: `${spacing[6]} ${spacing[5]}`,
+    }}>
+      <div style={{ maxWidth: 400, width: '100%', display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
+        <AnimatePresence>
+          {items.slice(0, step).map((item, i) => (
+            <motion.p
+              key={i}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing[3],
-                opacity: index > currentStep ? 0.3 : 1,
-                transition: 'opacity 0.3s',
+                ...typography.bodyLg,
+                color: i === items.length - 1 ? colors.accent : colors.textSecondary,
+                margin: 0,
               }}
             >
-              <div
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                {isCompleted ? (
-                  <CheckCircle2 size={22} color={colors.success} />
-                ) : isCurrent ? (
-                  <div
-                    style={{
-                      width: '16px',
-                      height: '16px',
-                      borderRadius: '50%',
-                      border: `2px solid ${colors.accent}`,
-                      borderTopColor: 'transparent',
-                      animation: 'spin 0.6s linear infinite',
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: colors.bgHighest,
-                    }}
-                  />
-                )}
-              </div>
-              <span
-                style={{
-                  ...typography.body,
-                  color: isCompleted
-                    ? colors.success
-                    : isCurrent
-                    ? colors.textPrimary
-                    : colors.textDisabled,
-                  transition: 'color 0.3s',
-                }}
-              >
-                {step}
-              </span>
-            </div>
-          );
-        })}
+              {item}
+            </motion.p>
+          ))}
+        </AnimatePresence>
       </div>
-
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }
