@@ -38,6 +38,12 @@ export const GOAL_THEMES: Record<WorkoutGoal, GoalTheme> = {
     accentBg: '#00B4D815',
     label: 'Ausdauer',
   },
+  alles: {
+    accent: '#4DFFED',
+    accentDark: '#00CCC0',
+    accentBg: '#4DFFED15',
+    label: 'Alles',
+  },
 };
 
 export function getGoalTheme(goal: WorkoutGoal | undefined): GoalTheme {

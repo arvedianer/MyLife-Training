@@ -78,9 +78,10 @@ export type WorkoutGoal =
   | 'kraft'
   | 'abnehmen'
   | 'fitness'
-  | 'ausdauer';
+  | 'ausdauer'
+  | 'alles';
 
-export type TrainingLevel = 'anfaenger' | 'fortgeschritten' | 'profi';
+export type TrainingLevel = 'anfaenger' | 'fortgeschritten' | 'profi' | 'experte';
 
 export type TrainingDays = 2 | 3 | 4 | 5 | 6;
 
