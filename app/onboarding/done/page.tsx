@@ -14,9 +14,10 @@ export default function DonePage() {
   const activeSplit = usePlanStore((s) => s.getActiveSplit());
 
   const handleStart = () => {
-    completeOnboarding(profile!);  // sets onboardingCompleted: true
-    startTour();                    // sets tourActive: true, tourStep: 0
-    router.replace('/');            // navigate to dashboard (tour will take over)
+    if (!profile) return;
+    completeOnboarding(profile);   // sets onboardingCompleted: true
+    startTour();                   // sets tourActive: true, tourStep: 0
+    router.replace('/');           // navigate to dashboard (tour will take over)
   };
 
   return (
@@ -27,7 +28,10 @@ export default function DonePage() {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: `${spacing[6]} ${spacing[5]}`,
+      paddingTop: spacing[6],
+      paddingBottom: spacing[6],
+      paddingLeft: spacing[5],
+      paddingRight: spacing[5],
       gap: spacing[8],
     }}>
       <motion.div
