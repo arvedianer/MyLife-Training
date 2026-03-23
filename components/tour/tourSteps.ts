@@ -1,0 +1,36 @@
+// components/tour/tourSteps.ts
+
+export interface TourStep {
+  id: number;             // 1-based for display
+  route: string;          // route to navigate to before showing step
+  selector: string;       // CSS selector for spotlight target
+  text: string;           // Arved's speech bubble text
+  action: 'next' | 'tap'; // 'next' = Weiter button; 'tap' = user taps the highlighted element
+}
+
+export const TOUR_STEPS: TourStep[] = [
+  { id: 1,  route: '/',                            selector: '[data-tour="streak-card"]',         text: 'Das ist dein Dashboard. Streak, Wochenvolumen, Athlete Score — alles auf einen Blick.',                                                                            action: 'next' },
+  { id: 2,  route: '/',                            selector: '[data-tour="athlete-score"]',        text: 'Der Athlete Score geht von 0 bis 1000. Fünf Dimensionen — Kraft, Konsistenz, Volumen, Ausdauer, Ausgewogenheit. Keine fake Zahl.',                                action: 'next' },
+  { id: 3,  route: '/',                            selector: '[data-tour="nav-stats"]',            text: 'Auf Stats siehst du wie du dich langfristig entwickelst.',                                                                                                         action: 'tap'  },
+  { id: 4,  route: '/stats',                       selector: '[data-tour="heatmap"]',              text: 'Die Heatmap zeigt wann du trainiert hast. Grüner = mehr Volumen.',                                                                                                 action: 'next' },
+  { id: 5,  route: '/stats',                       selector: '[data-tour="benchmarks"]',           text: 'Die Benchmarks vergleichen deine Lifts mit Trainierenden auf deinem Level. Ehrlich.',                                                                              action: 'next' },
+  { id: 6,  route: '/stats',                       selector: '[data-tour="nav-splits"]',           text: 'Jetzt zu deinem Plan.',                                                                                                                                            action: 'tap'  },
+  { id: 7,  route: '/splits',                      selector: '[data-tour="active-split-card"]',    text: 'Das ist dein Trainingsplan — generiert auf Basis deiner Antworten. Du kannst ihn komplett anpassen.',                                                              action: 'tap'  },
+  { id: 8,  route: '/splits/[first-split]',        selector: '[data-tour="split-day-card"]',       text: 'Das sind deine Trainingstage. Jeder Tag hat seine Übungen. Tippe auf einen Tag.',                                                                                  action: 'tap'  },
+  { id: 9,  route: '/splits/[first-split]/[first-day]', selector: '[data-tour="split-exercise-list"]', text: 'Hier siehst du alle Übungen für diesen Tag. Reihenfolge per Drag & Drop änderbar — halte eine Übung gedrückt.',                                               action: 'next' },
+  { id: 10, route: '/',                            selector: '[data-tour="coach-bubble"]',         text: 'Und dann noch das hier.',                                                                                                                                          action: 'tap'  },
+  { id: 11, route: '/chat',                        selector: '[data-tour="coach-suggestions"]',    text: 'Das bin ich — Coach Arved. Ich kenn deine Daten, deine PRs, deine verpassten Sessions. Frag mich was du willst.',                                                  action: 'tap'  },
+  { id: 12, route: '/chat',                        selector: '[data-tour="coach-response"]',       text: 'Genau so antworte ich. Direkt, ohne Filler.',                                                                                                                      action: 'next' },
+  { id: 13, route: '/chat',                        selector: '[data-tour="nav-forum"]',            text: 'Und das Forum.',                                                                                                                                                   action: 'tap'  },
+  { id: 14, route: '/forum',                       selector: '[data-tour="forum-tabs"]',           text: 'General Chat, Freunde, Community. Im Community-Tab siehst du live wer gerade trainiert.',                                                                          action: 'next' },
+  { id: 15, route: '/forum',                       selector: '[data-tour="nav-start"]',            text: 'Okay. Jetzt das Wichtigste. Dein erstes Workout.',                                                                                                                 action: 'tap'  },
+  { id: 16, route: '/start',                       selector: '[data-tour="start-button"]',         text: 'Das ist dein heutiger Plan. Klick auf Training starten.',                                                                                                          action: 'tap'  },
+  { id: 17, route: '/workout/active',              selector: '[data-tour="workout-exercise-list"]', text: 'Das ist dein aktives Workout. Alle Übungen für heute. Tippe auf eine Übung.',                                                                                     action: 'tap'  },
+  { id: 18, route: '/workout/active',              selector: '[data-tour="set-input"]',            text: 'Trag dein Gewicht und deine Wiederholungen ein. Der Vorschlag basiert auf deinen Angaben. Dann: Haken.',                                                           action: 'tap'  },
+  { id: 19, route: '/workout/active',              selector: '[data-tour="rest-timer"]',           text: 'Der Timer startet automatisch nach jedem Satz. Du weißt immer wann du wieder loslegen kannst — oder überspringst ihn.',                                            action: 'next' },
+  { id: 20, route: '/workout/active',              selector: '[data-tour="exercise-options"]',     text: 'Das Zahnrad öffnet Optionen für jede Übung — Notizen, Gewichtsverlauf, Übung tauschen.',                                                                           action: 'tap'  },
+  { id: 21, route: '/workout/active',              selector: '[data-tour="finish-button"]',        text: 'Wenn du fertig bist: Training beenden.',                                                                                                                           action: 'tap'  },
+  { id: 22, route: '/workout/summary',             selector: '[data-tour="summary-stats"]',        text: 'Das ist deine Zusammenfassung — Volumen, PRs, Score-Veränderung. Das bleibt gespeichert.',                                                                          action: 'next' },
+  { id: 23, route: '/log',                         selector: '[data-tour="first-log-entry"]',      text: 'Das ist dein erstes Workout in der History. Das war unser Tutorial — du kannst es löschen. Wisch nach links.',                                                     action: 'tap'  },
+  { id: 24, route: '/',                            selector: 'body',                               text: 'Das war alles. Du kennst die App jetzt. Dein echter Plan startet hier.',                                                                                           action: 'next' },
+];

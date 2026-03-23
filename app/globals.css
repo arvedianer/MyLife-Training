@@ -164,3 +164,9 @@ input, textarea {
 input[data-ghost="true"]::placeholder {
   color: rgba(255, 255, 255, 0.35);
 }
+
+/* ── Tour Spotlight — elevate target element above overlay ──────────────── */
+[data-tour-active="true"] {
+  position: relative !important;
+  z-index: 10000 !important;
+}
