@@ -1,43 +1,39 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Building2, Dumbbell, User, Package } from 'lucide-react';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Building2, Dumbbell, User } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
-import { ProgressBar } from '@/components/ui/ProgressBar';
+import { ProgressDots } from '@/components/onboarding/ProgressDots';
 import { useUserStore } from '@/store/userStore';
 import type { EquipmentType } from '@/types/workout';
 
-const equipmentOptions: { id: EquipmentType; label: string; description: string; icon: React.ElementType }[] = [
+const EQUIPMENT_OPTIONS: { id: EquipmentType; label: string; sub: string; icon: React.ElementType }[] = [
   {
     id: 'vollausgestattet',
-    label: 'Vollständiges Gym',
-    description: 'Langhanteln, Kurzhanteln, Kabelzug, Maschinen',
+    label: 'Fitnessstudio',
+    sub: 'Freie Gewichte, Kabelzug, Maschinen',
     icon: Building2,
   },
   {
     id: 'kurzhanteln',
-    label: 'Kurzhanteln',
-    description: 'Nur Kurzhanteln — Heimtraining',
+    label: 'Zuhause + Equipment',
+    sub: 'Hanteln, Stange, Bank',
     icon: Dumbbell,
   },
   {
     id: 'eigengewicht',
-    label: 'Eigengewicht',
-    description: 'Kein Equipment — Bodyweight only',
+    label: 'Nur Bodyweight',
+    sub: 'Kein Equipment',
     icon: User,
-  },
-  {
-    id: 'minimalistisch',
-    label: 'Minimalistisch',
-    description: 'Kurzhanteln + Klimmzugstange',
-    icon: Package,
   },
 ];
 
-export default function EquipmentPage() {
+function EquipmentPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isEdit = searchParams.get('edit') === 'true';
   const { profile, setOnboardingStep } = useUserStore();
   const [selected, setSelected] = useState<EquipmentType | null>(
     (profile?.equipment as EquipmentType) ?? null
@@ -49,7 +45,7 @@ export default function EquipmentPage() {
       profile: { ...s.profile, equipment: selected } as typeof s.profile,
     }));
     setOnboardingStep(6);
-    router.push('/onboarding/generating');
+    router.push(isEdit ? '/settings' : '/onboarding/generating');
   };
 
   return (
@@ -64,12 +60,7 @@ export default function EquipmentPage() {
       }}
     >
       {/* Progress */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
-        <span style={{ ...typography.label, color: colors.textMuted }}>
-          SCHRITT 6 VON 7
-        </span>
-        <ProgressBar progress={6 / 7} />
-      </div>
+      <ProgressDots total={6} current={6} />
 
       {/* Heading */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
@@ -84,12 +75,12 @@ export default function EquipmentPage() {
       {/* Equipment Options */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          display: 'flex',
+          flexDirection: 'column',
           gap: spacing[3],
         }}
       >
-        {equipmentOptions.map((option) => {
+        {EQUIPMENT_OPTIONS.map((option) => {
           const Icon = option.icon;
           const isSelected = selected === option.id;
           return (
@@ -98,9 +89,9 @@ export default function EquipmentPage() {
               onClick={() => setSelected(option.id)}
               style={{
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                gap: spacing[3],
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing[4],
                 padding: spacing[4],
                 backgroundColor: isSelected ? colors.accentBg : colors.bgCard,
                 border: `1px solid ${isSelected ? colors.accent : colors.border}`,
@@ -108,16 +99,15 @@ export default function EquipmentPage() {
                 cursor: 'pointer',
                 textAlign: 'left',
                 transition: 'all 0.15s',
-                minHeight: '120px',
               }}
             >
               <Icon size={22} color={isSelected ? colors.accent : colors.textMuted} />
               <div>
-                <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600', marginBottom: '4px' }}>
+                <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600', marginBottom: '2px' }}>
                   {option.label}
                 </div>
-                <div style={{ ...typography.bodySm, color: colors.textMuted, lineHeight: '16px' }}>
-                  {option.description}
+                <div style={{ ...typography.bodySm, color: colors.textMuted }}>
+                  {option.sub}
                 </div>
               </div>
             </button>
@@ -140,9 +130,17 @@ export default function EquipmentPage() {
           ← Zurück
         </button>
         <Button fullWidth size="lg" disabled={!selected} onClick={handleContinue}>
-          Plan erstellen
+          {isEdit ? 'Speichern' : 'Plan erstellen'}
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function EquipmentPage() {
+  return (
+    <Suspense>
+      <EquipmentPageInner />
+    </Suspense>
   );
 }
