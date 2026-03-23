@@ -17,6 +17,10 @@ export class ChatErrorBoundary extends React.Component<
     return { hasError: true, error };
   }
 
+  override componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[ChatErrorBoundary]', error, info.componentStack);
+  }
+
   override render() {
     if (this.state.hasError) {
       return (
@@ -43,7 +47,7 @@ export class ChatErrorBoundary extends React.Component<
               color: colors.bgPrimary,
               border: 'none',
               borderRadius: radius.lg,
-              padding: `${spacing[3]}px ${spacing[5]}px`,
+              padding: `${spacing[3]} ${spacing[5]}`,
               cursor: 'pointer',
               ...typography.label,
             }}
