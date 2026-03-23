@@ -171,7 +171,7 @@ export const usePlanStore = create<PlanState>()(
         const adjustedDay = (dayOfWeek + 6) % 7; // [0=Mo, 1=Di, ..., 6=So]
 
         // Access userStore state directly (non-hook access — safe inside a Zustand action)
-        const weekdays = (useUserStore.getState() as { profile?: { trainingWeekdays?: number[] } }).profile?.trainingWeekdays;
+        const weekdays = useUserStore.getState().profile?.trainingWeekdays;
 
         if (Array.isArray(weekdays) && weekdays.length > 0) {
           if (!weekdays.includes(adjustedDay)) return undefined; // rest day
