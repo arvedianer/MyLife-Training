@@ -4,6 +4,7 @@ import { use, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Send } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
+import { ChatErrorBoundary } from '@/components/forum/ChatErrorBoundary';
 import { useChannel } from '@/hooks/useChannel';
 import { MessageBubble } from '@/components/forum/MessageBubble';
 import { WorkoutCardMessage } from '@/components/forum/WorkoutCardMessage';
@@ -114,14 +115,22 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
 
   if (loading && messages.length === 0) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh',
-        backgroundColor: colors.bgPrimary, alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: colors.textMuted, fontSize: 14 }}>Lädt...</div>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgPrimary }}>
+        <p style={{ ...typography.body, color: colors.textMuted }}>Laden...</p>
+      </div>
+    );
+  }
+
+  if (!channelMeta) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgPrimary }}>
+        <p style={{ ...typography.body, color: colors.textMuted }}>Kanal nicht gefunden.</p>
       </div>
     );
   }
 
   return (
+    <ChatErrorBoundary>
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', backgroundColor: colors.bgPrimary, position: 'relative' }}>
       {/* Header */}
       <div style={{
@@ -270,5 +279,6 @@ export default function ChatPage({ params }: { params: Promise<{ channelId: stri
         />
       )}
     </div>
+    </ChatErrorBoundary>
   );
 }
