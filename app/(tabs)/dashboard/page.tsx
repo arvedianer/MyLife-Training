@@ -198,6 +198,7 @@ export default function DashboardPage() {
       {/* Start Workout CTA */}
       <Link href="/start" style={{ display: 'block' }}>
         <div
+          data-tour="athlete-score"
           style={{
             background: `linear-gradient(135deg, ${colors.accentBg} 0%, ${colors.bgCard} 100%)`,
             border: `1px solid ${colors.accent}30`,
@@ -241,7 +242,7 @@ export default function DashboardPage() {
       </Link>
 
       {/* Stats Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing[3] }}>
+      <div data-tour="streak-card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing[3] }}>
         <StatCard
           icon={<Flame size={18} color={colors.success} />}
           value={String(streak)}

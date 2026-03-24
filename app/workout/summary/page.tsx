@@ -321,6 +321,7 @@ function SummaryContent() {
 
       {/* STATS */}
       <div
+        data-tour="summary-stats"
         style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr 1fr 1fr',

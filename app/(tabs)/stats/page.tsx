@@ -288,7 +288,7 @@ export default function StatsPage() {
       </div>
 
       {/* ══ HEATMAP — FIRST ══ */}
-      <div>
+      <div data-tour="heatmap">
         <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>
           Muskelgruppen
         </h2>
@@ -459,7 +459,7 @@ export default function StatsPage() {
 
       {/* ── BENCHMARKS ── */}
       {(strengthPercentiles.length > 0 || sessions.length >= 3) && (
-        <div style={{ marginBottom: spacing[4] }}>
+        <div data-tour="benchmarks" style={{ marginBottom: spacing[4] }}>
           <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: 'var(--font-barlow)' }}>
             Vergleiche
           </h2>

@@ -46,6 +46,7 @@ export default function SplitsPage() {
     return (
       <div
         key={split.id}
+        {...(isActive ? { 'data-tour': 'active-split-card' } : {})}
         style={{
           backgroundColor: isActive ? colors.accentBg : colors.bgCard,
           border: `1px solid ${isActive ? colors.accent + '40' : colors.border}`,

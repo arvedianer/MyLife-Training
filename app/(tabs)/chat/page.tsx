@@ -833,6 +833,7 @@ export default function ChatPage() {
               initial={{ opacity: 0, y: 8, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
+              {...(msg.role === 'assistant' && messages.filter(m => m.role === 'assistant').indexOf(msg) === 0 ? { 'data-tour': 'coach-response' } : {})}
               style={{ display: 'flex', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row', gap: spacing[2], alignItems: 'flex-end' }}
             >
               {msg.role === 'assistant' && (
@@ -971,7 +972,7 @@ export default function ChatPage() {
 
       {/* Quick-reply chips */}
       {showQuickReplies && messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[2], padding: `${spacing[2]} ${spacing[4]}`, flexShrink: 0 }}>
+        <div data-tour="coach-suggestions" style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[2], padding: `${spacing[2]} ${spacing[4]}`, flexShrink: 0 }}>
           {QUICK_REPLIES.map((reply) => (
             <button
               key={reply}

@@ -1,0 +1,46 @@
+
+> my-life-training-web@0.1.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use, trying 3001 instead.
+  ▲ Next.js 14.2.29
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3.1s
+ ○ Compiling / ...
+ ✓ Compiled / in 4.7s (698 modules)
+ GET / 200 in 5019ms
+ ○ Compiling /auth/login ...
+ ✓ Compiled /auth/login in 3.2s (726 modules)
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 5.2s (1990 modules)
+ GET /dashboard 200 in 5366ms
+ ✓ Compiled /onboarding/name in 427ms (1994 modules)
+ ○ Compiling /onboarding/goal ...
+ ✓ Compiled /onboarding/goal in 640ms (1382 modules)
+ ✓ Compiled /onboarding/level in 380ms (1395 modules)
+ ✓ Compiled /onboarding/days in 394ms (1401 modules)
+ ✓ Compiled /onboarding/equipment in 403ms (1415 modules)
+ ○ Compiling /onboarding/generating ...
+ ✓ Compiled /onboarding/generating in 669ms (1396 modules)
+ ✓ Compiled /dashboard in 502ms (1021 modules)
+ ○ Compiling /start ...
+ ✓ Compiled /start in 754ms (2049 modules)
+ GET /start 200 in 899ms
+ ○ Compiling /workout/active ...
+ ✓ Compiled /workout/active in 3.3s (2893 modules)
+ ○ Compiling /splits ...
+ ✓ Compiled /splits in 705ms (2862 modules)
+ GET /splits 200 in 890ms
+ ○ Compiling /exercises ...
+ ✓ Compiled /exercises in 738ms (2867 modules)
+ GET /exercises 200 in 860ms
+ ○ Compiling /stats ...
+ ✓ Compiled /stats in 3.7s (3921 modules)
+ GET /stats 200 in 3956ms
+ ○ Compiling /chat ...
+ ✓ Compiled /chat in 8.5s (4453 modules)
+ GET /chat 200 in 8847ms
+ ✓ Compiled in 9.4s (4445 modules)

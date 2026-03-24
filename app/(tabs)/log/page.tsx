@@ -128,11 +128,12 @@ export default function LogPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
-          {sessions.map((session) => {
+          {sessions.map((session, idx) => {
             const isSelected = selectedIds.includes(session.id);
 
             const cardContent = (
               <div
+                {...(idx === 0 ? { 'data-tour': 'first-log-entry' } : {})}
                 style={{
                   backgroundColor: isSelected ? colors.accentBg : colors.bgCard,
                   border: `1px solid ${isSelected ? colors.accent + '60' : colors.border}`,

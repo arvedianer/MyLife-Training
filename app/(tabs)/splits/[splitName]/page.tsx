@@ -338,6 +338,7 @@ export default function SplitDetailPage({
             {split.days.map((day, idx) => (
               <div
                 key={day.id}
+                {...(idx === 0 ? { 'data-tour': 'split-day-card' } : {})}
                 style={{
                   backgroundColor: colors.bgCard,
                   border: `1px solid ${colors.border}`,
@@ -390,7 +391,7 @@ export default function SplitDetailPage({
                 )}
 
                 {/* Exercises */}
-                <div style={{ padding: `${spacing[2]} ${spacing[4]}` }}>
+                <div data-tour="split-exercise-list" style={{ padding: `${spacing[2]} ${spacing[4]}` }}>
                   {day.exerciseIds.map((exId) => {
                     const ex = getExerciseById(exId);
                     if (!ex) return null;

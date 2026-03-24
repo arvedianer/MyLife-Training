@@ -33,11 +33,12 @@ export function BottomNav() {
     >
       {/* Left tabs */}
       <NavTab href="/dashboard" icon={<Home size={22} color={isActive('/dashboard') ? colors.accent : colors.textDisabled} />} label="Home" active={isActive('/dashboard')} />
-      <NavTab href="/splits" icon={<Layers size={22} color={isActive('/splits') ? colors.accent : colors.textDisabled} />} label="Splits" active={isActive('/splits')} />
+      <NavTab href="/splits" dataTour="nav-splits" icon={<Layers size={22} color={isActive('/splits') ? colors.accent : colors.textDisabled} />} label="Splits" active={isActive('/splits')} />
 
       {/* Center FAB */}
       <Link
         href="/start"
+        data-tour="nav-start"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -64,6 +65,7 @@ export function BottomNav() {
       {/* Right tabs */}
       <NavTab
         href="/forum"
+        dataTour="nav-forum"
         icon={
           <div style={{ position: 'relative', display: 'inline-flex' }}>
             <MessageCircle size={22} color={isActive('/forum') ? colors.accent : colors.textDisabled} />
@@ -86,7 +88,7 @@ export function BottomNav() {
         label="Forum"
         active={isActive('/forum')}
       />
-      <NavTab href="/stats" icon={<BarChart2 size={22} color={isActive('/stats') ? colors.accent : colors.textDisabled} />} label="Stats" active={isActive('/stats')} />
+      <NavTab href="/stats" dataTour="nav-stats" icon={<BarChart2 size={22} color={isActive('/stats') ? colors.accent : colors.textDisabled} />} label="Stats" active={isActive('/stats')} />
     </nav>
   );
 }
@@ -96,12 +98,14 @@ interface NavTabProps {
   icon: React.ReactNode;
   label: string;
   active: boolean;
+  dataTour?: string;
 }
 
-function NavTab({ href, icon, label, active }: NavTabProps) {
+function NavTab({ href, icon, label, active, dataTour }: NavTabProps) {
   return (
     <Link
       href={href}
+      {...(dataTour ? { 'data-tour': dataTour } : {})}
       style={{
         display: 'flex',
         flexDirection: 'column',

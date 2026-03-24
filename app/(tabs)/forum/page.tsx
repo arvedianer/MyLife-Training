@@ -94,7 +94,7 @@ export default function ForumPage() {
       </div>
 
       {/* Tab Bar */}
-      <div style={{
+      <div data-tour="forum-tabs" style={{
         display: 'flex', borderBottom: `1px solid ${colors.border}`,
         padding: `${spacing[3]} ${spacing[4]} 0`,
         gap: spacing[2], flexShrink: 0,

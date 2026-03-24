@@ -293,6 +293,7 @@ export default function StartPage() {
               <Button
                 fullWidth
                 size="lg"
+                data-tour="start-button"
                 onClick={handleStartPlanned}
                 disabled={!!activeWorkout}
               >
@@ -431,6 +432,7 @@ export default function StartPage() {
               Übungen frei wählen, kein Plan nötig
             </p>
             <button
+              data-tour="start-button"
               onClick={activeWorkout ? undefined : handleStartFree}
               disabled={!!activeWorkout}
               style={{

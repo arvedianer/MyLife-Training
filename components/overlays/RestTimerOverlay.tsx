@@ -98,6 +98,7 @@ export function RestTimerOverlay({
   // ── Full overlay ────────────────────────────────────────────────────────
   return createPortal(
     <div
+      data-tour="rest-timer"
       style={{
         position: 'fixed',
         inset: 0,

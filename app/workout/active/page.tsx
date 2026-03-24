@@ -573,7 +573,7 @@ export default function ActiveWorkoutPage() {
                 items={activeWorkout.exercises.map(e => e.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
+                <div data-tour="workout-exercise-list" style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
                   {activeWorkout.exercises.map((workoutExercise) => {
                     const suggestion = calculateOverloadSuggestion(
                       workoutExercise.exercise.id,
@@ -617,6 +617,7 @@ export default function ActiveWorkoutPage() {
               <Button
                 fullWidth
                 style={{ flex: 2 }}
+                data-tour="finish-button"
                 onClick={handleFinish}
                 disabled={activeWorkout.exercises.length === 0}
               >

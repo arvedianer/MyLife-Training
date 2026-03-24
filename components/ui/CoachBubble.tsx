@@ -14,6 +14,7 @@ export function CoachBubble() {
   return (
     <Link
       href="/chat"
+      data-tour="coach-bubble"
       aria-label="Coach Arved öffnen"
       style={{
         position: 'fixed',

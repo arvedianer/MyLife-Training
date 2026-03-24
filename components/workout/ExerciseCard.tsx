@@ -185,6 +185,7 @@ export function ExerciseCard({
 
         {/* Settings button */}
         <button
+          data-tour="exercise-options"
           onClick={() => setShowSettings(true)}
           className={styles.settingsBtn}
           aria-label="Übungseinstellungen"
@@ -281,8 +282,8 @@ export function ExerciseCard({
 
           {/* Set Rows */}
           {sets.map((set, index) => (
+            <div key={set.id} {...(index === 0 ? { 'data-tour': 'set-input' } : {})}>
             <SetRow
-              key={set.id}
               set={set}
               setNumber={index + 1}
               exerciseId={workoutExercise.id}
@@ -300,6 +301,7 @@ export function ExerciseCard({
               previousWeight={lastSets[index]?.weight}
               previousReps={lastSets[index]?.reps}
             />
+            </div>
           ))}
 
           {/* Add Set Button */}

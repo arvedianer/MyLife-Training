@@ -10,6 +10,7 @@ import { useUserStore } from '@/store/userStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { usePlanStore } from '@/store/planStore';
 import { useWorkoutStore } from '@/store/workoutStore';
+import { useTourStore } from '@/store/tourStore';
 import { supabase } from '@/lib/supabase';
 import { loadMockData } from '@/utils/mockData';
 
@@ -44,6 +45,8 @@ export default function SettingsPage() {
     useUserStore();
   const { sessions } = useHistoryStore();
   const { splits } = usePlanStore();
+  const resetTour = useTourStore((s) => s.resetTour);
+  const startTour = useTourStore((s) => s.startTour);
 
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -306,8 +309,50 @@ export default function SettingsPage() {
               <InfoRow label="Level" value={profile.level} />
               <InfoRow label="Trainingstage" value={`${profile.trainingDays}x / Woche`} />
               <InfoRow label="Equipment" value={profile.equipment} />
+
+              {/* Profil bearbeiten */}
+              <button
+                onClick={() => router.push('/onboarding/body?edit=true')}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  width: '100%',
+                  padding: `${spacing[3]} 0`,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ ...typography.body, color: colors.accent }}>Profil bearbeiten</span>
+                <ChevronRight size={16} color={colors.accent} />
+              </button>
             </Section>
           )}
+
+          {/* ── APP ───────────────────────────────────────────────────── */}
+          <Section title="App">
+            <button
+              onClick={() => {
+                resetTour();
+                startTour();
+                router.push('/');
+              }}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                width: '100%',
+                padding: `${spacing[3]} 0`,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <span style={{ ...typography.body, color: colors.textPrimary }}>App-Tour wiederholen</span>
+              <ChevronRight size={16} color={colors.textMuted} />
+            </button>
+          </Section>
 
           {/* ── EINHEITEN & TIMER ─────────────────────────────────────── */}
           <Section title="Einheiten & Timer">

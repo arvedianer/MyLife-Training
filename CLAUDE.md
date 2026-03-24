@@ -356,5 +356,80 @@ Checkliste für jeden neuen Screen:
 
 ---
 
-*Letzte Aktualisierung: März 2026 · Version 1.1*
+---
+
+## 11. NEUE UTILITIES (März 2026)
+
+Diese Utilities existieren — vor Neubau prüfen ob sie passen:
+
+| Datei | Funktion | Rückgabe |
+|-------|----------|----------|
+| `utils/athleteScore.ts` | `computeAthleteScore(sessions, bodyWeight)` | `AthleteScoreResult` (total 0–1000, 5 Dimensionen) |
+| `utils/athleteScore.ts` | `athleteScoreLabel(score)` | Tier-String: Einsteiger → Legende |
+| `utils/strengthStandards.ts` | `computeStrengthPercentiles(ormMap, bodyWeight)` | Percentile 0–99 für 4 Hauptübungen |
+| `utils/oneRepMax.ts` | `estimateOneRepMax(weight, reps)` | Epley-Formel, nur reps 1–10, sonst `null` |
+| `utils/muscleRecovery.ts` | `computeMuscleRecovery(sessions)` | `MuscleRecovery[]` — hat `recoveryRatio: number` (0–1) |
+| `utils/personalRecords.ts` | `computePersonalRecords(sessions)` | PRs inkl. `bestOneRepMax` |
+
+**Exercise-IDs für Strength Standards:** `'bench-press'` · `'squat'` · `'deadlift'` · `'overhead-press'`
+
+---
+
+## 12. STORE-ERWEITERUNGEN (März 2026)
+
+**`userStore`:**
+- `lifetimeAthleteScore: number` — Athleten-Score, sinkt nie (`Math.max`)
+- `updateLifetimeAthleteScore(score)` — persistierte Lifetime-Best-Logik
+
+**`UserProfile`** (in `types/user.ts`):
+- `age?: number` — Alter in Jahren
+- `bodyWeight?: number` — Körpergewicht **immer in kg**, egal was `weightUnit` sagt
+
+---
+
+## 13. GOTCHAS — UNBEDINGT LESEN
+
+Diese Fehler haben schon Zeit gekostet. Nie wieder:
+
+- **Settings-Datei:** liegt bei `app/settings/page.tsx` — **NICHT** `app/(tabs)/settings.tsx`
+- **Stale `.next` Cache:** Nach Hintergrund-Agent-Edits → `rm -rf .next` + Dev-Server neu starten, sonst RSC-Fehler
+- **`eachDayOfInterval` + Lifetime-Mode:** Ohne Guard generiert das zehntausende Tage und crasht. Immer `{timeRange !== 'lifetime' && ...}` drumrum
+- **`ex.exercise?.primaryMuscle` Typ:** Ist `MuscleGroup` (string union) — kein `as string | undefined` Cast nötig, TypeScript meckert sonst
+- **Side-Effects nie in `useMemo`:** Store-Updates (z.B. Score persistieren) gehören in `useEffect`, nicht `useMemo` — Linter wirft sonst Fehler
+- **Worktrees:** `.worktrees/` existiert bereits und ist gitignored — direkt per `git worktree add .worktrees/<name> -b <branch>` nutzbar
+- **Stats-Page `Period` → `TimeRange`:** Der alte 4-Tab Selektor (`thisWeek/lastWeek/thisMonth/lastMonth`) wurde durch einen 3-Button Toggle (`week/month/lifetime`) ersetzt. `getPeriodRange` gibt jetzt `{ start, end, sessions }` zurück — nicht mehr nur `{ start, end }`
+
+---
+
+## 14. STATS-SEITE ARCHITEKTUR (nach Rework März 2026)
+
+Reihenfolge der Sections in `app/(tabs)/stats/page.tsx`:
+
+```
+TimeRange Toggle (Woche / Monat / Lebenszeit)
+  ↓
+Heatmap (reagiert auf Toggle)
+  ↓
+Fehlende Muskelgruppen
+  ↓
+Muskel-Erholung (Progress-Bar-Grid, status-basiert)
+  ↓
+Athleten-Score (0–1000, Lifetime-Rekord, Tier-Label)
+  ↓
+5 Dimensionen (2×2+1 Grid: Stärke/Konsistenz/Volumen/Ausdauer/Ausgewogenheit)
+  ↓
+Benchmarks (ExRx Percentile + Frequenz-Vergleich)
+  ↓
+Lebenszeit-Zahlen (nur in Lifetime-Mode: Tonnen/Sessions/Stunden + Eiffelturm-Fun-Fact)
+  ↓
+3 Key Metrics (Einheiten / Volumen / Ø Dauer)
+  ↓
+Trainingskalender (nur in Week/Month-Mode)
+  ↓
+Volumen-Chart
+```
+
+---
+
+*Letzte Aktualisierung: März 2026 · Version 1.2*
 *Stack: Next.js 14 + Supabase + Zustand + Recharts + Framer Motion*
