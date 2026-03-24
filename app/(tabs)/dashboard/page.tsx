@@ -6,13 +6,12 @@ import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target, Mess
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { BodyHeatmap } from '@/components/ui/BodyHeatmap';
 import { useUserStore } from '@/store/userStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { usePlanStore } from '@/store/planStore';
 import { formatWorkoutDate, formatDuration, formatVolume, calculateStreak } from '@/utils/dates';
 import { parseISO } from 'date-fns';
-import { getMissingMuscles, getRemainingWeekDays, getWeeklyMuscleStatus, MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
+import { getMissingMuscles, getRemainingWeekDays, MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
 import { useAutoRestDay } from '@/hooks/useAutoRestDay';
 import { generateSuggestions } from '@/utils/workoutSuggestions';
 
@@ -44,10 +43,6 @@ export default function DashboardPage() {
   const missingMuscles = getMissingMuscles(sessions, Object.keys(MUSCLE_LABELS_DE));
   const showMuscleWarning = daysLeft > 0 && missingMuscles.length > 0;
 
-  // Compact heatmap data — use getWeeklyMuscleStatus for consistency with warning logic
-  const weeklyStatus = getWeeklyMuscleStatus(sessions);
-  const muscleSets = Object.fromEntries(weeklyStatus.map((s) => [s.muscleId, s.setsThisWeek]));
-  const maxMuscleSets = Math.max(...weeklyStatus.map((s) => s.setsThisWeek), 1);
 
   // Smart suggestions
   const suggestions = useMemo(() => generateSuggestions(sessions), [sessions]);
@@ -297,18 +292,55 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Body Heatmap */}
-      <div style={{
-        backgroundColor: colors.bgCard,
-        border: `1px solid ${colors.border}`,
-        borderRadius: radius.xl,
-        padding: spacing[3],
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        <BodyHeatmap muscleSets={muscleSets} maxSets={maxMuscleSets} />
-      </div>
+      {/* Week Training Calendar */}
+      {(() => {
+        const today = new Date();
+        const jsDay = today.getDay(); // 0=Sun
+        const mondayOffset = jsDay === 0 ? -6 : 1 - jsDay;
+        const monday = new Date(today);
+        monday.setDate(today.getDate() + mondayOffset);
+        const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+        const weekDays = DAY_LABELS.map((label, i) => {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          return { label, date: d.toISOString().split('T')[0] };
+        });
+        const todayStr = today.toISOString().split('T')[0];
+        const trainedDates = new Set(sessions.map((s) => s.date));
+        return (
+          <div style={{
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.xl,
+            padding: spacing[4],
+          }}>
+            <p style={{ ...typography.label, color: colors.textMuted, marginBottom: spacing[3], margin: `0 0 ${spacing[3]}` }}>DIESE WOCHE</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: spacing[2] }}>
+              {weekDays.map(({ label, date }) => {
+                const trained = trainedDates.has(date);
+                const isFuture = date > todayStr;
+                const isToday = date === todayStr;
+                return (
+                  <div key={date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing[1] }}>
+                    <span style={{ ...typography.label, color: colors.textFaint, fontSize: '10px' }}>{label}</span>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: radius.md,
+                      backgroundColor: trained ? colors.accent : colors.bgHighest,
+                      border: isToday && !trained ? `1px solid ${colors.accent}` : '1px solid transparent',
+                      opacity: isFuture && !trained ? 0.3 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
 
       {/* Smart Workout Suggestions */}

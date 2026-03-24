@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Send } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
@@ -17,8 +17,8 @@ import { supabase } from '@/lib/supabase';
 import { containsBlockedWord } from '@/constants/chatFilter';
 import type { ForumProfile, Channel } from '@/types/forum';
 
-export default function ChatPage({ params }: { params: Promise<{ channelId: string }> }) {
-  const { channelId } = use(params);
+export default function ChatPage({ params }: { params: { channelId: string } }) {
+  const { channelId } = params;
   const router = useRouter();
   const { messages, loading, send } = useChannel(channelId);
   const [input, setInput] = useState('');

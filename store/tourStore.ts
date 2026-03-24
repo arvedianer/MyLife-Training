@@ -56,6 +56,7 @@ export const useTourStore = create<TourState>()(
       },
       partialize: (state) => ({
         tourCompleted: state.tourCompleted,
+        tourActive: state.tourActive,
         tourStep: state.tourStep,
       }) as unknown as TourState,
     }

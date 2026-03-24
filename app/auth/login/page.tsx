@@ -58,7 +58,7 @@ export default function LoginPage() {
     }
 
     // No onboarding data found → start onboarding
-    router.replace('/onboarding/goal');
+    router.replace('/onboarding/welcome');
   };
 
   return (
