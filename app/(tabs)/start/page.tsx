@@ -199,7 +199,7 @@ export default function StartPage() {
                       }}
                     >
                       {checked && (
-                        <div style={{ color: '#000', fontSize: '12px', fontWeight: 'bold' }}>✓</div>
+                        <div style={{ color: colors.bgPrimary, ...typography.label }}>✓</div>
                       )}
                     </div>
                     <item.Icon size={16} color={checked ? colors.accent : colors.textMuted} />
@@ -297,7 +297,7 @@ export default function StartPage() {
                         }}
                       >
                         {checked && (
-                          <div style={{ color: '#000', fontSize: '12px', fontWeight: 'bold' }}>✓</div>
+                          <div style={{ color: colors.bgPrimary, ...typography.label }}>✓</div>
                         )}
                       </div>
                       <item.Icon size={16} color={checked ? colors.accent : colors.textMuted} />
