@@ -239,17 +239,6 @@ function SummaryContent() {
           {score.label}
         </div>
 
-        {/* Explanation subtitle */}
-        <div
-          style={{
-            ...typography.bodySm,
-            color: colors.textMuted,
-            marginTop: spacing[1],
-          }}
-        >
-          {score.explanation}
-        </div>
-
         <p style={{ ...typography.bodyLg, color: colors.textSecondary, marginTop: spacing[3] }}>
           {session.splitName ?? 'Freies Training'}
         </p>
@@ -280,8 +269,8 @@ function SummaryContent() {
         </h3>
 
         <MetricRow label="Abschlussrate" value={score.completionRate} maxValue={100} unit="%" />
-        <MetricRow label="Volumen" value={score.volumeScore} maxValue={35} />
-        <MetricRow label="Intensität" value={score.intensityScore} maxValue={20} />
+        <MetricRow label="Volumen" value={score.volume} maxValue={100} unit="%" />
+        <MetricRow label="Intensität" value={score.intensity} maxValue={100} unit="%" />
 
         {/* RPE INPUT */}
         <div
