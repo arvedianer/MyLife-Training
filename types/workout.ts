@@ -22,6 +22,8 @@ export interface SetEntry {
   variationKey?: string;
   repsL?: number;   // unilateral: left side reps
   repsR?: number;   // unilateral: right side reps
+  weightL?: number; // unilateral left side weight
+  weightR?: number; // unilateral right side weight
 }
 
 export interface WorkoutExercise {
