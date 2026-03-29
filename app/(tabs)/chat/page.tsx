@@ -18,6 +18,7 @@ import type { Components } from 'react-markdown';
 import { usePathname } from 'next/navigation';
 import type { TrainingSplit, SplitDay } from '@/types/splits';
 import type { ChatMessage } from '@/store/chatStore';
+import { useProactiveCoach } from '@/hooks/useProactiveCoach';
 // Shape of exercises from /data/exercises.json (snake_case from DB)
 interface DbExercise {
   id: string;
@@ -79,18 +80,18 @@ function detectTrainingPlan(text: string): boolean {
 }
 
 const QUICK_REPLIES = [
-  'Warum dieser Score?',
-  'Trainingsplan anpassen',
-  'Welche Übung für Brust?',
-  'Progressive Overload erklären',
+  'Wie war mein letztes Training?',
+  'Was sollte ich heute trainieren?',
+  'Erkläre mir Progressive Overload',
   'Bin ich übertrainiert?',
+  'Was ist Hypertrophie?',
 ];
 
 const STARTER_PROMPTS = [
-  { icon: <Dumbbell size={14} color={colors.accent} />, text: 'Erstell mir den Arnold Split' },
-  { icon: <TrendingUp size={14} color={colors.prColor} />, text: 'Analysiere mein letztes Workout' },
-  { icon: <Zap size={14} color={colors.volumeColor} />, text: 'Was ist meine schwächste Übung?' },
-  { icon: <Sparkles size={14} color={colors.success} />, text: 'Erkläre mir die perfekte Kniebeugen-Technik' },
+  { icon: <TrendingUp size={14} color={colors.accent} />, text: 'Analysiere mein letztes Workout' },
+  { icon: <Dumbbell size={14} color={colors.accent} />, text: 'Was fehlt in meinem Training?' },
+  { icon: <Zap size={14} color={colors.accent} />, text: 'Wie verbessere ich mein Bankdrücken?' },
+  { icon: <Sparkles size={14} color={colors.accent} />, text: 'Was ist Hypertrophie genau?' },
 ];
 
 // What Coach Arved can do — shown in empty state
@@ -120,6 +121,9 @@ export default function ChatPage() {
     deleteConversation,
     getActiveConversation,
   } = useChatStore();
+
+  // Proactive coach messages (pre-workout, post-workout, weekly recap, inactivity nudge)
+  useProactiveCoach();
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
