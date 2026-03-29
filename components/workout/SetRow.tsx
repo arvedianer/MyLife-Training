@@ -17,8 +17,6 @@ interface SetRowProps {
   isBodyweight?: boolean;
   isUnilateral?: boolean;
   onUpdateWeight: (weight: number) => void;
-  onUpdateWeightL?: (weightL: number) => void;
-  onUpdateWeightR?: (weightR: number) => void;
   onUpdateReps: (reps: number) => void;
   onUpdateRepsL?: (repsL: number) => void;
   onUpdateRepsR?: (repsR: number) => void;
@@ -42,8 +40,6 @@ export function SetRow({
   isBodyweight,
   isUnilateral,
   onUpdateWeight,
-  onUpdateWeightL,
-  onUpdateWeightR,
   onUpdateReps,
   onUpdateRepsL,
   onUpdateRepsR,
@@ -112,80 +108,23 @@ export function SetRow({
         </div>
       </div>
 
-      {/* Gewicht — L/R side-by-side for unilateral, single input otherwise */}
-      {isUnilateral ? (
-        <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flex: 1 }}>
-            <span style={{
-              fontFamily: 'var(--font-courier)',
-              fontSize: '11px',
-              fontWeight: 700,
-              color: colors.accent,
-              width: '12px',
-              flexShrink: 0,
-            }}>L</span>
-            <NumericInput
-              value={set.weightL ?? set.weight}
-              onChange={(val) => onUpdateWeightL?.(val)}
-              step={2.5}
-              placeholder={
-                (set.weightL === undefined || set.weightL === 0) && previousWeight !== undefined
-                  ? String(previousWeight)
-                  : isBodyweight ? 'BW' : '0'
-              }
-              ghost={(set.weightL === undefined || set.weightL === 0) && previousWeight !== undefined}
-              style={{
-                flex: 1,
-                opacity: set.isCompleted ? 0.55 : 1,
-                transition: 'opacity 0.2s ease',
-              }}
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flex: 1 }}>
-            <span style={{
-              fontFamily: 'var(--font-courier)',
-              fontSize: '11px',
-              fontWeight: 700,
-              color: colors.accent,
-              width: '12px',
-              flexShrink: 0,
-            }}>R</span>
-            <NumericInput
-              value={set.weightR ?? set.weight}
-              onChange={(val) => onUpdateWeightR?.(val)}
-              step={2.5}
-              placeholder={
-                (set.weightR === undefined || set.weightR === 0) && previousWeight !== undefined
-                  ? String(previousWeight)
-                  : isBodyweight ? 'BW' : '0'
-              }
-              ghost={(set.weightR === undefined || set.weightR === 0) && previousWeight !== undefined}
-              style={{
-                flex: 1,
-                opacity: set.isCompleted ? 0.55 : 1,
-                transition: 'opacity 0.2s ease',
-              }}
-            />
-          </div>
-        </div>
-      ) : (
-        <NumericInput
-          value={set.weight}
-          onChange={onUpdateWeight}
-          step={isCardio ? 0.5 : 2.5}
-          placeholder={
-            set.weight === 0 && previousWeight !== undefined
-              ? String(previousWeight)
-              : isCardio ? 'km' : (isBodyweight ? 'BW' : '0')
-          }
-          ghost={set.weight === 0 && previousWeight !== undefined}
-          style={{
-            flex: 1,
-            opacity: set.isCompleted ? 0.55 : 1,
-            transition: 'opacity 0.2s ease',
-          }}
-        />
-      )}
+      {/* Gewicht — single shared input for both unilateral and non-unilateral */}
+      <NumericInput
+        value={set.weight}
+        onChange={onUpdateWeight}
+        step={isCardio ? 0.5 : 2.5}
+        placeholder={
+          set.weight === 0 && previousWeight !== undefined
+            ? String(previousWeight)
+            : isCardio ? 'km' : (isBodyweight ? 'BW' : '0')
+        }
+        ghost={set.weight === 0 && previousWeight !== undefined}
+        style={{
+          flex: 1,
+          opacity: set.isCompleted ? 0.55 : 1,
+          transition: 'opacity 0.2s ease',
+        }}
+      />
 
       {/* Wiederholungen — L/R side-by-side for unilateral, single input otherwise */}
       {isUnilateral ? (
@@ -207,7 +146,7 @@ export function SetRow({
               min={1}
               placeholder={String(set.repsL ?? set.reps ?? previousReps ?? 10)}
               ghost={localRepsL === undefined && !set.repsL && set.reps === 0 && previousReps !== undefined}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 48 }}
             />
             <span className={styles.unilateralDivider}>|</span>
             <span className={styles.sideLabel}>R</span>
@@ -218,7 +157,7 @@ export function SetRow({
               min={1}
               placeholder={String(set.repsR ?? set.reps ?? previousReps ?? 10)}
               ghost={localRepsR === undefined && !set.repsR && set.reps === 0 && previousReps !== undefined}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 48 }}
             />
           </div>
         )
@@ -242,19 +181,27 @@ export function SetRow({
       )}
 
       {/* Volumen + 1RM hint (readonly) */}
-      <div className={styles.volumeContainer}>
-        <div
-          className={`${styles.volumeText} ${!(set.weight > 0 && set.reps > 0) ? styles.volumeTextFaint : ''}`}
-          style={{ color: set.weight > 0 && set.reps > 0 ? colors.volumeColor : undefined }}
-        >
-          {set.weight > 0 && set.reps > 0 ? `${set.weight * set.reps}` : '—'}
-        </div>
-        {set.isCompleted && formatOneRepMax(set.weight, set.reps) && (
-          <div className={styles.ormHint}>
-            {formatOneRepMax(set.weight, set.reps)}
+      {(() => {
+        const effectiveReps = isUnilateral && (set.repsL || set.repsR)
+          ? Math.round(((set.repsL ?? set.reps) + (set.repsR ?? set.reps)) / 2)
+          : set.reps;
+        const hasVol = set.weight > 0 && effectiveReps > 0;
+        return (
+          <div className={styles.volumeContainer}>
+            <div
+              className={`${styles.volumeText} ${!hasVol ? styles.volumeTextFaint : ''}`}
+              style={{ color: hasVol ? colors.volumeColor : undefined }}
+            >
+              {hasVol ? `${set.weight * effectiveReps}` : '—'}
+            </div>
+            {set.isCompleted && formatOneRepMax(set.weight, effectiveReps) && (
+              <div className={styles.ormHint}>
+                {formatOneRepMax(set.weight, effectiveReps)}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Complete / Delete */}
       <div className={styles.actionsContainer}>

@@ -291,8 +291,6 @@ export function ExerciseCard({
               isBodyweight={isBodyweight}
               isUnilateral={workoutExercise.isUnilateral}
               onUpdateWeight={(weight) => onUpdateSet(set.id, { weight })}
-              onUpdateWeightL={(weightL) => onUpdateSet(set.id, { weightL })}
-              onUpdateWeightR={(weightR) => onUpdateSet(set.id, { weightR })}
               onUpdateReps={(reps) => onUpdateSet(set.id, { reps })}
               onUpdateRepsL={(repsL) => onUpdateSet(set.id, { repsL })}
               onUpdateRepsR={(repsR) => onUpdateSet(set.id, { repsR })}
