@@ -7,6 +7,7 @@ import { NumericInput } from '@/components/ui/Input';
 import { ClickSpark } from '@/components/ui/ClickSpark';
 import type { SetEntry } from '@/types/workout';
 import { formatOneRepMax } from '@/utils/oneRepMax';
+import { getSideImbalanceHint } from '@/utils/unilateralStats';
 import styles from './SetRow.module.css';
 
 interface SetRowProps {
@@ -134,6 +135,19 @@ export function SetRow({
             <span className={styles.unilateralSummaryText}>
               L&nbsp;{set.repsL ?? set.reps}× · R&nbsp;{set.repsR ?? set.reps}×
             </span>
+            {set.repsL != null && set.repsR != null && (() => {
+              const hint = getSideImbalanceHint(set.repsL, set.repsR);
+              return hint ? (
+                <span style={{
+                  fontFamily: 'var(--font-courier)',
+                  fontSize: '9px',
+                  color: 'var(--accent)',
+                  opacity: 0.7,
+                  marginLeft: 6,
+                  whiteSpace: 'nowrap',
+                }}>{hint}</span>
+              ) : null;
+            })()}
           </div>
         ) : (
           /* Editing: flat L | R layout */
