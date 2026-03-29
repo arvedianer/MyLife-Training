@@ -17,6 +17,8 @@ interface SetRowProps {
   isBodyweight?: boolean;
   isUnilateral?: boolean;
   onUpdateWeight: (weight: number) => void;
+  onUpdateWeightL?: (weightL: number) => void;
+  onUpdateWeightR?: (weightR: number) => void;
   onUpdateReps: (reps: number) => void;
   onUpdateRepsL?: (repsL: number) => void;
   onUpdateRepsR?: (repsR: number) => void;
@@ -40,6 +42,8 @@ export function SetRow({
   isBodyweight,
   isUnilateral,
   onUpdateWeight,
+  onUpdateWeightL,
+  onUpdateWeightR,
   onUpdateReps,
   onUpdateRepsL,
   onUpdateRepsR,
@@ -108,23 +112,80 @@ export function SetRow({
         </div>
       </div>
 
-      {/* Gewicht — always one shared input */}
-      <NumericInput
-        value={set.weight}
-        onChange={onUpdateWeight}
-        step={isCardio ? 0.5 : 2.5}
-        placeholder={
-          set.weight === 0 && previousWeight !== undefined
-            ? String(previousWeight)
-            : isCardio ? 'km' : (isBodyweight ? 'BW' : '0')
-        }
-        ghost={set.weight === 0 && previousWeight !== undefined}
-        style={{
-          flex: 1,
-          opacity: set.isCompleted ? 0.55 : 1,
-          transition: 'opacity 0.2s ease',
-        }}
-      />
+      {/* Gewicht — L/R side-by-side for unilateral, single input otherwise */}
+      {isUnilateral ? (
+        <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flex: 1 }}>
+            <span style={{
+              fontFamily: 'var(--font-courier)',
+              fontSize: '11px',
+              fontWeight: 700,
+              color: colors.accent,
+              width: '12px',
+              flexShrink: 0,
+            }}>L</span>
+            <NumericInput
+              value={set.weightL ?? set.weight}
+              onChange={(val) => onUpdateWeightL?.(val)}
+              step={2.5}
+              placeholder={
+                (set.weightL === undefined || set.weightL === 0) && previousWeight !== undefined
+                  ? String(previousWeight)
+                  : isBodyweight ? 'BW' : '0'
+              }
+              ghost={(set.weightL === undefined || set.weightL === 0) && previousWeight !== undefined}
+              style={{
+                flex: 1,
+                opacity: set.isCompleted ? 0.55 : 1,
+                transition: 'opacity 0.2s ease',
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flex: 1 }}>
+            <span style={{
+              fontFamily: 'var(--font-courier)',
+              fontSize: '11px',
+              fontWeight: 700,
+              color: colors.accent,
+              width: '12px',
+              flexShrink: 0,
+            }}>R</span>
+            <NumericInput
+              value={set.weightR ?? set.weight}
+              onChange={(val) => onUpdateWeightR?.(val)}
+              step={2.5}
+              placeholder={
+                (set.weightR === undefined || set.weightR === 0) && previousWeight !== undefined
+                  ? String(previousWeight)
+                  : isBodyweight ? 'BW' : '0'
+              }
+              ghost={(set.weightR === undefined || set.weightR === 0) && previousWeight !== undefined}
+              style={{
+                flex: 1,
+                opacity: set.isCompleted ? 0.55 : 1,
+                transition: 'opacity 0.2s ease',
+              }}
+            />
+          </div>
+        </div>
+      ) : (
+        <NumericInput
+          value={set.weight}
+          onChange={onUpdateWeight}
+          step={isCardio ? 0.5 : 2.5}
+          placeholder={
+            set.weight === 0 && previousWeight !== undefined
+              ? String(previousWeight)
+              : isCardio ? 'km' : (isBodyweight ? 'BW' : '0')
+          }
+          ghost={set.weight === 0 && previousWeight !== undefined}
+          style={{
+            flex: 1,
+            opacity: set.isCompleted ? 0.55 : 1,
+            transition: 'opacity 0.2s ease',
+          }}
+        />
+      )}
 
       {/* Wiederholungen — L/R side-by-side for unilateral, single input otherwise */}
       {isUnilateral ? (

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Play, Plus, Sofa, Droplets, Moon, Beef, PersonStanding, Clock } from 'lucide-react';
+import { Play, Plus, Sofa, Droplets, Moon, Beef, PersonStanding, Clock, RotateCcw } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
 import { useWorkoutStore } from '@/store/workoutStore';
@@ -84,6 +84,13 @@ export default function StartPage() {
     router.push('/workout/active');
   };
 
+  const restDayChecklistItems = [
+    { id: 'hydration', label: '3-4 Liter Wasser getrunken', Icon: Droplets },
+    { id: 'sleep', label: '8+ Stunden geschlafen', Icon: Moon },
+    { id: 'macros', label: 'Protein-Ziel erreicht', Icon: Beef },
+    { id: 'stretching', label: '10 Min. Mobility / Stretching', Icon: PersonStanding },
+  ] as const;
+
   return (
     <div
       style={{
@@ -98,7 +105,9 @@ export default function StartPage() {
       <div>
         <h1 style={{ ...typography.h1, color: colors.textPrimary }}>Training</h1>
         <p style={{ ...typography.body, color: colors.textMuted, marginTop: spacing[1] }}>
-          Wähle wie du starten möchtest
+          {activeSplit && isActualToday
+            ? `Heute · ${activeSplit.name}`
+            : 'Wähle wie du starten möchtest'}
         </p>
       </div>
 
@@ -129,18 +138,92 @@ export default function StartPage() {
         </div>
       )}
 
-      {/* Geplantes Training / Rest Day */}
-      {activeSplit && displayDay && (
+      {/* Manual Rest Day View */}
+      {selectedDayId === 'manual-rest-day' && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[3] }}>
             <h2 style={{ ...typography.h3, color: colors.textPrimary }}>
-              {isActualToday ? 'Heutiger Plan' : 'Plan auswählen'}
+              Manueller Rest Day
             </h2>
-            <span style={{ ...typography.bodySm, color: colors.textMuted }}>
-              {activeSplit.name}
-            </span>
+            <button
+              onClick={() => setSelectedDayId(todaysDayOriginal?.id ?? activeSplit?.days[0]?.id ?? null)}
+              style={{ ...typography.bodySm, color: colors.accent, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            >
+              Abbrechen
+            </button>
           </div>
+          <div
+            style={{
+              backgroundColor: colors.bgCard,
+              border: `1px solid ${colors.border}`,
+              borderRadius: radius.xl,
+              padding: spacing[4],
+            }}
+          >
+            <div style={{ marginBottom: spacing[4], textAlign: 'center' }}>
+              <h3 style={{ ...typography.h3, color: colors.accent }}>Rest Day</h3>
+              <p style={{ ...typography.bodySm, color: colors.textMuted, marginTop: spacing[1] }}>
+                Dein spontaner Ruhetag. Erholung ist der Schlüssel zum Muskelaufbau.
+              </p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
+              {restDayChecklistItems.map((item) => {
+                const checked = restDayChecklist[item.id as keyof typeof restDayChecklist];
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => setRestDayChecklist(prev => ({ ...prev, [item.id]: !prev[item.id as keyof typeof prev] }))}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing[3],
+                      padding: spacing[3],
+                      backgroundColor: checked ? `${colors.accent}15` : colors.bgHighest,
+                      border: `1px solid ${checked ? colors.accent : colors.border}`,
+                      borderRadius: radius.lg,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        border: `2px solid ${checked ? colors.accent : colors.textDisabled}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: checked ? colors.accent : 'transparent',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {checked && (
+                        <div style={{ color: colors.bgPrimary, ...typography.label }}>✓</div>
+                      )}
+                    </div>
+                    <item.Icon size={16} color={checked ? colors.accent : colors.textMuted} />
+                    <span
+                      style={{
+                        ...typography.body,
+                        color: checked ? colors.textPrimary : colors.textSecondary,
+                        textDecoration: checked ? 'line-through' : 'none',
+                        opacity: checked ? 0.7 : 1,
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* PRIMARY SECTION — Planned workout (when plan exists and no manual rest day) */}
+      {activeSplit && displayDay && selectedDayId !== 'manual-rest-day' && (
+        <div>
           {/* Day Selector */}
           <div style={{ display: 'flex', gap: spacing[2], overflowX: 'auto', paddingBottom: spacing[3], margin: `0 -${spacing[5]}`, paddingLeft: spacing[5], paddingRight: spacing[5], scrollbarWidth: 'none' }}>
             {activeSplit.days.map(day => (
@@ -166,6 +249,7 @@ export default function StartPage() {
           </div>
 
           {displayDay.restDay ? (
+            /* Plan Rest Day card */
             <div
               style={{
                 backgroundColor: colors.bgCard,
@@ -180,116 +264,123 @@ export default function StartPage() {
                   Erholung ist der Schlüssel zum Muskelaufbau.
                 </p>
               </div>
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
-                {(
-                [
-                  { id: 'hydration', label: '3-4 Liter Wasser getrunken', Icon: Droplets },
-                  { id: 'sleep', label: '8+ Stunden geschlafen', Icon: Moon },
-                  { id: 'macros', label: 'Protein-Ziel erreicht', Icon: Beef },
-                  { id: 'stretching', label: '10 Min. Mobility / Stretching', Icon: PersonStanding },
-                ] as const
-              ).map((item) => {
-                const checked = restDayChecklist[item.id as keyof typeof restDayChecklist];
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => setRestDayChecklist(prev => ({ ...prev, [item.id]: !prev[item.id as keyof typeof prev] }))}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: spacing[3],
-                      padding: spacing[3],
-                      backgroundColor: checked ? `${colors.accent}15` : colors.bgHighest,
-                      border: `1px solid ${checked ? colors.accent : colors.border}`,
-                      borderRadius: radius.lg,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                    }}
-                  >
+                {restDayChecklistItems.map((item) => {
+                  const checked = restDayChecklist[item.id as keyof typeof restDayChecklist];
+                  return (
                     <div
+                      key={item.id}
+                      onClick={() => setRestDayChecklist(prev => ({ ...prev, [item.id]: !prev[item.id as keyof typeof prev] }))}
                       style={{
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '50%',
-                        border: `2px solid ${checked ? colors.accent : colors.textDisabled}`,
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: checked ? colors.accent : 'transparent',
-                        flexShrink: 0,
+                        gap: spacing[3],
+                        padding: spacing[3],
+                        backgroundColor: checked ? `${colors.accent}15` : colors.bgHighest,
+                        border: `1px solid ${checked ? colors.accent : colors.border}`,
+                        borderRadius: radius.lg,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
                       }}
                     >
-                      {checked && (
-                        <div style={{ color: '#000', fontSize: '12px', fontWeight: 'bold' }}>✓</div>
-                      )}
+                      <div
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          border: `2px solid ${checked ? colors.accent : colors.textDisabled}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: checked ? colors.accent : 'transparent',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {checked && (
+                          <div style={{ color: colors.bgPrimary, ...typography.label }}>✓</div>
+                        )}
+                      </div>
+                      <item.Icon size={16} color={checked ? colors.accent : colors.textMuted} />
+                      <span
+                        style={{
+                          ...typography.body,
+                          color: checked ? colors.textPrimary : colors.textSecondary,
+                          textDecoration: checked ? 'line-through' : 'none',
+                          opacity: checked ? 0.7 : 1,
+                        }}
+                      >
+                        {item.label}
+                      </span>
                     </div>
-                    <item.Icon size={16} color={checked ? colors.accent : colors.textMuted} />
-                    <span
-                      style={{
-                        ...typography.body,
-                        color: checked ? colors.textPrimary : colors.textSecondary,
-                        textDecoration: checked ? 'line-through' : 'none',
-                        opacity: checked ? 0.7 : 1,
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })}
               </div>
             </div>
           ) : (
+            /* PRIMARY: Planned workout card — accent border */
             <div
               style={{
                 backgroundColor: colors.bgCard,
-                border: `1px solid ${colors.border}`,
+                border: `1px solid ${colors.accent}`,
                 borderRadius: radius.xl,
-                padding: spacing[4],
+                padding: spacing[5],
               }}
             >
-              <div style={{ marginBottom: spacing[3] }}>
+              {/* Card header */}
+              <div style={{ marginBottom: spacing[4] }}>
+                <span style={{ ...typography.label, color: colors.accent, display: 'block', marginBottom: spacing[1] }}>
+                  {isActualToday ? 'HEUTE' : 'PLAN'} · {activeSplit.name.toUpperCase()}
+                </span>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <h3 style={{ ...typography.h3, color: colors.textPrimary }}>{displayDay.name}</h3>
+                  <h2 style={{ ...typography.h2, color: colors.textPrimary }}>{displayDay.name}</h2>
                   {estimatedMin > 0 && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={12} color={colors.textMuted} />
+                      <Clock size={13} color={colors.textMuted} />
                       <span style={{ ...typography.monoSm, color: colors.textMuted }}>ca. {estimatedMin} min</span>
                     </div>
                   )}
                 </div>
-                <p style={{ ...typography.bodySm, color: colors.textMuted, marginTop: spacing[1] }}>
-                  {displayDay.exerciseIds.length} Übungen geplant
-                </p>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2], marginBottom: spacing[4] }}>
-                {previewData?.map(({ ex, weight }) => {
+
+              {/* Exercise chips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: spacing[2], marginBottom: spacing[5] }}>
+                {previewData?.map(({ ex }) => {
                   if (!ex) return null;
                   return (
-                    <div key={ex.id} style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
-                      <div
-                        style={{
-                          width: '6px',
-                          height: '6px',
-                          borderRadius: '50%',
-                          backgroundColor: colors.accent,
-                          flexShrink: 0,
-                        }}
-                      />
-                      <span style={{ ...typography.body, color: colors.textSecondary, flex: 1 }}>{ex.nameDE}</span>
-                      {weight !== null && (
-                        <span style={{ ...typography.monoSm, color: colors.textMuted }}>{weight} kg</span>
-                      )}
-                    </div>
+                    <span
+                      key={ex.id}
+                      style={{
+                        ...typography.bodySm,
+                        color: colors.textSecondary,
+                        backgroundColor: colors.bgHighest,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: radius.full,
+                        padding: `${spacing[1]} ${spacing[3]}`,
+                        whiteSpace: 'nowrap' as const,
+                      }}
+                    >
+                      {ex.nameDE}
+                    </span>
                   );
                 })}
                 {displayDay.exerciseIds.length > 4 && (
-                  <span style={{ ...typography.bodySm, color: colors.textMuted, marginLeft: spacing[4] }}>
+                  <span
+                    style={{
+                      ...typography.bodySm,
+                      color: colors.textMuted,
+                      backgroundColor: colors.bgCard,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: radius.full,
+                      padding: `${spacing[1]} ${spacing[3]}`,
+                      whiteSpace: 'nowrap' as const,
+                    }}
+                  >
                     +{displayDay.exerciseIds.length - 4} weitere
                   </span>
                 )}
               </div>
+
+              {/* Big CTA */}
               <Button
                 fullWidth
                 size="lg"
@@ -298,122 +389,96 @@ export default function StartPage() {
                 disabled={!!activeWorkout}
               >
                 <Play size={18} />
-                {displayDay.name} starten
+                Training starten
               </Button>
             </div>
           )}
-        </div>
-      )}
 
-      {/* Manual Rest Day View (if selected from Quick Start) */}
-      {selectedDayId === 'manual-rest-day' && (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[3] }}>
-            <h2 style={{ ...typography.h3, color: colors.textPrimary }}>
-              Manueller Rest Day
-            </h2>
+          {/* Quick action chips row */}
+          <div style={{ display: 'flex', gap: spacing[2], flexWrap: 'wrap' as const, marginTop: spacing[3] }}>
+            {lastSession && (
+              <button
+                onClick={activeWorkout ? undefined : handleRepeatLast}
+                disabled={!!activeWorkout}
+                style={{
+                  backgroundColor: colors.bgElevated,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: radius.full,
+                  padding: `${spacing[2]} ${spacing[4]}`,
+                  ...typography.bodySm,
+                  color: activeWorkout ? colors.textDisabled : colors.textSecondary,
+                  cursor: activeWorkout ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing[2],
+                  whiteSpace: 'nowrap' as const,
+                }}
+              >
+                <RotateCcw size={13} color={activeWorkout ? colors.textDisabled : colors.textMuted} />
+                Letztes wiederholen
+              </button>
+            )}
             <button
-              onClick={() => setSelectedDayId(todaysDayOriginal?.id || (activeSplit?.days[0]?.id as string))}
-              style={{ ...typography.bodySm, color: colors.accent, background: 'none', border: 'none', padding: 0 }}
+              onClick={handleRestDay}
+              style={{
+                backgroundColor: colors.bgElevated,
+                border: `1px solid ${colors.border}`,
+                borderRadius: radius.full,
+                padding: `${spacing[2]} ${spacing[4]}`,
+                ...typography.bodySm,
+                color: colors.textSecondary,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing[2],
+                whiteSpace: 'nowrap' as const,
+              }}
             >
-              Abbrechen
+              <Sofa size={13} color={colors.textMuted} />
+              Rest Day
             </button>
           </div>
-          <div
+
+          {/* Free workout as secondary option */}
+          <button
+            onClick={activeWorkout ? undefined : handleStartFree}
+            disabled={!!activeWorkout}
             style={{
-              backgroundColor: colors.bgCard,
+              marginTop: spacing[3],
+              width: '100%',
+              padding: `${spacing[3]} ${spacing[5]}`,
+              borderRadius: radius.lg,
+              backgroundColor: colors.bgHighest,
+              color: activeWorkout ? colors.textDisabled : colors.textSecondary,
+              ...typography.body,
+              fontWeight: '600',
+              cursor: activeWorkout ? 'not-allowed' : 'pointer',
               border: `1px solid ${colors.border}`,
-              borderRadius: radius.xl,
-              padding: spacing[4],
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: spacing[2],
             }}
           >
-            <div style={{ marginBottom: spacing[4], textAlign: 'center' }}>
-              <h3 style={{ ...typography.h3, color: colors.accent }}>Rest Day</h3>
-              <p style={{ ...typography.bodySm, color: colors.textMuted, marginTop: spacing[1] }}>
-                Dein spontaner Ruhetag. Erholung ist der Schlüssel zum Muskelaufbau.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
-              {(
-                [
-                  { id: 'hydration', label: '3-4 Liter Wasser getrunken', Icon: Droplets },
-                  { id: 'sleep', label: '8+ Stunden geschlafen', Icon: Moon },
-                  { id: 'macros', label: 'Protein-Ziel erreicht', Icon: Beef },
-                  { id: 'stretching', label: '10 Min. Mobility / Stretching', Icon: PersonStanding },
-                ] as const
-              ).map((item) => {
-                const checked = restDayChecklist[item.id as keyof typeof restDayChecklist];
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => setRestDayChecklist(prev => ({ ...prev, [item.id]: !prev[item.id as keyof typeof prev] }))}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: spacing[3],
-                      padding: spacing[3],
-                      backgroundColor: checked ? `${colors.accent}15` : colors.bgHighest,
-                      border: `1px solid ${checked ? colors.accent : colors.border}`,
-                      borderRadius: radius.lg,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '50%',
-                        border: `2px solid ${checked ? colors.accent : colors.textDisabled}`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: checked ? colors.accent : 'transparent',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {checked && (
-                        <div style={{ color: '#000', fontSize: '12px', fontWeight: 'bold' }}>✓</div>
-                      )}
-                    </div>
-                    <item.Icon size={16} color={checked ? colors.accent : colors.textMuted} />
-                    <span
-                      style={{
-                        ...typography.body,
-                        color: checked ? colors.textPrimary : colors.textSecondary,
-                        textDecoration: checked ? 'line-through' : 'none',
-                        opacity: checked ? 0.7 : 1,
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+            <Plus size={16} />
+            Freies Workout starten
+          </button>
         </div>
       )}
 
-      {/* Schnellstart */}
-      <div>
-        <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>
-          Schnellstart
-        </h2>
-
-        {/* PRIMARY: Today's planned workout (no active split section above) or Free Workout */}
-        {!activeSplit ? (
+      {/* PRIMARY SECTION — No plan: Free workout as primary */}
+      {!activeSplit && selectedDayId !== 'manual-rest-day' && (
+        <div>
           <div
             style={{
               backgroundColor: colors.bgCard,
-              border: `1px solid ${colors.border}`,
+              border: `1px solid ${colors.accent}`,
               borderRadius: radius.xl,
               padding: spacing[5],
               marginBottom: spacing[3],
             }}
           >
-            <div style={{ marginBottom: spacing[3] }}>
+            <div style={{ marginBottom: spacing[4] }}>
               <span
                 style={{
                   ...typography.label,
@@ -422,15 +487,15 @@ export default function StartPage() {
                   marginBottom: spacing[1],
                 }}
               >
-                SCHNELLSTART
+                FREIES WORKOUT
               </span>
-              <span style={{ ...typography.h3, color: colors.textPrimary, display: 'block' }}>
-                Freies Workout
-              </span>
+              <h2 style={{ ...typography.h2, color: colors.textPrimary }}>
+                Training starten
+              </h2>
+              <p style={{ ...typography.body, color: colors.textMuted, marginTop: spacing[1] }}>
+                Übungen frei wählen, kein Plan nötig
+              </p>
             </div>
-            <p style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[4] }}>
-              Übungen frei wählen, kein Plan nötig
-            </p>
             <button
               data-tour="start-button"
               onClick={activeWorkout ? undefined : handleStartFree}
@@ -451,109 +516,57 @@ export default function StartPage() {
                 gap: spacing[2],
               }}
             >
-              <Plus size={18} />
+              <Play size={18} />
               Workout starten
             </button>
           </div>
-        ) : (
-          /* When a split is active, primary card shows free workout as an alternative option */
-          <div
-            style={{
-              backgroundColor: colors.bgCard,
-              border: `1px solid ${colors.border}`,
-              borderRadius: radius.xl,
-              padding: spacing[5],
-              marginBottom: spacing[3],
-            }}
-          >
-            <div style={{ marginBottom: spacing[3] }}>
-              <span
+
+          {/* Quick action chips */}
+          <div style={{ display: 'flex', gap: spacing[2], flexWrap: 'wrap' as const }}>
+            {lastSession && (
+              <button
+                onClick={activeWorkout ? undefined : handleRepeatLast}
+                disabled={!!activeWorkout}
                 style={{
-                  ...typography.label,
-                  color: colors.textMuted,
-                  display: 'block',
-                  marginBottom: spacing[1],
+                  backgroundColor: colors.bgElevated,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: radius.full,
+                  padding: `${spacing[2]} ${spacing[4]}`,
+                  ...typography.bodySm,
+                  color: activeWorkout ? colors.textDisabled : colors.textSecondary,
+                  cursor: activeWorkout ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing[2],
+                  whiteSpace: 'nowrap' as const,
                 }}
               >
-                ALTERNATIV
-              </span>
-              <span style={{ ...typography.h3, color: colors.textPrimary, display: 'block' }}>
-                Freies Workout
-              </span>
-            </div>
-            <p style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[4] }}>
-              Übungen frei wählen, ohne Plan
-            </p>
+                <RotateCcw size={13} color={activeWorkout ? colors.textDisabled : colors.textMuted} />
+                Letztes wiederholen
+              </button>
+            )}
             <button
-              onClick={activeWorkout ? undefined : handleStartFree}
-              disabled={!!activeWorkout}
-              style={{
-                width: '100%',
-                padding: `${spacing[3]} ${spacing[5]}`,
-                borderRadius: radius.lg,
-                backgroundColor: colors.bgHighest,
-                color: activeWorkout ? colors.textDisabled : colors.textSecondary,
-                ...typography.body,
-                fontWeight: '600',
-                cursor: activeWorkout ? 'not-allowed' : 'pointer',
-                border: `1px solid ${colors.border}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: spacing[2],
-              }}
-            >
-              <Plus size={16} />
-              Leeres Training starten
-            </button>
-          </div>
-        )}
-
-        {/* SECONDARY ROW: quick action chips */}
-        <div style={{ display: 'flex', gap: spacing[2], flexWrap: 'wrap' as const, marginBottom: spacing[4] }}>
-          {lastSession && (
-            <button
-              onClick={activeWorkout ? undefined : handleRepeatLast}
-              disabled={!!activeWorkout}
+              onClick={handleRestDay}
               style={{
                 backgroundColor: colors.bgElevated,
                 border: `1px solid ${colors.border}`,
                 borderRadius: radius.full,
                 padding: `${spacing[2]} ${spacing[4]}`,
                 ...typography.bodySm,
-                color: activeWorkout ? colors.textDisabled : colors.textSecondary,
-                cursor: activeWorkout ? 'not-allowed' : 'pointer',
+                color: colors.textSecondary,
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: spacing[2],
                 whiteSpace: 'nowrap' as const,
               }}
             >
-              <Play size={13} color={activeWorkout ? colors.textDisabled : colors.textMuted} />
-              Letztes wiederholen
+              <Sofa size={13} color={colors.textMuted} />
+              Rest Day
             </button>
-          )}
-          <button
-            onClick={handleRestDay}
-            style={{
-              backgroundColor: colors.bgElevated,
-              border: `1px solid ${colors.border}`,
-              borderRadius: radius.full,
-              padding: `${spacing[2]} ${spacing[4]}`,
-              ...typography.bodySm,
-              color: colors.textSecondary,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: spacing[2],
-              whiteSpace: 'nowrap' as const,
-            }}
-          >
-            <Sofa size={13} color={colors.textMuted} />
-            Rest Day
-          </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

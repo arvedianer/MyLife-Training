@@ -2,15 +2,12 @@ import type { WorkoutSession } from '@/types/workout';
 import type { WorkoutScore } from '@/types/score';
 
 /**
- * Intelligent Workout Score (0–100)
+ * Workout Score (0–100)
  *
- * Three meaningful metrics compared against the user's own history:
- *   1. Completion rate   (0–35 pts) — planned sets actually done
- *   2. Volume vs average (0–35 pts) — today's total tonnage vs last 8 sessions
- *   3. Intensity         (0–20 pts) — avg weight vs last 4 sessions
- *   4. Consistency bonus (0–10 pts) — diverse muscle group coverage
- *
- * Result: label ("Schwach"…"Exzellent") + explanation sentence.
+ * Three metrics compared against the user's own history:
+ *   1. Volume (40%)        — session tonnage vs avg of last 8 sessions
+ *   2. Completion Rate (35%) — completed sets / planned sets
+ *   3. Intensity (25%)     — avg weight vs avg of last 4 sessions
  */
 export function calculateWorkoutScore(
   session: WorkoutSession,
@@ -19,14 +16,15 @@ export function calculateWorkoutScore(
   const completedSets = session.exercises.flatMap((e) =>
     e.sets.filter((s) => s.isCompleted)
   );
-  const allSets = session.exercises.flatMap((e) => e.sets);
+  const plannedSets = session.exercises.flatMap((e) => e.sets);
 
-  // --- 1. COMPLETION RATE (0-35 points) ---
-  const completionRatio =
-    allSets.length > 0 ? completedSets.length / allSets.length : 1;
-  const completionScore = Math.round(completionRatio * 35);
+  // --- 1. COMPLETION RATE (0-100) ---
+  const completionRate =
+    plannedSets.length > 0
+      ? Math.round((completedSets.length / plannedSets.length) * 100)
+      : 100;
 
-  // --- 2. VOLUME vs PERSONAL AVERAGE (0-35 points) ---
+  // --- 2. VOLUME vs PERSONAL AVERAGE (0-100) ---
   const sessionVolume = completedSets.reduce(
     (sum, s) => sum + s.weight * s.reps,
     0
@@ -39,110 +37,46 @@ export function calculateWorkoutScore(
         .reduce((sum, s) => sum + s.weight * s.reps, 0)
     )
     .filter((v) => v > 0);
+  const avgVolume =
+    prevVolumes.length > 0
+      ? prevVolumes.reduce((a, b) => a + b, 0) / prevVolumes.length
+      : sessionVolume;
+  const volume = Math.min(
+    100,
+    Math.round((sessionVolume / Math.max(avgVolume, 1)) * 80)
+  );
 
-  let volumeScore = 25; // default when no history available
-  if (prevVolumes.length >= 2) {
-    const avgVolume = prevVolumes.reduce((a, b) => a + b, 0) / prevVolumes.length;
-    if (avgVolume > 0) {
-      const ratio = sessionVolume / avgVolume;
-      // 0.5x avg → ~14 pts, 1x avg → 27 pts, 1.3x avg → 35 pts
-      volumeScore = Math.min(35, Math.max(0, Math.round(ratio * 27)));
-    }
-  } else {
-    // No history yet — score based purely on session volume and completed sets
-    const hasGoodVolume = sessionVolume > 500; // 500 kg total = decent session
-    volumeScore =
-      completedSets.length >= 9 ? 28    // 3 exercises × 3 sets = great
-      : completedSets.length >= 6 ? 22
-      : completedSets.length >= 3 ? 15
-      : 8;
-    if (hasGoodVolume) volumeScore = Math.min(35, volumeScore + 5);
-  }
-
-  // --- 3. INTENSITY (0-20 points) ---
+  // --- 3. INTENSITY (0-100) ---
   const avgWeightNow =
     completedSets.length > 0
       ? completedSets.reduce((sum, s) => sum + s.weight, 0) / completedSets.length
       : 0;
   const prevSets = previousSessions
     .slice(0, 4)
-    .flatMap((ps) => ps.exercises.flatMap((e) => e.sets.filter((s) => s.isCompleted)));
+    .flatMap((ps) =>
+      ps.exercises.flatMap((e) => e.sets.filter((s) => s.isCompleted))
+    );
   const avgWeightPrev =
     prevSets.length > 0
       ? prevSets.reduce((sum, s) => sum + s.weight, 0) / prevSets.length
       : avgWeightNow;
+  const intensity =
+    avgWeightPrev > 0
+      ? Math.min(100, Math.round((avgWeightNow / avgWeightPrev) * 90))
+      : 80;
 
-  let intensityScore = 14; // default
-  if (avgWeightPrev > 0 && completedSets.length > 0) {
-    const ratio = avgWeightNow / avgWeightPrev;
-    // 0.7x → ~10 pts, 1x → 14 pts, 1.1x → ~15 pts, 1.4x+ → 20 pts
-    intensityScore = Math.min(20, Math.max(0, Math.round(ratio * 14)));
-  }
-
-  // --- 4. CONSISTENCY BONUS (0-10 points) ---
-  const trainedMuscles = new Set(
-    session.exercises.map((e) => e.exercise.primaryMuscle)
-  );
-  const consistencyBonus = Math.min(10, trainedMuscles.size * 3);
-
-  // --- TOTAL ---
-  const total = Math.min(
-    100,
-    completionScore + volumeScore + intensityScore + consistencyBonus
-  );
+  // --- TOTAL (weighted average) ---
+  const total = Math.round(volume * 0.4 + completionRate * 0.35 + intensity * 0.25);
 
   // --- LABEL ---
   const label =
-    total >= 88
-      ? 'Exzellent 🔥'
-      : total >= 75
+    total >= 85
       ? 'Stark 💪'
-      : total >= 62
+      : total >= 70
       ? 'Gut'
-      : total >= 48
+      : total >= 50
       ? 'Ok'
-      : total >= 32
-      ? 'Mäßig'
-      : 'Schwach';
+      : 'Leicht';
 
-  // --- EXPLANATION ---
-  const parts: string[] = [];
-
-  if (completionRatio < 0.7) {
-    parts.push(`Nur ${Math.round(completionRatio * 100)}% der Sets abgeschlossen`);
-  } else if (completionRatio >= 1) {
-    parts.push('Alle Sets durchgezogen');
-  }
-
-  if (prevVolumes.length >= 2) {
-    const avgVol = prevVolumes.reduce((a, b) => a + b, 0) / prevVolumes.length;
-    const pct = Math.round((sessionVolume / Math.max(avgVol, 1)) * 100);
-    if (pct >= 120) {
-      parts.push(`${pct}% deines üblichen Volumens`);
-    } else if (pct < 80) {
-      parts.push(`Nur ${pct}% deines üblichen Volumens`);
-    }
-  } else {
-    parts.push('Erster Datenpunkt — Score wird mit mehr History präziser');
-  }
-
-  if (trainedMuscles.size >= 3) {
-    parts.push(`${trainedMuscles.size} Muskelgruppen`);
-  }
-
-  const explanation =
-    parts.length > 0 ? parts.join(' · ') : 'Workout abgeschlossen';
-
-  return {
-    total,
-    label,
-    completionRate: Math.round(completionRatio * 100),
-    volumeScore,
-    intensityScore,
-    consistencyBonus,
-    explanation,
-    // Legacy: keep tips as empty array so stored sessions & PDF don't crash
-    tips: [],
-    percentileBetter: 0,
-  };
+  return { total, volume, completionRate, intensity, label };
 }

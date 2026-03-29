@@ -1,12 +1,10 @@
 export interface WorkoutScore {
-  total: number;            // 0-100 final score
-  label: string;            // "Exzellent" | "Stark" | "Gut" | "Ok" | "Mäßig" | "Schwach"
-  completionRate: number;   // 0-100: completed sets / planned sets (percentage)
-  volumeScore: number;      // 0-35: this session volume vs personal average
-  intensityScore: number;   // 0-20: avg weight vs personal average
-  consistencyBonus: number; // 0-10: bonus for training multiple muscle groups
-  explanation: string;      // short German text explaining the score
-  // Legacy fields kept optional for PDF export and stored sessions
+  total: number;           // 0-100 final weighted score
+  volume: number;          // 0-100: session volume vs personal average
+  completionRate: number;  // 0-100: completed sets / planned sets
+  intensity: number;       // 0-100: avg weight vs last 4 sessions
+  label: string;           // "Stark 💪" | "Gut" | "Ok" | "Leicht"
+  // Legacy fields kept optional so stored sessions & PDF export don't crash
   tips?: string[];
   percentileBetter?: number;
 }
