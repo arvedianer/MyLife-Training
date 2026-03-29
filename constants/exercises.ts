@@ -18,6 +18,11 @@ export const exercises: Exercise[] = [
     repRange: { min: 6, max: 10 },
     restSeconds: 180,
     scienceNote: 'Keep elbows ~75° from torso to minimize shoulder impingement. Higher EMG pec activation than any DB variation. Drive feet into the floor and retract scapulae for a stable base.',
+    equipmentVariations: {
+      barbell: 'bench-press',
+      dumbbell: 'incline-dumbbell-press',
+      machine: 'pec-deck',
+    },
   },
   {
     id: 'incline-dumbbell-press',
@@ -171,6 +176,10 @@ export const exercises: Exercise[] = [
     repRange: { min: 8, max: 12 },
     restSeconds: 90,
     scienceNote: 'Pull bar to upper sternum — never behind neck (cervical stress). Lean slightly back, chest up. Initiate with scapular depression before elbow flexion. Can be done uni- or bilateral.',
+    equipmentVariations: {
+      cable: 'lat-pulldown',
+      bodyweight: 'pull-up',
+    },
   },
   {
     id: 'seated-cable-row',
@@ -186,6 +195,11 @@ export const exercises: Exercise[] = [
     repRange: { min: 10, max: 15 },
     restSeconds: 90,
     scienceNote: 'Fully retract scapulae at peak contraction — accounts for 30% of the movement. Keep torso upright, avoid swinging. Pronated grip targets upper back; neutral grip emphasizes lats more.',
+    equipmentVariations: {
+      cable: 'seated-cable-row',
+      barbell: 'barbell-row',
+      dumbbell: 'dumbbell-row',
+    },
   },
   {
     id: 'cable-shrugs',
@@ -231,6 +245,11 @@ export const exercises: Exercise[] = [
     repRange: { min: 8, max: 12 },
     restSeconds: 90,
     scienceNote: 'Full scapular retraction at top — higher loads possible than cable rows. Brace the support hand actively. Neutral grip with elbow close to body maximizes lat activation.',
+    equipmentVariations: {
+      dumbbell: 'dumbbell-row',
+      barbell: 'barbell-row',
+      cable: 'seated-cable-row',
+    },
   },
   {
     id: 'barbell-row',
@@ -246,6 +265,11 @@ export const exercises: Exercise[] = [
     repRange: { min: 6, max: 10 },
     restSeconds: 120,
     scienceNote: 'Torso 45°, pull bar to navel. Fully retract scapulae at the top. Underhand (supinated) grip produces highest lat EMG. Pendlay-style (deload each rep) increases ROM and eliminates momentum.',
+    equipmentVariations: {
+      barbell: 'barbell-row',
+      dumbbell: 'dumbbell-row',
+      cable: 'seated-cable-row',
+    },
   },
   {
     id: 'chest-supported-row',
@@ -309,6 +333,10 @@ export const exercises: Exercise[] = [
     repRange: { min: 6, max: 10 },
     restSeconds: 180,
     scienceNote: 'Brace core, glutes, and legs tightly — bar travels in a slight arc just in front of the face. Highest overall shoulder loading of any pressing exercise. Great strength indicator.',
+    equipmentVariations: {
+      barbell: 'overhead-press',
+      machine: 'machine-shoulder-press',
+    },
   },
   {
     id: 'cable-lateral-raise',
@@ -324,6 +352,10 @@ export const exercises: Exercise[] = [
     repRange: { min: 12, max: 20 },
     restSeconds: 60,
     scienceNote: 'Jeff Nippard rates cable lateral raises as S+ tier — sweep the weight out (not up) to maximize medial delt tension. Cable provides constant tension unlike dumbbells. Avoid shrugging.',
+    equipmentVariations: {
+      cable: 'cable-lateral-raise',
+      dumbbell: 'lateral-raise',
+    },
   },
   {
     id: 'lateral-raise',
@@ -339,6 +371,10 @@ export const exercises: Exercise[] = [
     repRange: { min: 15, max: 20 },
     restSeconds: 60,
     scienceNote: 'Tilt thumbs slightly down (like pouring water) for better medial delt isolation. Controlled 3-second eccentric maximizes time under tension. Nearly irreplaceable for shoulder width.',
+    equipmentVariations: {
+      dumbbell: 'lateral-raise',
+      cable: 'cable-lateral-raise',
+    },
   },
   {
     id: 'reverse-pec-deck',
@@ -384,6 +420,10 @@ export const exercises: Exercise[] = [
     repRange: { min: 10, max: 15 },
     restSeconds: 90,
     scienceNote: 'Guided path allows full focus on anterior and medial delt without stability demands. Ideal when fatigued or as a high-rep finisher. Jeff Nippard recommends machine press for consistent mechanical stress.',
+    equipmentVariations: {
+      machine: 'machine-shoulder-press',
+      barbell: 'overhead-press',
+    },
   },
 
   // ── BICEPS ─────────────────────────────────────────────────────────────────
@@ -402,6 +442,12 @@ export const exercises: Exercise[] = [
     repRange: { min: 10, max: 15 },
     restSeconds: 75,
     scienceNote: 'Supinate at the top (rotate palm outward) for maximal biceps peak contraction. Keep elbows pinned at sides. Alternating arms allows unilateral focus and corrects imbalances.',
+    equipmentVariations: {
+      dumbbell: 'dumbbell-curl',
+      barbell: 'barbell-curl',
+      cable: 'bayesian-cable-curl',
+      machine: 'preacher-curl',
+    },
   },
   {
     id: 'reverse-cable-curl',
@@ -495,6 +541,10 @@ export const exercises: Exercise[] = [
     repRange: { min: 12, max: 20 },
     restSeconds: 60,
     scienceNote: 'Elbows pinned at sides throughout. Full lock-out at bottom for peak lateral head contraction. Rope attachment allows hands to separate at bottom — greater lateral head activation vs. straight bar.',
+    equipmentVariations: {
+      cable: 'tricep-pushdown',
+      barbell: 'skull-crusher',
+    },
   },
   {
     id: 'skull-crusher',
@@ -510,6 +560,10 @@ export const exercises: Exercise[] = [
     repRange: { min: 10, max: 15 },
     restSeconds: 90,
     scienceNote: 'Lower bar slightly behind the head — maximizes long head stretch at bottom. EZ bar reduces wrist stress. Keep elbows pointing up and together. Provides excellent long-head mass builder.',
+    equipmentVariations: {
+      barbell: 'skull-crusher',
+      cable: 'cable-overhead-tricep-ext',
+    },
   },
   {
     id: 'close-grip-bench',

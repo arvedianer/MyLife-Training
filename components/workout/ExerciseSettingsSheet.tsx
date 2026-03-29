@@ -5,7 +5,8 @@ import { motion, AnimatePresence, type PanInfo, useDragControls } from 'framer-m
 import { X } from 'lucide-react';
 import { colors, spacing } from '@/constants/tokens';
 import { useGymStore } from '@/store/gymStore';
-import { EQUIPMENT_LABELS } from '@/utils/variations';
+import { EQUIPMENT_LABELS, findEquipmentVariation } from '@/utils/variations';
+import { exercises as EXERCISES } from '@/constants/exercises';
 import type { ExerciseEquipment } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
 import styles from './ExerciseSettingsSheet.module.css';
@@ -61,6 +62,8 @@ export function ExerciseSettingsSheet({
 }: ExerciseSettingsSheetProps) {
   const { gyms, addGym } = useGymStore();
   const [showAddGym, setShowAddGym] = useState(false);
+
+  const suggestedVariation = findEquipmentVariation(exercise, equipment, EXERCISES);
   const [newGymName, setNewGymName] = useState('');
   const dragControls = useDragControls();
 
@@ -133,6 +136,47 @@ export function ExerciseSettingsSheet({
                     </button>
                   ))}
                 </div>
+                {suggestedVariation && (
+                  <div style={{
+                    marginTop: 8,
+                    background: 'rgba(77,255,237,0.06)',
+                    border: '1px solid rgba(77,255,237,0.2)',
+                    borderRadius: 10,
+                    padding: '10px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-manrope)' }}>
+                        Variation verfügbar:
+                      </div>
+                      <div style={{ fontSize: 14, color: 'var(--text-primary)', fontFamily: 'var(--font-barlow)', fontWeight: 600 }}>
+                        {suggestedVariation.nameDE}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        onReplaceExercise();
+                        onClose();
+                      }}
+                      style={{
+                        background: 'rgba(77,255,237,0.12)',
+                        border: '1px solid rgba(77,255,237,0.3)',
+                        borderRadius: 8,
+                        padding: '6px 12px',
+                        color: 'var(--accent)',
+                        fontSize: 13,
+                        fontFamily: 'var(--font-manrope)',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Übernehmen →
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* SEITIG */}
