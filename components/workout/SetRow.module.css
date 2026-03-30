@@ -111,8 +111,8 @@
 .unilateralReps {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex: 1;
+    gap: 10px;
+    flex: 1.8;
     min-width: 0;
 }
 

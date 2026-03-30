@@ -46,4 +46,8 @@ export interface Exercise {
   variationOf?: string;     // parent exercise ID (e.g. 'bench-press')
   variationLabel?: string;  // e.g. 'Kurzhantel', 'Kabel', 'Maschine'
   tags?: string[];          // e.g. ['compound', 'beginner-friendly', 'home']
+  equipmentVariations?: Partial<Record<string, string>>;
+  // Maps equipment key → exercise ID of that variation
+  // e.g. { barbell: 'bench-press', dumbbell: 'incline-dumbbell-press', machine: 'machine-shoulder-press' }
+  // Use string (not Equipment) to avoid circular imports between type files
 }

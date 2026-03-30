@@ -1,4 +1,5 @@
 import type { ExerciseEquipment } from '@/types/workout';
+import type { Exercise } from '@/types/exercises';
 
 export function buildVariationKey(
   exerciseId: string,
@@ -26,6 +27,22 @@ export function normalizeWeightForVariation(
   if (isUnilateral) return weight * 2;
   if (equipment === 'cable') return weight * 0.9;
   return weight;
+}
+
+/**
+ * Given an exercise and a target equipment type, find the matching variation
+ * from the exercise's equipmentVariations map. Returns null if no variation
+ * exists or if the variation would be the same exercise.
+ */
+export function findEquipmentVariation(
+  exercise: Exercise,
+  targetEquipment: ExerciseEquipment,
+  allExercises: Exercise[]
+): Exercise | null {
+  if (!exercise.equipmentVariations) return null;
+  const variationId = exercise.equipmentVariations[targetEquipment];
+  if (!variationId || variationId === exercise.id) return null;
+  return allExercises.find((e) => e.id === variationId) ?? null;
 }
 
 export const EQUIPMENT_LABELS: Record<string, string> = {
