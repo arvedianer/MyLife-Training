@@ -141,6 +141,21 @@ export default function ForumPage() {
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {activeTab === 'general' && (
           <div style={{ padding: spacing[4], display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
+            {/* Coach Arved banner */}
+            <div style={{
+              backgroundColor: colors.accentBg,
+              border: `1px solid ${colors.accent}33`,
+              borderRadius: radius.md,
+              padding: `${spacing[2]} ${spacing[3]}`,
+              marginBottom: spacing[1],
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing[2],
+            }}>
+              <span style={{ ...typography.bodySm, color: colors.accent, fontWeight: 700 }}>Coach Arved</span>
+              <span style={{ ...typography.bodySm, color: colors.textMuted }}>ist im Forum aktiv — stell deine Fragen direkt hier.</span>
+            </div>
+
             {loading ? (
               <div style={{ textAlign: 'center', color: colors.textMuted, paddingTop: 40 }}>Lädt...</div>
             ) : generalChannel ? (

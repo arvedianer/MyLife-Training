@@ -154,6 +154,7 @@ export default function ChatPage({ params }: { params: { channelId: string } }) 
         {messages.map((msg) => {
           const sender = profiles[msg.senderId] ?? null;
           const isOwn = msg.senderId === userId;
+          const isCoachMessage = msg.isCoach === true || sender?.isCoach === true || sender?.username === 'Coach Arved';
           const commonProps = { message: msg, sender, isOwn, onAvatarPress: () => { if (sender) setSelectedProfile(sender); } };
           return (
             <div
@@ -178,9 +179,25 @@ export default function ChatPage({ params }: { params: { channelId: string } }) 
               }}
               style={{ touchAction: 'pan-y' }}
             >
-              {msg.type === 'workout_card'
-                ? <WorkoutCardMessage {...commonProps} />
-                : <MessageBubble {...commonProps} />}
+              {isCoachMessage ? (
+                <div style={{
+                  borderLeft: `2px solid ${colors.accent}`,
+                  paddingLeft: spacing[3],
+                  marginBottom: spacing[2],
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing[1], marginBottom: spacing[1] }}>
+                    <span style={{ ...typography.label, color: colors.accent }}>Coach Arved</span>
+                    <span style={{ ...typography.label, color: colors.textDisabled }}>• KI</span>
+                  </div>
+                  {msg.type === 'workout_card'
+                    ? <WorkoutCardMessage {...commonProps} />
+                    : <MessageBubble {...commonProps} />}
+                </div>
+              ) : (
+                msg.type === 'workout_card'
+                  ? <WorkoutCardMessage {...commonProps} />
+                  : <MessageBubble {...commonProps} />
+              )}
             </div>
           );
         })}

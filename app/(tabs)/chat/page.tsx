@@ -80,11 +80,10 @@ function detectTrainingPlan(text: string): boolean {
 }
 
 const QUICK_REPLIES = [
-  'Wie war mein letztes Training?',
-  'Was sollte ich heute trainieren?',
-  'Erkläre mir Progressive Overload',
-  'Bin ich übertrainiert?',
-  'Was ist Hypertrophie?',
+  'Analysiere mein letztes Training',
+  'Was trainiere ich heute?',
+  'Bin ich auf dem richtigen Weg?',
+  'Erkläre Progressive Overload',
 ];
 
 const STARTER_PROMPTS = [
@@ -130,6 +129,7 @@ export default function ChatPage() {
   const [listening, setListening] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [showQuickReplies, setShowQuickReplies] = useState(true);
+  const [hasStartedChat, setHasStartedChat] = useState(false);
   const [savingPlan, setSavingPlan] = useState<string | null>(null); // msgId being saved
   const [savedPlanIds, setSavedPlanIds] = useState<Set<string>>(new Set());
   const [planToast, setPlanToast] = useState(false);
@@ -166,6 +166,11 @@ export default function ChatPage() {
   const activeConv = getActiveConversation();
   const messages = activeConv?.messages ?? [];
   const isEmpty = messages.length === 0;
+
+  // If switching to a conversation that already has messages, hide quick replies / entry points
+  useEffect(() => {
+    setHasStartedChat(messages.length > 0);
+  }, [activeConversationId, messages.length]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -236,6 +241,7 @@ export default function ChatPage() {
     setInput('');
     setError(null);
     setShowQuickReplies(false);
+    setHasStartedChat(true);
 
     const convId = activeConversationId ?? newConversation();
 
@@ -786,8 +792,8 @@ export default function ChatPage() {
               <h2 style={{ ...typography.h2, color: colors.textPrimary, marginBottom: spacing[2] }}>
                 Coach Arved
               </h2>
-              <p style={{ ...typography.body, color: colors.textMuted, maxWidth: '260px', lineHeight: '22px' }}>
-                Dein persönlicher KI Trainer — direkt, kritisch, datenbasiert.
+              <p style={{ ...typography.body, color: colors.textMuted, maxWidth: '280px', lineHeight: '22px' }}>
+                Stell mir alles — Trainingsplan, Ernährung, Form, Progressive Overload, Regeneration. Ich kenn deine Daten.
               </p>
             </div>
 
@@ -824,6 +830,24 @@ export default function ChatPage() {
                     {p.text}
                   </span>
                 </button>
+              ))}
+            </div>
+
+            {/* "WAS ICH KANN" capabilities section */}
+            <div style={{
+              width: '100%',
+              borderTop: `1px solid ${colors.border}`,
+              paddingTop: spacing[4],
+              marginTop: spacing[2],
+            }}>
+              <p style={{ ...typography.label, color: colors.textMuted, marginBottom: spacing[3], marginTop: 0 }}>
+                WAS ICH KANN
+              </p>
+              {CAPABILITIES.map((item) => (
+                <div key={item.text} style={{ display: 'flex', gap: spacing[2], alignItems: 'center', marginBottom: spacing[2] }}>
+                  <span style={{ fontSize: 16 }}>{item.emoji}</span>
+                  <span style={{ ...typography.bodySm, color: colors.textSecondary }}>{item.text}</span>
+                </div>
               ))}
             </div>
           </motion.div>
@@ -974,8 +998,8 @@ export default function ChatPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Quick-reply chips */}
-      {showQuickReplies && messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && (
+      {/* Quick-reply chips — only before first send */}
+      {!hasStartedChat && showQuickReplies && messages.length === 0 && (
         <div data-tour="coach-suggestions" style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[2], padding: `${spacing[2]} ${spacing[4]}`, flexShrink: 0 }}>
           {QUICK_REPLIES.map((reply) => (
             <button
