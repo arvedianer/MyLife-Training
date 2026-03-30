@@ -5,6 +5,7 @@ import { useUserStore } from '@/store/userStore';
 import { useTourStore } from '@/store/tourStore';
 import { usePlanStore } from '@/store/planStore';
 import { colors, spacing, typography, radius } from '@/constants/tokens';
+import { CheckCircle2, Dumbbell, Calendar, Target, ChevronRight } from 'lucide-react';
 
 export default function DonePage() {
   const router = useRouter();
@@ -13,12 +14,50 @@ export default function DonePage() {
   const startTour = useTourStore((s) => s.startTour);
   const activeSplit = usePlanStore((s) => s.getActiveSplit());
 
-  const handleStart = () => {
-    if (!profile) return;
-    completeOnboarding(profile);   // sets onboardingCompleted: true
-    startTour();                   // sets tourActive: true, tourStep: 0
-    router.replace('/');           // navigate to dashboard (tour will take over)
+  const goalLabels: Record<string, string> = {
+    muscle: 'Muskelaufbau',
+    strength: 'Kraft aufbauen',
+    fat_loss: 'Abnehmen',
+    endurance: 'Ausdauer verbessern',
+    general: 'Fit bleiben',
   };
+
+  const levelLabels: Record<string, string> = {
+    beginner: 'Einsteiger',
+    intermediate: 'Fortgeschritten',
+    advanced: 'Profi',
+  };
+
+  const handleStartTour = () => {
+    if (!profile) return;
+    completeOnboarding(profile);
+    startTour();
+    router.replace('/');
+  };
+
+  const handleSkipTour = () => {
+    if (!profile) return;
+    completeOnboarding(profile);
+    router.replace('/');
+  };
+
+  const stats = [
+    {
+      icon: Calendar,
+      label: 'Trainingstage',
+      value: `${profile?.trainingDays ?? 3}× / Woche`,
+    },
+    {
+      icon: Target,
+      label: 'Ziel',
+      value: goalLabels[profile?.goal ?? ''] ?? profile?.goal ?? '—',
+    },
+    {
+      icon: Dumbbell,
+      label: 'Level',
+      value: levelLabels[profile?.level ?? ''] ?? profile?.level ?? '—',
+    },
+  ];
 
   return (
     <div style={{
@@ -26,38 +65,85 @@ export default function DonePage() {
       backgroundColor: colors.bgPrimary,
       display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingTop: spacing[6],
-      paddingBottom: spacing[6],
-      paddingLeft: spacing[5],
-      paddingRight: spacing[5],
-      gap: spacing[8],
+      padding: `${spacing[8]} ${spacing[5]} ${spacing[6]}`,
+      maxWidth: 480,
+      margin: '0 auto',
+      width: '100%',
     }}>
+      {/* Check animation */}
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
-        style={{ maxWidth: 400, width: '100%', display: 'flex', flexDirection: 'column', gap: spacing[4] }}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.1 }}
+        style={{ marginBottom: spacing[6] }}
       >
-        <h1 style={{ ...typography.h1, color: colors.textPrimary, margin: 0 }}>
-          Dein Plan steht{profile?.name ? `, ${profile.name}` : ''}.
+        <CheckCircle2 size={52} color={colors.accent} />
+      </motion.div>
+
+      {/* Headline */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.4 }}
+        style={{ marginBottom: spacing[8] }}
+      >
+        <h1 style={{ ...typography.h1, color: colors.textPrimary, margin: 0, marginBottom: spacing[2] }}>
+          {profile?.name ? `Alles klar, ${profile.name}.` : 'Alles klar.'}
         </h1>
         {activeSplit && (
           <p style={{ ...typography.bodyLg, color: colors.accent, margin: 0 }}>
-            {activeSplit.name} — {profile?.trainingDays ?? 3} Tage pro Woche.
+            {activeSplit.name} — bereit zum Start.
           </p>
         )}
       </motion.div>
 
+      {/* Stats cards */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.4 }}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: spacing[3],
+          marginBottom: spacing[8],
+          flex: 1,
+        }}
+      >
+        {stats.map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 + i * 0.1, duration: 0.3 }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing[3],
+              backgroundColor: colors.bgCard,
+              borderRadius: radius.lg,
+              padding: `${spacing[3]} ${spacing[4]}`,
+              border: `1px solid ${colors.border}`,
+            }}
+          >
+            <stat.icon size={20} color={colors.accent} />
+            <div>
+              <div style={{ ...typography.label, color: colors.textMuted }}>{stat.label}</div>
+              <div style={{ ...typography.bodyLg, color: colors.textPrimary }}>{stat.value}</div>
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* CTA buttons */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.4, duration: 0.3 }}
-        style={{ width: '100%', maxWidth: 400 }}
+        transition={{ delay: 1.0, duration: 0.4 }}
+        style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}
       >
         <button
-          onClick={handleStart}
+          onClick={handleStartTour}
           style={{
             width: '100%',
             backgroundColor: colors.accent,
@@ -67,9 +153,28 @@ export default function DonePage() {
             padding: spacing[4],
             cursor: 'pointer',
             ...typography.h3,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: spacing[2],
           }}
         >
-          App kennenlernen →
+          App kennenlernen <ChevronRight size={18} />
+        </button>
+        <button
+          onClick={handleSkipTour}
+          style={{
+            width: '100%',
+            backgroundColor: 'transparent',
+            color: colors.textMuted,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.lg,
+            padding: spacing[3],
+            cursor: 'pointer',
+            ...typography.body,
+          }}
+        >
+          Direkt loslegen
         </button>
       </motion.div>
     </div>
