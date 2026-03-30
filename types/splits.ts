@@ -32,4 +32,7 @@ export interface TrainingSplit {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   isActive: boolean;
   createdAt: number;
+  durationWeeks?: number;       // e.g. 8, 12
+  targetAudience?: string;      // e.g. "Anfänger", "Fortgeschrittene", "Alle Level"
+  tags?: string[];              // e.g. ["Hypertrophie", "Kraft", "Abnehmen"]
 }

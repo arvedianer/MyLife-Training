@@ -21,6 +21,12 @@ export default function SplitsPage() {
     advanced: 'Profi',
   };
 
+  const difficultyColor: Record<string, string> = {
+    beginner: colors.success,
+    intermediate: colors.accent,
+    advanced: colors.danger,
+  };
+
   const handleActivateTemplate = (template: TrainingSplit) => {
     const clonedSplit: TrainingSplit = {
       ...template,
@@ -103,12 +109,34 @@ export default function SplitsPage() {
             {/* Badges */}
             <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], flexWrap: 'wrap' }}>
               <Badge variant={isActive ? 'accent' : 'muted'}>
-                {split.daysPerWeek}x / Woche
+                {split.daysPerWeek}×/Woche
               </Badge>
-              <Badge variant="default">
+              <span style={{
+                ...typography.label,
+                color: difficultyColor[split.difficulty] ?? colors.textMuted,
+                backgroundColor: `${difficultyColor[split.difficulty] ?? colors.textMuted}18`,
+                border: `1px solid ${difficultyColor[split.difficulty] ?? colors.textMuted}40`,
+                borderRadius: radius.full,
+                padding: `2px ${spacing[2]}`,
+              }}>
                 {difficultyLabel[split.difficulty] ?? split.difficulty}
-              </Badge>
+              </span>
             </div>
+
+            {/* Tags */}
+            {split.tags && split.tags.length > 0 && (
+              <div style={{ display: 'flex', gap: spacing[1], flexWrap: 'wrap', marginTop: spacing[2] }}>
+                {split.tags.map(tag => (
+                  <span key={tag} style={{
+                    ...typography.label,
+                    color: colors.textMuted,
+                    backgroundColor: colors.bgHighest,
+                    borderRadius: radius.full,
+                    padding: `2px ${spacing[2]}`,
+                  }}>{tag}</span>
+                ))}
+              </div>
+            )}
 
             {/* Muscle chips */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px' }}>
