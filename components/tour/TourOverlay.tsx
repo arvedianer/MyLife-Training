@@ -114,6 +114,11 @@ export function TourOverlay() {
   const bubbleTop =
     sr !== null && !bubbleAboveHalf ? sr.bottom + 12 : sr === null ? sp(4) : undefined;
 
+  // Progress dots: show a window of up to 5 steps centered on the current step
+  const windowStart = Math.max(0, tourStep - 2);
+  const windowEnd = Math.min(TOUR_STEPS.length, windowStart + 5);
+  const visibleSteps = TOUR_STEPS.slice(windowStart, windowEnd);
+
   return (
     <AnimatePresence>
       {tourActive && (
@@ -145,11 +150,12 @@ export function TourOverlay() {
                 boxShadow: '0 0 0 9999px rgba(0,0,0,0.75)',
                 zIndex: 9998,
                 pointerEvents: 'none',
+                transition: 'left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease',
               }}
             />
           )}
 
-          {/* Skip button */}
+          {/* Skip button — more prominent */}
           <button
             onClick={skipTour}
             style={{
@@ -157,10 +163,12 @@ export function TourOverlay() {
               top: sp(4),
               right: sp(4),
               zIndex: 10001,
-              background: 'transparent',
-              border: 'none',
+              background: colors.bgElevated,
+              border: `1px solid ${colors.border}`,
+              borderRadius: radius.full,
               color: colors.textMuted,
               cursor: 'pointer',
+              padding: `${sp(2)}px ${sp(3)}px`,
               ...typography.bodySm,
             }}
           >
@@ -171,10 +179,10 @@ export function TourOverlay() {
           {step && (
             <motion.div
               key={tourStep}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
               style={{
                 position: 'fixed',
                 zIndex: 10001,
@@ -188,30 +196,57 @@ export function TourOverlay() {
                 padding: sp(5),
                 display: 'flex',
                 flexDirection: 'column',
-                gap: sp(4),
+                gap: sp(3),
               }}
             >
-              <p
-                style={{
-                  ...typography.bodyLg,
-                  color: colors.textPrimary,
-                  margin: 0,
-                }}
-              >
+              {/* Coach Arved avatar header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: sp(2) }}>
+                <div style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: radius.full,
+                  backgroundColor: colors.accentBg,
+                  border: `1px solid ${colors.accent}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 14,
+                  flexShrink: 0,
+                }}>
+                  💪
+                </div>
+                <span style={{ ...typography.label, color: colors.accent }}>Coach Arved</span>
+              </div>
+
+              {/* Speech bubble text */}
+              <p style={{ ...typography.bodyLg, color: colors.textPrimary, margin: 0 }}>
                 {step.text}
               </p>
 
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <span style={{ ...typography.monoSm, color: colors.textFaint }}>
-                  Schritt {step.id} von {TOUR_STEPS.length}
+              {/* Progress indicator row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: sp(2) }}>
+                <span style={{ ...typography.monoSm, color: colors.textFaint, flexShrink: 0 }}>
+                  {step.id} / {TOUR_STEPS.length}
                 </span>
+                <div style={{ display: 'flex', gap: 4, flex: 1, alignItems: 'center' }}>
+                  {visibleSteps.map((s) => (
+                    <div
+                      key={s.id}
+                      style={{
+                        width: s.id === step.id ? 16 : 6,
+                        height: 6,
+                        borderRadius: radius.full,
+                        backgroundColor: s.id === step.id ? colors.accent : colors.bgHighest,
+                        transition: 'all 0.2s ease',
+                        flexShrink: 0,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
 
+              {/* Navigation buttons */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: sp(3) }}>
                   {tourStep > 0 && (
                     <button
@@ -229,6 +264,9 @@ export function TourOverlay() {
                       Zurück
                     </button>
                   )}
+                </div>
+
+                <div style={{ display: 'flex', gap: sp(3), alignItems: 'center' }}>
                   {step.action === 'next' && (() => {
                     const isLastStep = tourStep === TOUR_STEPS.length - 1;
                     return (
