@@ -41,7 +41,9 @@ export interface Exercise {
   scienceNote: string;                      // Form cue + evidence-based rationale
   isPublic?: boolean;
   createdBy?: string;
-  isCardio?: boolean;  // If true: track km + duration instead of weight/reps
+  isCardio?: boolean;       // If true: track km + duration instead of weight/reps
+  isUnilateral?: boolean;   // If true: exercise works one limb at a time (single-arm/leg)
+  gifUrl?: string;          // Optional URL to an animated GIF demonstration
   popularity?: number;      // 1–100 (based on real-world usage data)
   variationOf?: string;     // parent exercise ID (e.g. 'bench-press')
   variationLabel?: string;  // e.g. 'Kurzhantel', 'Kabel', 'Maschine'
