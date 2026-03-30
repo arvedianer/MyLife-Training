@@ -15,7 +15,7 @@ import { exercises } from '@/constants/exercises';
 import { formatVolume, calculateStreak } from '@/utils/dates';
 import {
   format, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
-  subWeeks, addWeeks, parseISO, isSameDay, eachDayOfInterval, isAfter,
+  subWeeks, addWeeks, parseISO, isAfter,
 } from 'date-fns';
 import { MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
 import { computeMuscleRecovery } from '@/utils/muscleRecovery';
@@ -106,10 +106,6 @@ export default function StatsPage() {
 
   const maxMuscleSets = Math.max(...Object.values(muscleSets), 1);
   const hasMuscleData = Object.keys(muscleSets).length > 0;
-
-  // Training days calendar (only computed for week/month — lifetime has too many days)
-  const periodDays = timeRange !== 'lifetime' ? eachDayOfInterval({ start, end }) : [];
-  const trainedDays = new Set(periodSessions.map(s => format(parseISO(s.date), 'yyyy-MM-dd')));
 
   // All-time
   const totalWorkouts = sessions.length;
@@ -213,6 +209,44 @@ export default function StatsPage() {
   const muscleRecovery = useMemo(() => computeMuscleRecovery(sessions), [sessions]);
 
   const exercisesWithPRs = exercises.filter(e => prs[e.id]).slice(0, 10);
+
+  // Progressive overload: 1RM estimates for main lifts over time
+  const MAIN_LIFTS = [
+    { id: 'bench-press',    label: 'Bankdrücken', color: colors.accent },
+    { id: 'squat',          label: 'Kniebeuge',   color: colors.cheffe },
+    { id: 'deadlift',       label: 'Kreuzheben',  color: colors.danger },
+    { id: 'overhead-press', label: 'OHP',         color: colors.prColor },
+  ] as const;
+
+  const overloadData = useMemo(() => {
+    const sortedSessions = [...sessions]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-52);
+
+    return sortedSessions.map(session => {
+      const point: Record<string, string | number> = {
+        date: session.date,
+      };
+      for (const lift of MAIN_LIFTS) {
+        const ex = session.exercises.find(e => e.exercise?.id === lift.id);
+        if (!ex) continue;
+        let bestOrm: number | null = null;
+        for (const set of ex.sets) {
+          if (!set.isCompleted || !set.weight || !set.reps) continue;
+          const orm = estimateOneRepMax(set.weight, set.reps);
+          if (orm !== null && (bestOrm === null || orm > bestOrm)) bestOrm = orm;
+        }
+        if (bestOrm !== null) point[lift.label] = bestOrm;
+      }
+      return point;
+    });
+  // MAIN_LIFTS is a const defined in render scope but never changes — safe to omit
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions]);
+
+  const overloadHasData = MAIN_LIFTS.some(lift =>
+    overloadData.filter(d => lift.label in d).length >= 3,
+  );
 
 // Strength progression: top 5 most-trained exercises with max-weight history
   const strengthData = useMemo(() => {
@@ -407,33 +441,106 @@ export default function StatsPage() {
         borderRadius: radius.lg, padding: spacing[5],
         textAlign: 'center', marginBottom: spacing[4],
       }}>
-        <p style={{ fontSize: '11px', fontWeight: 600, color: colors.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'var(--font-barlow)', marginBottom: spacing[2] }}>
+        <p style={{ fontSize: '11px', fontWeight: 600, color: colors.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'var(--font-barlow)', marginBottom: spacing[3] }}>
           Athleten-Score
         </p>
-        <p style={{ fontSize: '64px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', lineHeight: 1, margin: 0 }}>
-          {displayScore}
+        <div style={{ display: 'flex', gap: spacing[6], justifyContent: 'center', alignItems: 'flex-end' }}>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '64px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', lineHeight: 1, margin: 0 }}>
+              {athleteResult.total}
+            </p>
+            <p style={{ fontSize: '11px', fontWeight: 600, color: colors.textMuted, fontFamily: 'var(--font-manrope)', marginTop: spacing[1], textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {timeRange === 'week' ? 'Diese Woche' : timeRange === 'month' ? 'Diesen Monat' : 'Gesamt'}
+            </p>
+          </div>
+          {lifetimeAthleteScore > 0 && lifetimeAthleteScore !== athleteResult.total && (
+            <div style={{ textAlign: 'center', opacity: 0.55 }}>
+              <p style={{ fontSize: '64px', fontWeight: 800, color: colors.textMuted, fontFamily: 'var(--font-barlow)', lineHeight: 1, margin: 0 }}>
+                {lifetimeAthleteScore}
+              </p>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: colors.textMuted, fontFamily: 'var(--font-manrope)', marginTop: spacing[1], textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                All-Time Best
+              </p>
+            </div>
+          )}
+        </div>
+        <p style={{ fontSize: '16px', fontWeight: 600, color: colors.textSecondary, fontFamily: 'var(--font-manrope)', marginTop: spacing[2] }}>
+          {athleteScoreLabel(Math.max(lifetimeAthleteScore, athleteResult.total))}
         </p>
-        <p style={{ fontSize: '16px', fontWeight: 600, color: colors.textSecondary, fontFamily: 'var(--font-manrope)', marginTop: spacing[1] }}>
-          {athleteScoreLabel(displayScore)}
-        </p>
-        {athleteResult.total !== displayScore && (
-          <p style={{ fontSize: '11px', color: colors.textMuted, marginTop: spacing[1], fontFamily: 'var(--font-manrope)' }}>
-            Aktuell: {athleteResult.total} · Rekord: {displayScore}
-          </p>
-        )}
       </div>
 
-      {/* ── 5 DIMENSIONS ── */}
+      {/* ── PROGRESSIVE OVERLOAD CHART ── */}
+      {overloadHasData && (
+        <div style={{ marginBottom: spacing[4] }}>
+          <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[1] }}>
+            Kraftentwicklung
+          </h2>
+          <p style={{ ...typography.bodySm, color: colors.textMuted, marginBottom: spacing[3] }}>
+            Geschätztes 1RM der Hauptübungen über Zeit
+          </p>
+          <div style={{
+            backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
+            borderRadius: radius.lg, padding: spacing[4],
+          }}>
+            <ResponsiveContainer width="100%" height={180}>
+              <LineChart data={overloadData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: colors.textFaint, fontSize: 10, fontFamily: 'monospace' }}
+                  tickFormatter={(d: string) => {
+                    try { return format(parseISO(d), 'dd.MM'); } catch { return d; }
+                  }}
+                />
+                <YAxis
+                  tick={{ fill: colors.textFaint, fontSize: 10, fontFamily: 'monospace' }}
+                  unit="kg"
+                />
+                <Tooltip
+                  contentStyle={{ backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`, borderRadius: radius.md }}
+                  labelStyle={{ color: colors.textMuted, fontSize: '11px' }}
+                  labelFormatter={(d: string) => {
+                    try { return format(parseISO(d), 'dd.MM.yyyy'); } catch { return d; }
+                  }}
+                />
+                {MAIN_LIFTS.map(lift => (
+                  <Line
+                    key={lift.id}
+                    type="monotone"
+                    dataKey={lift.label}
+                    stroke={lift.color}
+                    strokeWidth={2}
+                    dot={false}
+                    connectNulls
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+            {/* Legend */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[3], justifyContent: 'center', marginTop: spacing[3] }}>
+              {MAIN_LIFTS.map(lift => (
+                <div key={lift.id} style={{ display: 'flex', alignItems: 'center', gap: spacing[1] }}>
+                  <div style={{ width: '10px', height: '3px', borderRadius: '2px', backgroundColor: lift.color }} />
+                  <span style={{ ...typography.monoSm, color: colors.textMuted }}>{lift.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 4 DIMENSIONS (Endurance removed) ── */}
       <div style={{ marginBottom: spacing[4] }}>
         <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: 'var(--font-barlow)' }}>
           Dimensionen
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing[2] }}>
-          {athleteResult.dimensions.map((dim, index) => (
+          {athleteResult.dimensions
+            .filter(dim => dim.name !== 'Endurance')
+            .map(dim => (
             <div key={dim.name} style={{
               background: colors.bgCard, border: `1px solid ${colors.border}`,
               borderRadius: radius.md, padding: spacing[3],
-              ...(index === 4 ? { gridColumn: 'span 2' } : {}),
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[2] }}>
                 <span style={{ fontSize: '12px', fontWeight: 600, color: colors.textSecondary, fontFamily: 'var(--font-manrope)' }}>
@@ -461,66 +568,29 @@ export default function StatsPage() {
       {(strengthPercentiles.length > 0 || sessions.length >= 3) && (
         <div data-tour="benchmarks" style={{ marginBottom: spacing[4] }}>
           <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: 'var(--font-barlow)' }}>
-            Vergleiche
+            Kraftvergleich
           </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
-
-            {/* Strength percentile cards */}
-            {strengthPercentiles.map(p => (
-              <div key={p.exercise} style={{
-                background: colors.bgCard, border: `1px solid ${colors.border}`,
-                borderRadius: radius.md, padding: `${spacing[3]} ${spacing[4]}`,
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <div>
-                  <p style={{ fontSize: '13px', fontWeight: 600, color: colors.textSecondary, fontFamily: 'var(--font-manrope)', margin: 0 }}>
-                    {p.exerciseDE}
-                  </p>
-                  <p style={{ fontSize: '11px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', margin: `${spacing[1]} 0 0` }}>
-                    {p.orm} kg · Top {100 - p.percentile}%
-                  </p>
-                </div>
-                <span style={{
-                  fontSize: '22px', fontWeight: 800, color: colors.accent,
-                  fontFamily: 'var(--font-barlow)', lineHeight: 1,
-                }}>
-                  ~{p.percentile}%
-                </span>
-              </div>
-            ))}
-
-            {/* Frequency benchmark */}
-            {(() => {
-              const now = new Date();
-              const cutoff = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000);
-              const recentCount = sessions.filter(s => parseISO(s.date) >= cutoff).length;
-              const perWeek = Math.round((recentCount / 4) * 10) / 10;
-              const freqPct = Math.min(95, Math.round(perWeek * 20 + 10));
-              if (recentCount < 2) return null;
-              return (
-                <div style={{
-                  background: colors.bgCard, border: `1px solid ${colors.border}`,
-                  borderRadius: radius.md, padding: `${spacing[3]} ${spacing[4]}`,
+          <div style={{
+            background: colors.bgCard, border: `1px solid ${colors.border}`,
+            borderRadius: radius.lg, overflow: 'hidden',
+          }}>
+            {strengthPercentiles.length > 0 ? (
+              strengthPercentiles.map((p, i) => (
+                <div key={p.exercise} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: `${spacing[3]} ${spacing[4]}`,
+                  borderBottom: i < strengthPercentiles.length - 1 ? `1px solid ${colors.border}` : 'none',
                 }}>
-                  <div>
-                    <p style={{ fontSize: '13px', fontWeight: 600, color: colors.textSecondary, fontFamily: 'var(--font-manrope)', margin: 0 }}>
-                      Trainingsfrequenz
-                    </p>
-                    <p style={{ fontSize: '11px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', margin: `${spacing[1]} 0 0` }}>
-                      Du trainierst {perWeek}× pro Woche
-                    </p>
-                  </div>
-                  <span style={{ fontSize: '22px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', lineHeight: 1 }}>
-                    ~{freqPct}%
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: colors.textSecondary, fontFamily: 'var(--font-manrope)' }}>
+                    {p.exerciseDE}
+                  </span>
+                  <span style={{ fontSize: '13px', color: colors.textMuted, fontFamily: 'var(--font-manrope)' }}>
+                    ~{p.orm}&thinsp;kg · <span style={{ color: colors.accent, fontWeight: 700 }}>Top {100 - p.percentile}%</span>
                   </span>
                 </div>
-              );
-            })()}
-
-            {/* No body weight prompt */}
-            {!profile?.bodyWeight && strengthPercentiles.length === 0 && (
-              <p style={{ fontSize: '12px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', textAlign: 'center', padding: spacing[3] }}>
+              ))
+            ) : (
+              <p style={{ fontSize: '12px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', textAlign: 'center', padding: spacing[4] }}>
                 Trage dein Körpergewicht in den Einstellungen ein, um Kraftvergleiche zu sehen.
               </p>
             )}
@@ -581,53 +651,6 @@ export default function StatsPage() {
         />
       </div>
 
-{/* ── TRAINING CALENDAR ── */}
-      {/* Only show calendar for week/month — lifetime has too many days */}
-      {timeRange !== 'lifetime' && (
-      <div>
-        <h2 style={{ ...typography.h3, color: colors.textPrimary, marginBottom: spacing[3] }}>
-          Trainingstage
-        </h2>
-        <div style={{
-          backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
-          borderRadius: radius.lg, padding: spacing[4],
-        }}>
-          <div style={{
-            display: 'flex', flexWrap: 'wrap',
-            gap: periodDays.length > 14 ? spacing[1] : spacing[2],
-            justifyContent: 'center',
-          }}>
-            {periodDays.map(day => {
-              const key = format(day, 'yyyy-MM-dd');
-              const trained = trainedDays.has(key);
-              const today = isSameDay(day, new Date());
-              const sz = periodDays.length > 14 ? '26px' : '34px';
-              return (
-                <div
-                  key={key}
-                  title={format(day, 'EEE dd.MM', { locale: de })}
-                  style={{
-                    width: sz, height: sz, borderRadius: radius.sm,
-                    backgroundColor: trained ? colors.accent : colors.bgHighest,
-                    border: today ? `2px solid ${colors.accent}80` : `1px solid ${colors.borderLight}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <span style={{ ...typography.monoSm, fontSize: '9px', color: trained ? colors.bgPrimary : colors.textFaint }}>
-                    {format(day, 'd')}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{ display: 'flex', gap: spacing[4], justifyContent: 'center', marginTop: spacing[3] }}>
-            <LegendDot color={colors.accent} label={`Trainiert (${periodWorkouts})`} />
-            <LegendDot color={colors.bgHighest} label={`Ruhetag (${periodDays.length - periodWorkouts})`} />
-          </div>
-        </div>
-      </div>
-      )}
 
       {/* ── AKTIVITÄTS-KALENDER (GitHub-Style) ── */}
       <div>
@@ -927,16 +950,6 @@ function MetricCard({ label, value, sub }: { label: string; value: string; sub: 
     }}>
       <div style={{ ...typography.monoLg, color: colors.textPrimary, lineHeight: 1, fontSize: '18px' }}>{value}</div>
       <div style={{ ...typography.label, color: colors.textFaint, marginTop: '2px' }}>{label}</div>
-    </div>
-  );
-}
-
-
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: spacing[1] }}>
-      <div style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: color }} />
-      <span style={{ ...typography.monoSm, color: colors.textMuted }}>{label}</span>
     </div>
   );
 }
