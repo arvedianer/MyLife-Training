@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { X } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
 import { ProgressDots } from '@/components/onboarding/ProgressDots';
@@ -75,6 +76,27 @@ function BodyPageInner() {
         gap: spacing[6],
       }}
     >
+      {/* Cancel button in edit mode */}
+      {isEdit && (
+        <button
+          onClick={() => router.push('/settings')}
+          style={{
+            position: 'absolute',
+            top: `calc(${spacing[4]} + env(safe-area-inset-top))`,
+            right: spacing[5],
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            padding: spacing[2],
+            color: colors.textMuted,
+          }}
+        >
+          <X size={22} />
+        </button>
+      )}
+
       {/* Progress */}
       <ProgressDots total={6} current={2} />
 

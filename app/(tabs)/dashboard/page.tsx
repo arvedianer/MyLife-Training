@@ -10,10 +10,11 @@ import { useUserStore } from '@/store/userStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { usePlanStore } from '@/store/planStore';
 import { formatWorkoutDate, formatDuration, formatVolume, calculateStreak } from '@/utils/dates';
-import { parseISO } from 'date-fns';
+import { parseISO, startOfWeek } from 'date-fns';
 import { getMissingMuscles, getRemainingWeekDays, MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
 import { useAutoRestDay } from '@/hooks/useAutoRestDay';
 import { generateSuggestions } from '@/utils/workoutSuggestions';
+import { BodyHeatmap } from '@/components/ui/BodyHeatmap';
 
 export default function DashboardPage() {
   const { profile } = useUserStore();
@@ -29,12 +30,10 @@ export default function DashboardPage() {
   const trainingDates = sessions.map((s) => s.date);
   const streak = calculateStreak(trainingDates, restDays);
 
-  // Wochenvolumen (parseISO für konsistente Timezone-Behandlung)
-  const weekAgo = new Date();
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  weekAgo.setHours(0, 0, 0, 0);
+  // Aktuelle Kalenderwoche (Mo–So) — konsistent mit Stats-Seite
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
 
-  const recentWeekSessions = sessions.filter((s) => parseISO(s.date) >= weekAgo);
+  const recentWeekSessions = sessions.filter((s) => parseISO(s.date) >= weekStart);
   const weekVolume = recentWeekSessions.reduce((sum, s) => sum + s.totalVolume, 0);
   const weekWorkouts = recentWeekSessions.length;
 
@@ -46,6 +45,24 @@ export default function DashboardPage() {
 
   // Smart suggestions
   const suggestions = useMemo(() => generateSuggestions(sessions), [sessions]);
+
+  // Current week muscle sets (Mon–Sun) for the body heatmap
+  const weekMuscleSets = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const s of recentWeekSessions) {
+      for (const ex of s.exercises) {
+        const done = ex.sets.filter((st) => st.isCompleted).length;
+        if (!done) continue;
+        const pm = ex.exercise.primaryMuscle as string;
+        if (pm) counts[pm] = (counts[pm] || 0) + done;
+        for (const sm of (ex.exercise.secondaryMuscles || []) as string[]) {
+          counts[sm] = (counts[sm] || 0) + Math.ceil(done / 2);
+        }
+      }
+    }
+    return counts;
+  }, [recentWeekSessions]);
+  const weekMaxSets = Math.max(...Object.values(weekMuscleSets), 1);
 
   // Streak modal
   const [showStreakModal, setShowStreakModal] = useState(false);
@@ -193,7 +210,7 @@ export default function DashboardPage() {
       {/* Start Workout CTA */}
       <Link href="/start" style={{ display: 'block' }}>
         <div
-          data-tour="athlete-score"
+          data-tour="workout-cta"
           style={{
             background: `linear-gradient(135deg, ${colors.accentBg} 0%, ${colors.bgCard} 100%)`,
             border: `1px solid ${colors.accent}30`,
@@ -292,55 +309,16 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Week Training Calendar */}
-      {(() => {
-        const today = new Date();
-        const jsDay = today.getDay(); // 0=Sun
-        const mondayOffset = jsDay === 0 ? -6 : 1 - jsDay;
-        const monday = new Date(today);
-        monday.setDate(today.getDate() + mondayOffset);
-        const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-        const weekDays = DAY_LABELS.map((label, i) => {
-          const d = new Date(monday);
-          d.setDate(monday.getDate() + i);
-          return { label, date: d.toISOString().split('T')[0] };
-        });
-        const todayStr = today.toISOString().split('T')[0];
-        const trainedDates = new Set(sessions.map((s) => s.date));
-        return (
-          <div style={{
-            backgroundColor: colors.bgCard,
-            border: `1px solid ${colors.border}`,
-            borderRadius: radius.xl,
-            padding: spacing[4],
-          }}>
-            <p style={{ ...typography.label, color: colors.textMuted, marginBottom: spacing[3], margin: `0 0 ${spacing[3]}` }}>DIESE WOCHE</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: spacing[2] }}>
-              {weekDays.map(({ label, date }) => {
-                const trained = trainedDates.has(date);
-                const isFuture = date > todayStr;
-                const isToday = date === todayStr;
-                return (
-                  <div key={date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing[1] }}>
-                    <span style={{ ...typography.label, color: colors.textFaint, fontSize: '10px' }}>{label}</span>
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: radius.md,
-                      backgroundColor: trained ? colors.accent : colors.bgHighest,
-                      border: isToday && !trained ? `1px solid ${colors.accent}` : '1px solid transparent',
-                      opacity: isFuture && !trained ? 0.3 : 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }} />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
+      {/* Week Muscle Heatmap */}
+      <div style={{
+        backgroundColor: colors.bgCard,
+        border: `1px solid ${colors.border}`,
+        borderRadius: radius.xl,
+        padding: spacing[4],
+      }}>
+        <p style={{ ...typography.label, color: colors.textMuted, margin: `0 0 ${spacing[3]}` }}>DIESE WOCHE — MUSKELGRUPPEN</p>
+        <BodyHeatmap muscleSets={weekMuscleSets} maxSets={weekMaxSets} compact={false} />
+      </div>
 
 
       {/* Smart Workout Suggestions */}

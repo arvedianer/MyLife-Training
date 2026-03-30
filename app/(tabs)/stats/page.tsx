@@ -402,7 +402,7 @@ export default function StatsPage() {
       )}
 
       {/* ── ATHLETE SCORE ── */}
-      <div style={{
+      <div data-tour="athlete-score" style={{
         background: colors.bgCard, border: `1px solid ${colors.border}`,
         borderRadius: radius.lg, padding: spacing[5],
         textAlign: 'center', marginBottom: spacing[4],
@@ -458,11 +458,11 @@ export default function StatsPage() {
       </div>
 
       {/* ── BENCHMARKS ── */}
-      {(strengthPercentiles.length > 0 || sessions.length >= 3) && (
-        <div data-tour="benchmarks" style={{ marginBottom: spacing[4] }}>
-          <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: 'var(--font-barlow)' }}>
-            Vergleiche
-          </h2>
+      <div data-tour="benchmarks" style={{ marginBottom: spacing[4] }}>
+        <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: 'var(--font-barlow)' }}>
+          Vergleiche
+        </h2>
+        {(strengthPercentiles.length > 0 || sessions.length >= 3) ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
 
             {/* Strength percentile cards */}
@@ -525,8 +525,12 @@ export default function StatsPage() {
               </p>
             )}
           </div>
-        </div>
-      )}
+        ) : (
+          <p style={{ fontSize: '12px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', padding: `${spacing[3]} 0` }}>
+            Schließe erste Workouts ab, um Vergleiche zu sehen.
+          </p>
+        )}
+      </div>
 
       {/* ── LIFETIME STATS ── */}
       {timeRange === 'lifetime' && (

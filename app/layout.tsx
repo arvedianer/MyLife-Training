@@ -4,6 +4,7 @@ import './globals.css';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { StoreProvider } from '@/components/providers/StoreProvider';
 import { PWACheck } from '@/components/PWACheck';
+import { TourOverlay } from '@/components/tour/TourOverlay';
 
 const barlowCondensed = Barlow_Condensed({
   subsets: ['latin'],
@@ -63,6 +64,7 @@ export default function RootLayout({
           <StoreProvider>
             <PWACheck />
             {children}
+            <TourOverlay />
           </StoreProvider>
         </QueryProvider>
       </body>

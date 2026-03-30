@@ -4,17 +4,18 @@ import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useUserStore } from '@/store/userStore';
-import { colors, spacing, typography } from '@/constants/tokens';
+import { colors, spacing, typography, radius } from '@/constants/tokens';
 import type { WorkoutGoal, TrainingLevel } from '@/types/workout';
 
 function getPlanInsight(
   goal: WorkoutGoal,
   level: TrainingLevel,
-): { title: string; body: string } {
+): { label: string; title: string; body: string } {
   const isExperienced = level === 'profi' || level === 'experte';
 
   if (goal === 'kraft' && isExperienced) {
     return {
+      label: 'Kraft',
       title: 'Progressive Overload.',
       body: 'Schwere Grundübungen, wöchentliche Steigerung. Genau das was Leute auf deinem Level voranbringt.',
     };
@@ -22,13 +23,15 @@ function getPlanInsight(
 
   if (goal === 'muskelaufbau' && !isExperienced) {
     return {
-      title: 'Hypertrophie-Training.',
+      label: 'Hypertrophie',
+      title: 'Muskeln aufbauen.',
       body: 'Volumen und Technik stehen im Vordergrund — das bringt dir Masse.',
     };
   }
 
   if (goal === 'abnehmen' && level === 'anfaenger') {
     return {
+      label: 'Fettabbau',
       title: 'Metabolisches Training.',
       body: 'Hohe Intensität, kurze Pausen, viel Volumen. Fett weg, Form bleibt.',
     };
@@ -36,12 +39,14 @@ function getPlanInsight(
 
   if (goal === 'alles') {
     return {
-      title: 'Vollständiges Programm.',
+      label: 'Vollständig',
+      title: 'Alles auf einmal.',
       body: 'Kraft, Volumen, Ausdauer — alles ausbalanciert.',
     };
   }
 
   return {
+    label: 'Fitness',
     title: 'Dein Plan.',
     body: 'Dein Plan passt sich deinen Antworten an. Kommen wir zu den Details.',
   };
@@ -68,6 +73,7 @@ function PlanPreviewInner() {
       style={{
         minHeight: '100dvh',
         backgroundColor: colors.bgPrimary,
+        background: `radial-gradient(ellipse at 80% 20%, ${colors.accent}10 0%, transparent 50%), ${colors.bgPrimary}`,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -77,26 +83,77 @@ function PlanPreviewInner() {
       }}
     >
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
         style={{
           maxWidth: 400,
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
-          gap: spacing[3],
+          gap: spacing[4],
         }}
       >
-        <h2 style={{ ...typography.h2, color: colors.accent, margin: 0 }}>
+        {/* Label pill */}
+        <motion.div
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
+          style={{ display: 'inline-flex', alignSelf: 'flex-start' }}
+        >
+          <span style={{
+            backgroundColor: `${colors.accent}18`,
+            border: `1px solid ${colors.accent}40`,
+            borderRadius: radius.full,
+            padding: `3px ${spacing[3]}`,
+            ...typography.label,
+            color: colors.accent,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+          }}>
+            {insight.label}
+          </span>
+        </motion.div>
+
+        {/* Title */}
+        <h1 style={{
+          fontFamily: 'var(--font-barlow)',
+          fontSize: 48,
+          fontWeight: 800,
+          lineHeight: 1,
+          color: colors.textPrimary,
+          margin: 0,
+        }}>
           {insight.title}
-        </h2>
-        <p style={{ ...typography.bodyLg, color: colors.textSecondary, margin: 0 }}>
+        </h1>
+
+        {/* Divider */}
+        <div style={{ width: 40, height: 3, backgroundColor: colors.accent, borderRadius: 2 }} />
+
+        {/* Body */}
+        <p style={{ ...typography.bodyLg, color: colors.textSecondary, margin: 0, lineHeight: 1.6 }}>
           {insight.body}
         </p>
-        <p style={{ ...typography.body, color: colors.textMuted, margin: 0 }}>
+
+        {/* Next hint */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.5, duration: 0.4 }}
+          style={{ ...typography.body, color: colors.textMuted, margin: 0 }}
+        >
           Jetzt noch wann und wo.
-        </p>
+        </motion.p>
+
+        {/* Tap hint */}
+        <motion.span
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2.0, duration: 0.4 }}
+          style={{ ...typography.label, color: colors.textFaint, marginTop: spacing[1] }}
+        >
+          Tippen zum Weitermachen
+        </motion.span>
       </motion.div>
     </div>
   );

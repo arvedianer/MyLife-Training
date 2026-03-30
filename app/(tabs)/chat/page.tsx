@@ -679,6 +679,7 @@ export default function ChatPage() {
 
       {/* Header */}
       <div
+        data-tour="chat-header"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -754,6 +755,7 @@ export default function ChatPage() {
 
       {/* Messages area */}
       <div
+        data-tour="chat-messages"
         style={{
           flex: 1, overflowY: 'auto',
           padding: `${spacing[4]} ${spacing[4]}`,
@@ -1006,6 +1008,7 @@ export default function ChatPage() {
 
       {/* Input area */}
       <div
+        data-tour="chat-input"
         style={{
           borderTop: `1px solid ${colors.border}`,
           backgroundColor: colors.bgSecondary,

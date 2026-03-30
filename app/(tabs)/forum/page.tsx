@@ -143,14 +143,17 @@ export default function ForumPage() {
           <div style={{ padding: spacing[4], display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
             {loading ? (
               <div style={{ textAlign: 'center', color: colors.textMuted, paddingTop: 40 }}>Lädt...</div>
-            ) : generalChannel ? (
-              <ChannelListItem
-                channel={generalChannel}
-                unreadCount={unreadByChannel[generalChannel.id] ?? 0}
-              />
+            ) : channels.length > 0 ? (
+              channels.map((ch) => (
+                <ChannelListItem
+                  key={ch.id}
+                  channel={ch}
+                  unreadCount={unreadByChannel[ch.id] ?? 0}
+                />
+              ))
             ) : (
               <p style={{ ...typography.bodySm, color: colors.textMuted, textAlign: 'center', marginTop: 24 }}>
-                General Chat nicht verfügbar.
+                Keine Chats verfügbar.
               </p>
             )}
           </div>

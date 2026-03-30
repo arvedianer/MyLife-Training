@@ -20,9 +20,9 @@ import type { ForumProfile, Channel } from '@/types/forum';
 export default function ChatPage({ params }: { params: { channelId: string } }) {
   const { channelId } = params;
   const router = useRouter();
-  const { messages, loading, send } = useChannel(channelId);
-  const [input, setInput] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
+  const { messages, loading, send } = useChannel(channelId, userId);
+  const [input, setInput] = useState('');
   const [myUsername, setMyUsername] = useState('');
   const [myProfile, setMyProfile] = useState<ForumProfile | null>(null);
   const [profiles, setProfiles] = useState<Record<string, ForumProfile>>({});

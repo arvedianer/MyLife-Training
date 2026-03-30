@@ -6,7 +6,7 @@ import { getMessages, sendTextMessage } from '@/lib/forum';
 import { useForumStore } from '@/store/forumStore';
 import type { Message } from '@/types/forum';
 
-export function useChannel(channelId: string | null) {
+export function useChannel(channelId: string | null, currentUserId?: string | null) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -43,8 +43,10 @@ export function useChannel(channelId: string | null) {
             if (prev.find((m) => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
-          const { setUnread, unreadByChannel } = useForumStore.getState();
-          setUnread(newMsg.channelId, (unreadByChannel[newMsg.channelId] ?? 0) + 1);
+          if (!currentUserId || newMsg.senderId !== currentUserId) {
+            const { setUnread, unreadByChannel } = useForumStore.getState();
+            setUnread(newMsg.channelId, (unreadByChannel[newMsg.channelId] ?? 0) + 1);
+          }
         }
       )
       .subscribe();
