@@ -205,6 +205,7 @@ function mapProfile(r: Record<string, unknown>): ForumProfile {
     streak: (r.streak as number) ?? 0,
     createdAt: r.created_at as string,
     role: (r.role as string | null) ?? null,
+    isCoach: (r.is_coach as boolean | undefined) ?? false,
   };
 }
 

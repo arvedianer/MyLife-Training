@@ -15,17 +15,19 @@ export default function DonePage() {
   const activeSplit = usePlanStore((s) => s.getActiveSplit());
 
   const goalLabels: Record<string, string> = {
-    muscle: 'Muskelaufbau',
-    strength: 'Kraft aufbauen',
-    fat_loss: 'Abnehmen',
-    endurance: 'Ausdauer verbessern',
-    general: 'Fit bleiben',
+    muskelaufbau: 'Muskelaufbau',
+    kraft: 'Kraft aufbauen',
+    abnehmen: 'Abnehmen',
+    fitness: 'Fit bleiben',
+    ausdauer: 'Ausdauer verbessern',
+    alles: 'Alles davon',
   };
 
   const levelLabels: Record<string, string> = {
-    beginner: 'Einsteiger',
-    intermediate: 'Fortgeschritten',
-    advanced: 'Profi',
+    anfaenger: 'Einsteiger',
+    fortgeschritten: 'Fortgeschritten',
+    profi: 'Profi',
+    experte: 'Experte',
   };
 
   const handleStartTour = () => {
