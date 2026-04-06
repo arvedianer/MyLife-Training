@@ -35,7 +35,7 @@ export default function ForumPage() {
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { setLoading(false); return; }
       setUserId(user.id);
       const profile = await getMyProfile();
       setMyProfile(profile);
@@ -69,7 +69,7 @@ export default function ForumPage() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      style={{ display: 'flex', flexDirection: 'column', height: '100dvh', backgroundColor: colors.bgPrimary }}
+      style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', backgroundColor: colors.bgPrimary }}
     >
       {/* Header */}
       <div style={{
@@ -77,16 +77,17 @@ export default function ForumPage() {
         padding: `${spacing[4]} ${spacing[4]} 0`,
         flexShrink: 0,
       }}>
-        <h1 style={{ fontFamily: 'var(--font-barlow)', fontSize: 28, fontWeight: 700, color: colors.textPrimary, margin: 0 }}>
+        <h1 style={{ ...typography.h2, color: colors.textPrimary, margin: 0 }}>
           Forum
         </h1>
         <button
           onClick={() => router.push('/forum/new-group')}
           style={{
-            display: 'flex', alignItems: 'center', gap: 6,
+            display: 'flex', alignItems: 'center', gap: spacing[2],
             backgroundColor: colors.accentBg, border: `1px solid ${colors.accent}40`,
-            borderRadius: radius.full, padding: '7px 14px',
-            color: colors.accent, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            borderRadius: radius.full, padding: `${spacing[2]} ${spacing[4]}`,
+            color: colors.accent, cursor: 'pointer',
+            ...typography.bodySm, fontWeight: '600',
           }}
         >
           <Plus size={14} /> Gruppe
@@ -157,7 +158,18 @@ export default function ForumPage() {
             </div>
 
             {loading ? (
-              <div style={{ textAlign: 'center', color: colors.textMuted, paddingTop: 40 }}>Lädt...</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3], padding: `${spacing[5]} 0` }}>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} style={{
+                    height: 64, borderRadius: radius.lg,
+                    backgroundColor: colors.bgCard,
+                    border: `1px solid ${colors.border}`,
+                    animation: 'pulse 1.5s ease-in-out infinite',
+                    opacity: 0.6,
+                  }} />
+                ))}
+                <style>{`@keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:0.8} }`}</style>
+              </div>
             ) : channels.length > 0 ? (
               channels.map((ch) => (
                 <ChannelListItem
@@ -166,10 +178,36 @@ export default function ForumPage() {
                   unreadCount={unreadByChannel[ch.id] ?? 0}
                 />
               ))
+            ) : userId ? (
+              /* authenticated but no channels yet — likely migrations pending */
+              <div style={{
+                textAlign: 'center', padding: `${spacing[8]} ${spacing[4]}`,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing[3],
+              }}>
+                <div style={{
+                  width: 52, height: 52, borderRadius: radius.xl,
+                  backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Plus size={22} color={colors.textDisabled} />
+                </div>
+                <p style={{ ...typography.body, color: colors.textMuted, margin: 0 }}>
+                  Noch keine Channels verfügbar.
+                </p>
+                <p style={{ ...typography.bodySm, color: colors.textFaint, margin: 0 }}>
+                  Der General-Chat erscheint sobald die DB bereit ist.
+                </p>
+              </div>
             ) : (
-              <p style={{ ...typography.bodySm, color: colors.textMuted, textAlign: 'center', marginTop: 24 }}>
-                Keine Chats verfügbar.
-              </p>
+              /* not authenticated */
+              <div style={{
+                textAlign: 'center', padding: `${spacing[8]} ${spacing[4]}`,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing[3],
+              }}>
+                <p style={{ ...typography.body, color: colors.textMuted, margin: 0 }}>
+                  Melde dich an, um am Forum teilzunehmen.
+                </p>
+              </div>
             )}
           </div>
         )}

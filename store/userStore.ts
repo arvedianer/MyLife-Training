@@ -16,6 +16,9 @@ interface UserState {
   restTimerDefault: number; // Sekunden
   language: 'de' | 'en';
 
+  // Body weight history
+  bodyWeightLog: { date: string; weight: number }[];
+
   // Scores
   lifetimeAthleteScore: number; // 0–1000, never decreases
 
@@ -38,6 +41,7 @@ const initialState = {
   restTimerDefault: 150,
   language: 'de' as const,
   lifetimeAthleteScore: 0,
+  bodyWeightLog: [] as { date: string; weight: number }[],
 };
 
 export const useUserStore = create<UserState>()(
@@ -56,9 +60,18 @@ export const useUserStore = create<UserState>()(
         }),
 
       updateProfile: (updates) =>
-        set((state) => ({
-          profile: state.profile ? { ...state.profile, ...updates } : null,
-        })),
+        set((state) => {
+          const newLog = updates.bodyWeight != null
+            ? [
+                ...state.bodyWeightLog.filter(e => e.date !== new Date().toISOString().split('T')[0]),
+                { date: new Date().toISOString().split('T')[0], weight: updates.bodyWeight! },
+              ].slice(-30) // keep last 30 entries
+            : state.bodyWeightLog;
+          return {
+            profile: state.profile ? { ...state.profile, ...updates } : null,
+            bodyWeightLog: newLog,
+          };
+        }),
 
       setWeightUnit: (unit) => set({ weightUnit: unit }),
 

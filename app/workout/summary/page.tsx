@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/Badge';
 import { BodyHeatmap } from '@/components/ui/BodyHeatmap';
 import { useHistoryStore } from '@/store/historyStore';
 import { useUserStore } from '@/store/userStore';
-import { formatDuration, formatVolume } from '@/utils/dates';
+import { formatDuration, formatVolume, calculateStreak } from '@/utils/dates';
+import { useAchievementStore } from '@/store/achievementStore';
 import { buildShareUrl } from '@/utils/shareToken';
 import { getExerciseById } from '@/constants/exercises';
 import { calculateWorkoutScore } from '@/utils/scoreEngine';
@@ -91,8 +92,16 @@ function SummaryContent() {
   const previousSessions = useHistoryStore((state) =>
     state.sessions.filter((s) => s.id !== sessionId).slice(0, 10)
   );
+  const sessions = useHistoryStore((state) => state.sessions);
+  const restDays = useHistoryStore((state) => state.restDays);
   const updateSession = useHistoryStore((state) => state.updateSession);
   const { generateShareToken: createShareToken } = useHistoryStore();
+
+  const { checkAndUnlock, pendingCelebration, clearPendingCelebration } = useAchievementStore();
+  const allAchievements = useAchievementStore((s) => s.getAllWithStatus)();
+  const celebrationAchievement = pendingCelebration
+    ? allAchievements.find((a) => a.id === pendingCelebration) ?? null
+    : null;
 
   useEffect(() => {
     let alive = true;
@@ -105,6 +114,26 @@ function SummaryContent() {
     });
     return () => { alive = false; };
   }, []);
+
+  // Check and unlock achievements once on summary mount
+  useEffect(() => {
+    if (!session) return;
+    const trainingDates = sessions.map((s) => s.date);
+    const streak = calculateStreak(trainingDates, restDays);
+    const maxWeight = session.exercises
+      .flatMap((ex) => ex.sets)
+      .filter((s) => s.isCompleted)
+      .reduce((max, s) => Math.max(max, s.weight ?? 0), 0);
+
+    checkAndUnlock(
+      sessions.length,
+      session.newPRs.length > 0,
+      maxWeight,
+      session.totalVolume,
+      streak,
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally run once on mount
 
   // Compute muscle coverage for this session only
   const sessionMuscleSets = useMemo<Record<string, number>>(() => {
@@ -262,6 +291,26 @@ function SummaryContent() {
           ))}
         </div>
 
+        {/* PR celebration badge — shown above score card when new records were set */}
+        {session.newPRs && session.newPRs.length > 0 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing[2],
+            backgroundColor: colors.successBg,
+            border: `1px solid ${colors.success}30`,
+            borderRadius: radius.full,
+            padding: `${spacing[1]} ${spacing[3]}`,
+            alignSelf: 'flex-start',
+            marginBottom: spacing[3],
+          }}>
+            <Star size={12} color={colors.success} fill={colors.success} />
+            <span style={{ ...typography.label, color: colors.success }}>
+              {session.newPRs.length} NEUER REKORD{session.newPRs.length > 1 ? 'E' : ''}
+            </span>
+          </div>
+        )}
+
         {/* Score hero card */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
@@ -292,7 +341,7 @@ function SummaryContent() {
           }} />
 
           {/* Big score number */}
-          <div style={{ fontSize: '80px', fontWeight: 800, color: scoreColor, lineHeight: 1, marginBottom: spacing[2] }}>
+          <div style={{ ...typography.displayXL, color: scoreColor, lineHeight: 1, marginBottom: spacing[2] }}>
             <CountUp end={score.total} duration={1400} />
           </div>
 
@@ -442,13 +491,9 @@ function SummaryContent() {
         <section style={{ margin: `${spacing[5]} ${spacing[5]} 0` }}>
           <h3
             style={{
-              fontFamily: 'var(--font-barlow)',
-              fontSize: '13px',
-              fontWeight: 600,
+              ...typography.label,
               color: colors.textMuted,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              marginBottom: '12px',
+              marginBottom: spacing[3],
             }}
           >
             Trainierte Muskeln
@@ -640,9 +685,60 @@ function SummaryContent() {
             ...typography.h3,
           }}
         >
-          Speichern &amp; fertig →
+          Speichern & fertig →
         </button>
       </div>
+
+      {/* ACHIEVEMENT CELEBRATION MODAL */}
+      {celebrationAchievement && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: spacing[5],
+          }}
+          onClick={clearPendingCelebration}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: colors.bgCard,
+              border: `1px solid ${colors.accent}40`,
+              borderRadius: radius['2xl'],
+              padding: spacing[8],
+              textAlign: 'center',
+              maxWidth: '320px',
+              width: '100%',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing[4],
+            }}
+          >
+            <div style={{ fontSize: '56px', lineHeight: 1 }}>{celebrationAchievement.icon}</div>
+            <div>
+              <p style={{ ...typography.label, color: colors.accent, letterSpacing: '2px', marginBottom: spacing[2] }}>
+                ACHIEVEMENT FREIGESCHALTET
+              </p>
+              <h2 style={{ ...typography.h2, color: colors.textPrimary, margin: 0, marginBottom: spacing[2] }}>
+                {celebrationAchievement.title}
+              </h2>
+              <p style={{ ...typography.body, color: colors.textMuted, margin: 0 }}>
+                {celebrationAchievement.description}
+              </p>
+            </div>
+            <button
+              onClick={clearPendingCelebration}
+              style={{
+                width: '100%', padding: spacing[4],
+                backgroundColor: colors.accent, border: 'none',
+                borderRadius: radius.lg, cursor: 'pointer',
+                ...typography.bodyLg, fontWeight: '700', color: colors.bgPrimary,
+              }}
+            >
+              Weiter
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* SHARE MODAL */}
       {shareOpen && (
@@ -650,7 +746,7 @@ function SummaryContent() {
           {/* Backdrop */}
           <div
             onClick={() => setShareOpen(false)}
-            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100 }}
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', zIndex: 100 }}
           />
           {/* Sheet */}
           <div style={{
@@ -684,12 +780,14 @@ function SummaryContent() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: spacing[3],
                   padding: `${spacing[3]} ${spacing[4]}`, backgroundColor: colors.bgHighest,
-                  border: `1px solid ${colors.border}`, borderRadius: radius.xl,
-                  color: colors.textPrimary, fontSize: 14, fontWeight: 600, cursor: 'pointer', textAlign: 'left' as const,
+                  border: `1px solid ${colors.border}`, borderRadius: radius.lg,
+                  cursor: 'pointer', textAlign: 'left' as const,
                 }}
               >
-                <Globe size={16} color={colors.textMuted} />
-                General Chat
+                <Globe size={16} color={colors.accent} />
+                <span style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>
+                  General Chat
+                </span>
               </button>
               {/* DMs und Gruppen */}
               {shareChannels.filter((c) => c.type !== 'general').map((ch) => (
@@ -700,13 +798,23 @@ function SummaryContent() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: spacing[3],
                     padding: `${spacing[3]} ${spacing[4]}`, backgroundColor: colors.bgHighest,
-                    border: `1px solid ${colors.border}`, borderRadius: radius.xl,
-                    color: colors.textPrimary, fontSize: 14, cursor: 'pointer', textAlign: 'left' as const,
+                    border: `1px solid ${colors.border}`, borderRadius: radius.lg,
+                    cursor: 'pointer', textAlign: 'left' as const,
                   }}
                 >
-                  {ch.type === 'group'
-                    ? <><Users size={16} color={colors.textMuted} />{ch.name}</>
-                    : <><MessageCircle size={16} color={colors.textMuted} />{ch.otherUser?.username ?? 'Direktnachricht'}</>}
+                  {ch.type === 'group' ? (
+                    <>
+                      <Users size={16} color={colors.accent} />
+                      <span style={{ ...typography.body, color: colors.textPrimary }}>{ch.name}</span>
+                    </>
+                  ) : (
+                    <>
+                      <MessageCircle size={16} color={colors.accent} />
+                      <span style={{ ...typography.body, color: colors.textPrimary }}>
+                        {ch.otherUser?.username ?? 'Direktnachricht'}
+                      </span>
+                    </>
+                  )}
                 </button>
               ))}
             </div>

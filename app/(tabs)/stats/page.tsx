@@ -52,6 +52,7 @@ const MUSCLE_LABELS: Record<string, string> = {
 };
 
 function heatBarColor(r: number): string {
+  // chart data colors — intentional
   if (r < 0.25) return 'rgba(255, 80, 50, 0.72)';
   if (r < 0.50) return 'rgba(238, 34, 54, 0.85)';
   if (r < 0.75) return 'rgba(190, 22, 128, 0.92)';
@@ -72,6 +73,8 @@ export default function StatsPage() {
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null);
   const [volumeView, setVolumeView] = useState<'weekly' | 'session'>('weekly');
   const [volumeRange, setVolumeRange] = useState<VolumeRange>('8w');
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const { sessions, restDays, getPersonalRecords } = useHistoryStore();
   const prs = getPersonalRecords();
 
@@ -298,7 +301,7 @@ export default function StatsPage() {
       {/* ── TIME RANGE TOGGLE ── */}
       <div style={{
         display: 'flex', gap: '4px',
-        background: 'var(--bg-card)', border: `1px solid ${colors.border}`,
+        background: colors.bgCard, border: `1px solid ${colors.border}`,
         borderRadius: '10px', padding: '3px',
         marginBottom: spacing[4],
       }}>
@@ -312,7 +315,7 @@ export default function StatsPage() {
               background: timeRange === r ? colors.accent : 'transparent',
               color: timeRange === r ? colors.bgPrimary : colors.textMuted,
               fontSize: '13px', fontWeight: 600,
-              fontFamily: 'var(--font-manrope)',
+              fontFamily: typography.body.fontFamily,
               transition: 'all 0.15s ease',
             }}
           >
@@ -397,34 +400,35 @@ export default function StatsPage() {
 
       {/* ── MUSCLE RECOVERY ── */}
       {muscleRecovery.length > 0 && (
-        <section style={{ marginBottom: '20px' }}>
-          <h2 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px', fontFamily: 'var(--font-barlow)' }}>
+        <section style={{ marginBottom: spacing[5] }}>
+          <h2 style={{ ...typography.label, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2] }}>
             Muskel-Erholung
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing[2] }}>
             {muscleRecovery.slice(0, 8).map(m => {
               const pct = Math.round(m.recoveryRatio * 100);
               const isReady = m.status === 'recovered';
-              const barColor = m.status === 'fatigued' ? '#FF3B30'
+              // status bar colors — intentional
+              const barColor = m.status === 'fatigued' ? colors.danger
                 : m.status === 'recovering' ? '#FF9F0A'
-                : '#34C759';
+                : colors.success;
               return (
                 <div key={m.muscle} style={{
-                  background: 'var(--bg-card)', border: '1px solid var(--border)',
-                  borderRadius: '10px', padding: '10px 12px',
+                  backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
+                  borderRadius: radius.md, padding: `${spacing[2]} ${spacing[3]}`,
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', fontFamily: 'var(--font-manrope)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[1] }}>
+                    <span style={{ ...typography.bodySm, fontWeight: 600, color: colors.textSecondary }}>
                       {m.label}
                     </span>
-                    <span style={{ fontSize: '11px', color: isReady ? '#34C759' : 'var(--text-muted)', fontFamily: 'var(--font-manrope)' }}>
+                    <span style={{ ...typography.label, color: isReady ? colors.success : colors.textMuted }}>
                       {isReady ? 'Bereit' : m.hoursAgo < 24 ? `~${m.hoursAgo}h` : `~${Math.round(m.hoursAgo / 24)}d`}
                     </span>
                   </div>
-                  <div style={{ height: '4px', background: 'var(--border)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ height: '4px', backgroundColor: colors.border, borderRadius: '2px', overflow: 'hidden' }}>
                     <div style={{
                       height: '100%', width: `${pct}%`, maxWidth: '100%',
-                      background: barColor, borderRadius: '2px',
+                      backgroundColor: barColor, borderRadius: '2px',
                       transition: 'width 0.4s ease',
                     }} />
                   </div>
@@ -441,30 +445,30 @@ export default function StatsPage() {
         borderRadius: radius.lg, padding: spacing[5],
         textAlign: 'center', marginBottom: spacing[4],
       }}>
-        <p style={{ fontSize: '11px', fontWeight: 600, color: colors.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'var(--font-barlow)', marginBottom: spacing[3] }}>
+        <p style={{ fontSize: '11px', fontWeight: 600, color: colors.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: typography.h1.fontFamily, marginBottom: spacing[3] }}>
           Athleten-Score
         </p>
         <div style={{ display: 'flex', gap: spacing[6], justifyContent: 'center', alignItems: 'flex-end' }}>
           <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: '64px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', lineHeight: 1, margin: 0 }}>
+            <p style={{ fontSize: '64px', fontWeight: 800, color: colors.accent, fontFamily: typography.h1.fontFamily, lineHeight: 1, margin: 0 }}>
               {athleteResult.total}
             </p>
-            <p style={{ fontSize: '11px', fontWeight: 600, color: colors.textMuted, fontFamily: 'var(--font-manrope)', marginTop: spacing[1], textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <p style={{ fontSize: '11px', fontWeight: 600, color: colors.textMuted, fontFamily: typography.body.fontFamily, marginTop: spacing[1], textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               {timeRange === 'week' ? 'Diese Woche' : timeRange === 'month' ? 'Diesen Monat' : 'Gesamt'}
             </p>
           </div>
           {lifetimeAthleteScore > 0 && lifetimeAthleteScore !== athleteResult.total && (
             <div style={{ textAlign: 'center', opacity: 0.55 }}>
-              <p style={{ fontSize: '64px', fontWeight: 800, color: colors.textMuted, fontFamily: 'var(--font-barlow)', lineHeight: 1, margin: 0 }}>
+              <p style={{ fontSize: '64px', fontWeight: 800, color: colors.textMuted, fontFamily: typography.h1.fontFamily, lineHeight: 1, margin: 0 }}>
                 {lifetimeAthleteScore}
               </p>
-              <p style={{ fontSize: '11px', fontWeight: 600, color: colors.textMuted, fontFamily: 'var(--font-manrope)', marginTop: spacing[1], textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: colors.textMuted, fontFamily: typography.body.fontFamily, marginTop: spacing[1], textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 All-Time Best
               </p>
             </div>
           )}
         </div>
-        <p style={{ fontSize: '16px', fontWeight: 600, color: colors.textSecondary, fontFamily: 'var(--font-manrope)', marginTop: spacing[2] }}>
+        <p style={{ fontSize: '16px', fontWeight: 600, color: colors.textSecondary, fontFamily: typography.body.fontFamily, marginTop: spacing[2] }}>
           {athleteScoreLabel(Math.max(lifetimeAthleteScore, athleteResult.total))}
         </p>
       </div>
@@ -482,6 +486,9 @@ export default function StatsPage() {
             backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
             borderRadius: radius.lg, padding: spacing[4],
           }}>
+            {!mounted ? (
+              <div style={{ height: '180px', backgroundColor: colors.bgHighest, borderRadius: radius.md }} />
+            ) : (
             <ResponsiveContainer width="100%" height={180}>
               <LineChart data={overloadData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
@@ -516,6 +523,7 @@ export default function StatsPage() {
                 ))}
               </LineChart>
             </ResponsiveContainer>
+            )}
             {/* Legend */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[3], justifyContent: 'center', marginTop: spacing[3] }}>
               {MAIN_LIFTS.map(lift => (
@@ -531,7 +539,7 @@ export default function StatsPage() {
 
       {/* ── 4 DIMENSIONS (Endurance removed) ── */}
       <div style={{ marginBottom: spacing[4] }}>
-        <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: 'var(--font-barlow)' }}>
+        <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: typography.h1.fontFamily }}>
           Dimensionen
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing[2] }}>
@@ -543,10 +551,10 @@ export default function StatsPage() {
               borderRadius: radius.md, padding: spacing[3],
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[2] }}>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: colors.textSecondary, fontFamily: 'var(--font-manrope)' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: colors.textSecondary, fontFamily: typography.body.fontFamily }}>
                   {dim.nameDE}
                 </span>
-                <span style={{ fontSize: '18px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', lineHeight: 1 }}>
+                <span style={{ fontSize: '18px', fontWeight: 800, color: colors.accent, fontFamily: typography.h1.fontFamily, lineHeight: 1 }}>
                   {dim.score}
                 </span>
               </div>
@@ -556,7 +564,7 @@ export default function StatsPage() {
                   background: colors.accent, borderRadius: '2px',
                 }} />
               </div>
-              <p style={{ fontSize: '10px', color: colors.textFaint, marginTop: spacing[1], fontFamily: 'var(--font-manrope)', lineHeight: 1.4 }}>
+              <p style={{ fontSize: '10px', color: colors.textFaint, marginTop: spacing[1], fontFamily: typography.body.fontFamily, lineHeight: 1.4 }}>
                 {dim.detail}
               </p>
             </div>
@@ -567,7 +575,7 @@ export default function StatsPage() {
       {/* ── BENCHMARKS ── */}
       {(strengthPercentiles.length > 0 || sessions.length >= 3) && (
         <div data-tour="benchmarks" style={{ marginBottom: spacing[4] }}>
-          <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: 'var(--font-barlow)' }}>
+          <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: typography.h1.fontFamily }}>
             Kraftvergleich
           </h2>
           <div style={{
@@ -581,16 +589,16 @@ export default function StatsPage() {
                   padding: `${spacing[3]} ${spacing[4]}`,
                   borderBottom: i < strengthPercentiles.length - 1 ? `1px solid ${colors.border}` : 'none',
                 }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: colors.textSecondary, fontFamily: 'var(--font-manrope)' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: colors.textSecondary, fontFamily: typography.body.fontFamily }}>
                     {p.exerciseDE}
                   </span>
-                  <span style={{ fontSize: '13px', color: colors.textMuted, fontFamily: 'var(--font-manrope)' }}>
+                  <span style={{ fontSize: '13px', color: colors.textMuted, fontFamily: typography.body.fontFamily }}>
                     ~{p.orm}&thinsp;kg · <span style={{ color: colors.accent, fontWeight: 700 }}>Top {100 - p.percentile}%</span>
                   </span>
                 </div>
               ))
             ) : (
-              <p style={{ fontSize: '12px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', textAlign: 'center', padding: spacing[4] }}>
+              <p style={{ fontSize: '12px', color: colors.textMuted, fontFamily: typography.body.fontFamily, textAlign: 'center', padding: spacing[4] }}>
                 Trage dein Körpergewicht in den Einstellungen ein, um Kraftvergleiche zu sehen.
               </p>
             )}
@@ -601,31 +609,31 @@ export default function StatsPage() {
       {/* ── LIFETIME STATS ── */}
       {timeRange === 'lifetime' && (
         <div style={{ marginBottom: spacing[4] }}>
-          <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: 'var(--font-barlow)' }}>
+          <h2 style={{ fontSize: '12px', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: spacing[2], fontFamily: typography.h1.fontFamily }}>
             Lebenszeit
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing[2], marginBottom: spacing[2] }}>
             <div style={{ background: colors.bgCard, border: `1px solid ${colors.border}`, borderRadius: radius.md, padding: spacing[3], textAlign: 'center' }}>
-              <p style={{ fontSize: '26px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', margin: 0, lineHeight: 1 }}>
+              <p style={{ fontSize: '26px', fontWeight: 800, color: colors.accent, fontFamily: typography.h1.fontFamily, margin: 0, lineHeight: 1 }}>
                 {totalVolumeTons.toFixed(1)}t
               </p>
-              <p style={{ fontSize: '10px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', marginTop: spacing[1] }}>Bewegt</p>
+              <p style={{ fontSize: '10px', color: colors.textMuted, fontFamily: typography.body.fontFamily, marginTop: spacing[1] }}>Bewegt</p>
             </div>
             <div style={{ background: colors.bgCard, border: `1px solid ${colors.border}`, borderRadius: radius.md, padding: spacing[3], textAlign: 'center' }}>
-              <p style={{ fontSize: '26px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', margin: 0, lineHeight: 1 }}>
+              <p style={{ fontSize: '26px', fontWeight: 800, color: colors.accent, fontFamily: typography.h1.fontFamily, margin: 0, lineHeight: 1 }}>
                 {totalWorkouts}
               </p>
-              <p style={{ fontSize: '10px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', marginTop: spacing[1] }}>Sessions</p>
+              <p style={{ fontSize: '10px', color: colors.textMuted, fontFamily: typography.body.fontFamily, marginTop: spacing[1] }}>Sessions</p>
             </div>
             <div style={{ background: colors.bgCard, border: `1px solid ${colors.border}`, borderRadius: radius.md, padding: spacing[3], textAlign: 'center' }}>
-              <p style={{ fontSize: '26px', fontWeight: 800, color: colors.accent, fontFamily: 'var(--font-barlow)', margin: 0, lineHeight: 1 }}>
+              <p style={{ fontSize: '26px', fontWeight: 800, color: colors.accent, fontFamily: typography.h1.fontFamily, margin: 0, lineHeight: 1 }}>
                 {totalDurH}h
               </p>
-              <p style={{ fontSize: '10px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', marginTop: spacing[1] }}>Trainiert</p>
+              <p style={{ fontSize: '10px', color: colors.textMuted, fontFamily: typography.body.fontFamily, marginTop: spacing[1] }}>Trainiert</p>
             </div>
           </div>
           {totalVolumeTons > 0 && (
-            <p style={{ fontSize: '12px', color: colors.textMuted, fontFamily: 'var(--font-manrope)', textAlign: 'center', fontStyle: 'italic' }}>
+            <p style={{ fontSize: '12px', color: colors.textMuted, fontFamily: typography.body.fontFamily, textAlign: 'center', fontStyle: 'italic' }}>
               Du hast {(totalVolumeTons / 7300 * 100).toFixed(1)}% des Eiffelturms gehoben (7.300 Tonnen).
             </p>
           )}
@@ -739,7 +747,9 @@ export default function StatsPage() {
           backgroundColor: colors.bgCard, border: `1px solid ${colors.border}`,
           borderRadius: radius.lg, padding: spacing[4],
         }}>
-          {hasVolumeData ? (
+          {!mounted ? (
+            <div style={{ height: '200px', backgroundColor: colors.bgHighest, borderRadius: radius.md }} />
+          ) : hasVolumeData ? (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={weeklyVolumeData} barSize={20}>
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.borderLight} vertical={false} />
@@ -831,28 +841,32 @@ export default function StatsPage() {
                         )}
                       </div>
                     </div>
-                    <ResponsiveContainer width="100%" height={70}>
-                      <LineChart data={history} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                        <XAxis
-                          dataKey="datum"
-                          tick={{ fill: colors.textFaint, fontSize: 9, fontFamily: 'monospace' }}
-                          axisLine={false} tickLine={false} interval="preserveStartEnd"
-                        />
-                        <YAxis hide domain={['auto', 'auto']} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: colors.bgElevated, border: `1px solid ${colors.border}`, borderRadius: radius.sm, fontSize: '11px' }}
-                          labelStyle={{ color: colors.textMuted }}
-                          itemStyle={{ color: colors.volumeColor }}
-                          formatter={(v: number) => [`${v} kg`, 'Max. Gewicht']}
-                        />
-                        <Line
-                          type="monotone" dataKey="maxWeight"
-                          stroke={colors.volumeColor} strokeWidth={2}
-                          dot={{ fill: colors.volumeColor, r: 2, strokeWidth: 0 }}
-                          activeDot={{ fill: colors.accent, r: 4, strokeWidth: 0 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    {mounted ? (
+                      <ResponsiveContainer width="100%" height={70}>
+                        <LineChart data={history} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                          <XAxis
+                            dataKey="datum"
+                            tick={{ fill: colors.textFaint, fontSize: 9, fontFamily: 'monospace' }}
+                            axisLine={false} tickLine={false} interval="preserveStartEnd"
+                          />
+                          <YAxis hide domain={['auto', 'auto']} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: colors.bgElevated, border: `1px solid ${colors.border}`, borderRadius: radius.sm, fontSize: '11px' }}
+                            labelStyle={{ color: colors.textMuted }}
+                            itemStyle={{ color: colors.volumeColor }}
+                            formatter={(v: number) => [`${v} kg`, 'Max. Gewicht']}
+                          />
+                          <Line
+                            type="monotone" dataKey="maxWeight"
+                            stroke={colors.volumeColor} strokeWidth={2}
+                            dot={{ fill: colors.volumeColor, r: 2, strokeWidth: 0 }}
+                            activeDot={{ fill: colors.accent, r: 4, strokeWidth: 0 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div style={{ height: '70px', backgroundColor: colors.bgHighest, borderRadius: radius.sm }} />
+                    )}
                   </div>
                 </Link>
               );

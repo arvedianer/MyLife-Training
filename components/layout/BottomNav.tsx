@@ -22,7 +22,9 @@ export function BottomNav() {
         left: 0,
         right: 0,
         height: '64px',
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: 'rgba(14, 14, 14, 0.88)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         borderTop: `1px solid ${colors.border}`,
         display: 'flex',
         alignItems: 'center',
@@ -115,8 +117,22 @@ function NavTab({ href, icon, label, active, dataTour }: NavTabProps) {
         flex: 1,
         padding: `${spacing[1]} ${spacing[2]}`,
         transition: 'opacity 0.15s',
+        position: 'relative',
       }}
     >
+      {/* Active indicator line at top */}
+      {active && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '20px',
+          height: '2px',
+          borderRadius: radius.full,
+          backgroundColor: colors.accent,
+        }} />
+      )}
       {icon}
       <span
         style={{

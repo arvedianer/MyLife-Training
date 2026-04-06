@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState, useEffect } from 'react';
-import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target, MessageCircle, AlertTriangle, X, Award } from 'lucide-react';
+import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target, MessageCircle, AlertTriangle, X, Award, Lightbulb, CheckCircle2, Circle, Dumbbell, Sparkles } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -38,10 +38,13 @@ export default function DashboardPage() {
   const weekVolume = recentWeekSessions.reduce((sum, s) => sum + s.totalVolume, 0);
   const weekWorkouts = recentWeekSessions.length;
 
-  // Muscle coverage signal
+  // New user detection
+  const isFirstTime = sessions.length === 0;
+
+  // Muscle coverage signal — only relevant after first workout
   const daysLeft = getRemainingWeekDays();
   const missingMuscles = getMissingMuscles(sessions, Object.keys(MUSCLE_LABELS_DE));
-  const showMuscleWarning = daysLeft > 0 && missingMuscles.length > 0;
+  const showMuscleWarning = !isFirstTime && daysLeft > 0 && missingMuscles.length > 0;
 
 
   // Athlete Score (compact summary for dashboard)
@@ -194,24 +197,21 @@ export default function DashboardPage() {
       {/* Auto Rest Day Notification */}
       {autoRestNotification && (
         <div style={{
-          background: 'var(--accent-bg)',
-          border: '1px solid rgba(61, 255, 230, 0.2)',
-          borderRadius: '10px',
-          padding: '10px 14px',
-          marginBottom: '12px',
+          backgroundColor: colors.accentBg,
+          border: `1px solid ${colors.accent}33`,
+          borderRadius: radius.lg,
+          padding: `${spacing[3]} ${spacing[4]}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '12px',
-          fontSize: '13px',
-          color: 'var(--text-secondary)',
+          gap: spacing[3],
         }}>
-          <span>{autoRestNotification}</span>
+          <span style={{ ...typography.bodySm, color: colors.textSecondary }}>{autoRestNotification}</span>
           <button
             onClick={dismissAutoRest}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px', flexShrink: 0 }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
           >
-            ✕
+            <X size={16} color={colors.textMuted} />
           </button>
         </div>
       )}
@@ -262,108 +262,264 @@ export default function DashboardPage() {
         </div>
       </Link>
 
-      {/* Stats Row */}
-      <div data-tour="streak-card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing[3] }}>
-        <StatCard
-          icon={<Flame size={18} color={colors.success} />}
-          value={String(streak)}
-          label="Streak"
-          unit="Tage"
-          valueColor={colors.success}
-        />
-        <StatCard
-          icon={<Calendar size={18} color={colors.accent} />}
-          value={String(weekWorkouts)}
-          label="Diese Woche"
-          unit="Einheiten"
-        />
-        <StatCard
-          icon={<TrendingUp size={18} color={colors.volumeColor} />}
-          value={formatVolume(weekVolume).replace('kg', '').replace('t', '')}
-          label="Volumen"
-          unit={weekVolume >= 1000 ? 'Tonnen' : 'kg'}
-          valueColor={colors.volumeColor}
-        />
-      </div>
+      {isFirstTime ? (
+        /* ── NEW USER EXPERIENCE ─────────────────────────────────── */
+        <>
+          {/* Welcome card */}
+          <div style={{
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.xl,
+            padding: spacing[5],
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3], marginBottom: spacing[4] }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: radius.lg,
+                background: `linear-gradient(135deg, ${colors.accent}30, ${colors.accent}10)`,
+                border: `1px solid ${colors.accent}40`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <Sparkles size={20} color={colors.accent} />
+              </div>
+              <div>
+                <p style={{ ...typography.bodyLg, color: colors.textPrimary, fontWeight: '700', margin: 0 }}>
+                  Alles bereit — los geht&apos;s!
+                </p>
+                <p style={{ ...typography.bodySm, color: colors.textMuted, margin: 0, marginTop: 2 }}>
+                  Starte dein erstes Training und schreibe Geschichte.
+                </p>
+              </div>
+            </div>
 
+            {/* Checklist */}
+            {[
+              { done: true,  label: 'Profil erstellt & Plan ausgewählt' },
+              { done: false, label: 'Erstes Training absolvieren' },
+              { done: false, label: 'Deinen Athleten-Score freischalten' },
+            ].map((item, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: spacing[3],
+                padding: `${spacing[2]} 0`,
+                borderTop: i === 0 ? `1px solid ${colors.borderLight}` : 'none',
+              }}>
+                {item.done
+                  ? <CheckCircle2 size={18} color={colors.success} />
+                  : <Circle size={18} color={colors.textDisabled} />
+                }
+                <span style={{
+                  ...typography.body,
+                  color: item.done ? colors.textMuted : colors.textSecondary,
+                  textDecoration: item.done ? 'line-through' : 'none',
+                }}>
+                  {item.label}
+                </span>
+              </div>
+            ))}
+          </div>
 
-      {/* Athlete Score — compact dashboard card */}
-      <Link href="/stats" style={{ display: 'block' }}>
-        <div
-          data-tour="athlete-score"
-          style={{
+          {/* Locked score teaser */}
+          <div style={{
             backgroundColor: colors.bgCard,
             border: `1px solid ${colors.border}`,
             borderRadius: radius.xl,
             padding: spacing[4],
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            cursor: 'pointer',
-            transition: 'border-color 0.2s',
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = `${colors.accent}40`; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = colors.border; }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
-            <div style={{
-              width: '42px', height: '42px', borderRadius: radius.lg,
-              backgroundColor: colors.accentBg, border: `1px solid ${colors.accent}30`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <Award size={20} color={colors.accent} />
-            </div>
-            <div>
-              <p style={{ ...typography.label, color: colors.textMuted }}>ATHLETEN-SCORE</p>
-              <p style={{ ...typography.monoLg, color: colors.accent, lineHeight: '1.2' }}>
-                {displayScore}
-                <span style={{ ...typography.bodySm, color: colors.textMuted, marginLeft: spacing[2] }}>
-                  / 1000
-                </span>
-              </p>
-            </div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ ...typography.bodySm, color: colors.textSecondary, fontWeight: '600' }}>
-              {athleteScoreLabel(displayScore)}
-            </p>
-            <ChevronRight size={18} color={colors.textDisabled} style={{ marginTop: '2px' }} />
-          </div>
-        </div>
-      </Link>
-
-      {/* Muscle Coverage Warning */}
-      {showMuscleWarning && (
-        <div style={{
-          backgroundColor: `${colors.warning}10`,
-          border: `1px solid ${colors.warning}30`,
-          borderRadius: radius.xl,
-          padding: spacing[4],
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginBottom: spacing[2] }}>
-            <AlertTriangle size={16} color={colors.warning} />
-            <span style={{ ...typography.label, color: colors.warning }}>
-              NOCH {daysLeft} TAG{daysLeft !== 1 ? 'E' : ''} — MUSKELN UNGENÜGEND TRAINIERT
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[2] }}>
-            {missingMuscles.slice(0, 4).map((m) => (
-              <span key={m} style={{
-                padding: `3px ${spacing[2]}`,
-                backgroundColor: `${colors.warning}20`,
-                border: `1px solid ${colors.warning}40`,
-                borderRadius: radius.full,
-                ...typography.label,
-                color: colors.warning,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            opacity: 0.6,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
+              <div style={{
+                width: 42, height: 42, borderRadius: radius.lg,
+                backgroundColor: colors.bgHighest,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
-                {MUSCLE_LABELS_DE[m] ?? m}
-              </span>
+                <Award size={20} color={colors.textDisabled} />
+              </div>
+              <div>
+                <p style={{ ...typography.label, color: colors.textFaint }}>ATHLETEN-SCORE</p>
+                <p style={{ ...typography.body, color: colors.textMuted }}>
+                  Schalte deinen Score frei
+                </p>
+              </div>
+            </div>
+            <span style={{ ...typography.label, color: colors.textFaint }}>🔒</span>
+          </div>
+
+          {/* First workout motivation */}
+          <div style={{
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.xl,
+            padding: spacing[4],
+          }}>
+            <p style={{ ...typography.label, color: colors.textMuted, marginBottom: spacing[3] }}>
+              TIPPS FÜR DEN START
+            </p>
+            {[
+              { icon: Dumbbell,    text: 'Wähle deinen Split und starte ein Training — Konsistenz schlägt Intensität.' },
+              { icon: Flame,       text: 'Auch 20 Minuten zählen. Jede Einheit baut auf der nächsten auf.' },
+              { icon: MessageCircle, text: 'Coach Arved beantwortet all deine Fragen — frag einfach.' },
+            ].map(({ icon: Icon, text }, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'flex-start', gap: spacing[3],
+                padding: `${spacing[2]} 0`,
+                borderTop: i === 0 ? `1px solid ${colors.borderLight}` : 'none',
+              }}>
+                <Icon size={16} color={colors.accent} style={{ flexShrink: 0, marginTop: 2 }} />
+                <span style={{ ...typography.bodySm, color: colors.textSecondary }}>{text}</span>
+              </div>
             ))}
           </div>
-        </div>
+        </>
+      ) : (
+        /* ── RETURNING USER CONTENT ──────────────────────────────── */
+        <>
+          {/* Stats Row */}
+          <div data-tour="streak-card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing[3] }}>
+            <StatCard
+              icon={<Flame size={18} color={colors.success} />}
+              value={String(streak)}
+              label="Streak"
+              unit="Tage"
+              valueColor={colors.success}
+            />
+            <StatCard
+              icon={<Calendar size={18} color={colors.accent} />}
+              value={String(weekWorkouts)}
+              label="Diese Woche"
+              unit="Einheiten"
+            />
+            <StatCard
+              icon={<TrendingUp size={18} color={colors.volumeColor} />}
+              value={formatVolume(weekVolume).replace('kg', '').replace('t', '')}
+              label="Volumen"
+              unit={weekVolume >= 1000 ? 'Tonnen' : 'kg'}
+              valueColor={colors.volumeColor}
+            />
+          </div>
+
+          {/* Athlete Score */}
+          <Link href="/stats" style={{ display: 'block' }}>
+            <div
+              data-tour="athlete-score"
+              style={{
+                backgroundColor: colors.bgCard,
+                border: `1px solid ${colors.border}`,
+                borderRadius: radius.xl,
+                padding: spacing[4],
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                cursor: 'pointer', transition: 'border-color 0.2s',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = `${colors.accent}40`; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = colors.border; }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
+                <div style={{
+                  width: 42, height: 42, borderRadius: radius.lg,
+                  backgroundColor: colors.accentBg, border: `1px solid ${colors.accent}30`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <Award size={20} color={colors.accent} />
+                </div>
+                <div>
+                  <p style={{ ...typography.label, color: colors.textMuted }}>ATHLETEN-SCORE</p>
+                  <p style={{ ...typography.monoLg, color: colors.accent, lineHeight: '1.2' }}>
+                    {displayScore}
+                    <span style={{ ...typography.bodySm, color: colors.textMuted, marginLeft: spacing[2] }}>/ 1000</span>
+                  </p>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ ...typography.bodySm, color: colors.textSecondary, fontWeight: '600' }}>
+                  {athleteScoreLabel(displayScore)}
+                </p>
+                <ChevronRight size={18} color={colors.textDisabled} style={{ marginTop: 2 }} />
+              </div>
+            </div>
+          </Link>
+
+          {/* Muscle Coverage Warning */}
+          {showMuscleWarning && (
+            <div style={{
+              backgroundColor: `${colors.warning}10`,
+              border: `1px solid ${colors.warning}30`,
+              borderRadius: radius.xl,
+              padding: spacing[4],
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginBottom: spacing[2] }}>
+                <AlertTriangle size={16} color={colors.warning} />
+                <span style={{ ...typography.label, color: colors.warning }}>
+                  NOCH {daysLeft} TAG{daysLeft !== 1 ? 'E' : ''} — MUSKELN UNGENÜGEND TRAINIERT
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[2] }}>
+                {missingMuscles.slice(0, 4).map((m) => (
+                  <span key={m} style={{
+                    padding: `3px ${spacing[2]}`,
+                    backgroundColor: `${colors.warning}20`,
+                    border: `1px solid ${colors.warning}40`,
+                    borderRadius: radius.full,
+                    ...typography.label, color: colors.warning,
+                  }}>
+                    {MUSCLE_LABELS_DE[m] ?? m}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Smart Suggestions */}
+          {suggestions.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
+              {suggestions.map((s, i) => (
+                <div key={i} style={{
+                  background: s.priority === 1 ? colors.accentBg : colors.bgCard,
+                  border: `1px solid ${s.priority === 1 ? `${colors.accent}1F` : colors.border}`,
+                  borderRadius: radius.lg, padding: `${spacing[3]} ${spacing[4]}`,
+                  display: 'flex', alignItems: 'flex-start', gap: spacing[2],
+                  ...typography.bodySm, color: colors.textSecondary,
+                }}>
+                  <Lightbulb size={14} color={colors.accent} style={{ flexShrink: 0, marginTop: 2 }} />
+                  {s.message}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Recent Workouts */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[3] }}>
+              <h3 style={{ ...typography.h3, color: colors.textPrimary }}>Letzte Einheiten</h3>
+              <Link href="/log">
+                <span style={{ ...typography.bodySm, color: colors.accent }}>Alle anzeigen</span>
+              </Link>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
+              {recentSessions.map((session) => (
+                <Link key={session.id} href={`/log/${session.id}`}>
+                  <Card style={{ cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginBottom: spacing[1] }}>
+                          <span style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>
+                            {session.splitName ?? 'Freies Training'}
+                          </span>
+                          {session.newPRs.length > 0 && <Badge variant="accent">PR</Badge>}
+                        </div>
+                        <span style={{ ...typography.bodySm, color: colors.textMuted }}>
+                          {formatWorkoutDate(session.date)} · {formatDuration(session.durationSeconds)} · {session.totalSets} Sätze
+                        </span>
+                      </div>
+                      <ChevronRight size={18} color={colors.textDisabled} />
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
-      {/* Week Muscle Heatmap */}
+      {/* Week Muscle Heatmap — always visible */}
       <div style={{
         backgroundColor: colors.bgCard,
         border: `1px solid ${colors.border}`,
@@ -372,86 +528,6 @@ export default function DashboardPage() {
       }}>
         <p style={{ ...typography.label, color: colors.textMuted, margin: `0 0 ${spacing[3]}` }}>DIESE WOCHE — MUSKELGRUPPEN</p>
         <BodyHeatmap muscleSets={weekMuscleSets} maxSets={weekMaxSets} compact={false} />
-      </div>
-
-
-      {/* Smart Workout Suggestions */}
-      {suggestions.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {suggestions.map((s, i) => (
-            <div key={i} style={{
-              background: s.priority === 1 ? colors.accentBg : colors.bgCard,
-              border: `1px solid ${s.priority === 1 ? `${colors.accent}1F` : colors.border}`,
-              borderRadius: '10px', padding: '10px 14px',
-              fontSize: '13px', color: colors.textSecondary,
-            }}>
-              💡 {s.message}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Recent Workouts */}
-      <div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: spacing[3],
-          }}
-        >
-          <h3 style={{ ...typography.h3, color: colors.textPrimary }}>
-            Letzte Einheiten
-          </h3>
-          <Link href="/log">
-            <span style={{ ...typography.bodySm, color: colors.accent }}>Alle anzeigen</span>
-          </Link>
-        </div>
-
-        {recentSessions.length === 0 ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: `${spacing[8]} ${spacing[4]}`,
-              backgroundColor: colors.bgCard,
-              border: `1px solid ${colors.border}`,
-              borderRadius: radius.lg,
-            }}
-          >
-            <p style={{ ...typography.body, color: colors.textMuted }}>
-              Noch keine Trainingseinheiten.
-            </p>
-            <p style={{ ...typography.bodySm, color: colors.textFaint, marginTop: spacing[1] }}>
-              Starte dein erstes Workout!
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
-            {recentSessions.map((session) => (
-              <Link key={session.id} href={`/log/${session.id}`}>
-                <Card style={{ cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginBottom: spacing[1] }}>
-                        <span style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>
-                          {session.splitName ?? 'Freies Training'}
-                        </span>
-                        {session.newPRs.length > 0 && (
-                          <Badge variant="accent">PR</Badge>
-                        )}
-                      </div>
-                      <span style={{ ...typography.bodySm, color: colors.textMuted }}>
-                        {formatWorkoutDate(session.date)} · {formatDuration(session.durationSeconds)} · {session.totalSets} Sätze
-                      </span>
-                    </div>
-                    <ChevronRight size={18} color={colors.textDisabled} />
-                  </div>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Arved Coach Card */}
@@ -495,7 +571,7 @@ export default function DashboardPage() {
         <div
           style={{
             position: 'fixed', inset: 0, zIndex: 1000,
-            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+            background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', /* intentional non-token: semi-transparent overlay */
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '0 16px',
           }}
@@ -527,7 +603,7 @@ export default function DashboardPage() {
             </div>
 
             <h3 style={{
-              fontFamily: 'var(--font-barlow)', fontSize: '22px', fontWeight: 700,
+              ...typography.h3,
               color: colors.textPrimary, textAlign: 'center', marginBottom: spacing[2],
               margin: `0 0 ${spacing[2]} 0`,
             }}>
@@ -547,8 +623,8 @@ export default function DashboardPage() {
                 style={{
                   flex: 1, padding: spacing[4], borderRadius: radius.xl,
                   background: colors.bgCard, border: `1px solid ${colors.border}`,
-                  color: colors.textMuted, fontSize: '14px', cursor: 'pointer',
-                  fontFamily: 'var(--font-manrope)',
+                  color: colors.textMuted, cursor: 'pointer',
+                  ...typography.body,
                 }}
               >
                 Schliessen
@@ -562,8 +638,9 @@ export default function DashboardPage() {
                 style={{
                   flex: 1, padding: spacing[4], borderRadius: radius.xl,
                   background: colors.accent, border: 'none',
-                  color: colors.bgPrimary, fontSize: '14px', fontWeight: 700,
-                  cursor: 'pointer', fontFamily: 'var(--font-manrope)',
+                  cursor: 'pointer',
+                  ...typography.body,
+                  color: colors.bgPrimary, fontWeight: '700',
                 }}
               >
                 Rest Day

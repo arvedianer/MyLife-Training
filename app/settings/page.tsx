@@ -11,6 +11,7 @@ import { useHistoryStore } from '@/store/historyStore';
 import { usePlanStore } from '@/store/planStore';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { useTourStore } from '@/store/tourStore';
+import { useAchievementStore } from '@/store/achievementStore';
 import { supabase } from '@/lib/supabase';
 import { loadMockData } from '@/utils/mockData';
 
@@ -39,17 +40,47 @@ function getInitials(name?: string, email?: string): string {
   return 'ML';
 }
 
+const GOAL_LABELS: Record<string, string> = {
+  muskelaufbau: 'Muskelaufbau',
+  kraft: 'Kraft aufbauen',
+  abnehmen: 'Abnehmen',
+  fitness: 'Fit bleiben',
+  ausdauer: 'Ausdauer',
+  alles: 'Alles davon',
+};
+
+const LEVEL_LABELS: Record<string, string> = {
+  anfaenger: 'Einsteiger',
+  fortgeschritten: 'Fortgeschritten',
+  profi: 'Profi',
+  experte: 'Experte',
+};
+
+const EQUIPMENT_LABELS: Record<string, string> = {
+  vollausgestattet: 'Vollausgestattet',
+  kurzhanteln: 'Kurzhanteln',
+  langhantel: 'Langhantel',
+  maschinen: 'Maschinen',
+  klimmzugstange: 'Klimmzugstange',
+  keine: 'Kein Equipment',
+  minimalausrüstung: 'Minimalausrüstung',
+};
+
 export default function SettingsPage() {
   const router = useRouter();
   const { profile, weightUnit, restTimerDefault, language, setWeightUnit, setRestTimerDefault, setLanguage, resetUser, updateProfile } =
     useUserStore();
+  const bodyWeightLog = useUserStore((s) => s.bodyWeightLog);
   const { sessions } = useHistoryStore();
-  const { splits } = usePlanStore();
+  const { splits, getActiveSplit } = usePlanStore();
+  const activeSplit = getActiveSplit();
   const resetTour = useTourStore((s) => s.resetTour);
   const startTour = useTourStore((s) => s.startTour);
+  const allAchievements = useAchievementStore((s) => s.getAllWithStatus)();
 
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(profile?.name ?? '');
   const [ageInput, setAgeInput] = useState<string>(profile?.age != null ? String(profile.age) : '');
@@ -78,19 +109,32 @@ export default function SettingsPage() {
     router.replace('/auth/login');
   };
 
+  const syncProfileField = async (updates: Parameters<typeof updateProfile>[0]) => {
+    updateProfile(updates);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const current = useUserStore.getState().profile;
+    if (!current) return;
+    const merged = { ...current, ...updates };
+    const row: Record<string, unknown> = {
+      id: user.id,
+      goal: merged.goal,
+      level: merged.level,
+      training_days: merged.trainingDays,
+      equipment: merged.equipment,
+      weight_unit: merged.weightUnit ?? 'kg',
+    };
+    if (merged.name != null) row.name = merged.name;
+    if (merged.age != null) row.age = merged.age;
+    if (merged.bodyWeight != null) row.body_weight = merged.bodyWeight;
+    if (merged.height != null) row.height = merged.height;
+    if (merged.trainingWeekdays != null) row.training_weekdays = merged.trainingWeekdays;
+    if (merged.secondaryGoal != null) row.secondary_goal = merged.secondaryGoal;
+    await supabase.from('profiles').upsert(row, { onConflict: 'id' });
+  };
+
   const handleReset = () => {
-    if (confirm('Alle Daten löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
-      resetUser();
-      useHistoryStore.setState({ sessions: [] });
-      usePlanStore.setState({ splits: [], activeSplitId: null });
-      useWorkoutStore.setState({
-        activeWorkout: null,
-        restTimerActive: false,
-        restTimerSeconds: 0,
-        restTimerTotal: 0,
-      });
-      router.replace('/onboarding/name');
-    }
+    setShowResetModal(true);
   };
 
   // Derived display name — Supabase username or profile name or fallback
@@ -216,7 +260,7 @@ export default function SettingsPage() {
                     />
                     <button
                       onClick={() => {
-                        updateProfile({ name: nameInput.trim() || undefined });
+                        void syncProfileField({ name: nameInput.trim() || undefined });
                         setEditingName(false);
                       }}
                       style={{
@@ -258,11 +302,11 @@ export default function SettingsPage() {
                   placeholder="z.B. 20"
                   onChange={(e) => {
                     setAgeInput(e.target.value);
-                    updateProfile({ age: Number(e.target.value) || undefined });
+                    void syncProfileField({ age: Number(e.target.value) || undefined });
                   }}
                   style={{
                     backgroundColor: colors.bgHighest,
-                    border: `1px solid ${colors.accent}`,
+                    border: `1px solid ${colors.border}`,
                     borderRadius: radius.md,
                     padding: `${spacing[1]} ${spacing[2]}`,
                     ...typography.body,
@@ -289,11 +333,11 @@ export default function SettingsPage() {
                   placeholder="z.B. 75"
                   onChange={(e) => {
                     setBodyWeightInput(e.target.value);
-                    updateProfile({ bodyWeight: Number(e.target.value) || undefined });
+                    void syncProfileField({ bodyWeight: Number(e.target.value) || undefined });
                   }}
                   style={{
                     backgroundColor: colors.bgHighest,
-                    border: `1px solid ${colors.accent}`,
+                    border: `1px solid ${colors.border}`,
                     borderRadius: radius.md,
                     padding: `${spacing[1]} ${spacing[2]}`,
                     ...typography.body,
@@ -305,10 +349,52 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <InfoRow label="Ziel" value={profile.goal} />
-              <InfoRow label="Level" value={profile.level} />
-              <InfoRow label="Trainingstage" value={`${profile.trainingDays}x / Woche`} />
-              <InfoRow label="Equipment" value={profile.equipment} />
+              {/* Body weight sparkline */}
+              {bodyWeightLog.length >= 2 && (
+                <div style={{
+                  padding: `${spacing[2]} 0 ${spacing[1]}`,
+                  borderBottom: `1px solid ${colors.borderLight}`,
+                }}>
+                  <div style={{ ...typography.label, color: colors.textFaint, marginBottom: spacing[2] }}>
+                    VERLAUF
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '32px' }}>
+                    {bodyWeightLog.slice(-10).map((entry, i, arr) => {
+                      const weights = arr.map(e => e.weight);
+                      const min = Math.min(...weights);
+                      const max = Math.max(...weights);
+                      const range = max - min || 1;
+                      const heightPct = ((entry.weight - min) / range) * 100;
+                      const isLast = i === arr.length - 1;
+                      return (
+                        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                          <div style={{
+                            width: '100%',
+                            height: `${Math.max(4, heightPct * 0.28 + 4)}px`,
+                            backgroundColor: isLast ? colors.accent : colors.bgHighest,
+                            borderRadius: '2px',
+                            alignSelf: 'flex-end',
+                            transition: 'height 0.3s ease',
+                          }} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                    <span style={{ ...typography.monoSm, color: colors.textFaint }}>
+                      {bodyWeightLog.slice(-10)[0]?.weight}kg
+                    </span>
+                    <span style={{ ...typography.monoSm, color: colors.accent }}>
+                      {bodyWeightLog.slice(-1)[0]?.weight}kg
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <InfoRow label="Ziel" value={GOAL_LABELS[profile.goal] ?? profile.goal} />
+              <InfoRow label="Level" value={LEVEL_LABELS[profile.level] ?? profile.level} />
+              <InfoRow label="Trainingstage" value={`${profile.trainingDays}× / Woche`} />
+              <InfoRow label="Equipment" value={EQUIPMENT_LABELS[profile.equipment] ?? profile.equipment} />
 
               {/* Profil bearbeiten */}
               <button
@@ -352,6 +438,53 @@ export default function SettingsPage() {
               <span style={{ ...typography.body, color: colors.textPrimary }}>App-Tour wiederholen</span>
               <ChevronRight size={16} color={colors.textMuted} />
             </button>
+          </Section>
+
+          {/* ── ACHIEVEMENTS ──────────────────────────────────────────── */}
+          <Section title="Achievements">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: spacing[3],
+                padding: `${spacing[2]} 0`,
+              }}
+            >
+              {allAchievements.map((a) => (
+                <div
+                  key={a.id}
+                  style={{
+                    backgroundColor: a.unlocked ? colors.bgCard : colors.bgPrimary,
+                    border: `1px solid ${a.unlocked ? colors.border : colors.borderLight}`,
+                    borderRadius: radius.lg,
+                    padding: spacing[3],
+                    opacity: a.unlocked ? 1 : 0.4,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: spacing[1],
+                  }}
+                >
+                  <span style={{ fontSize: '22px' }}>{a.icon}</span>
+                  <span
+                    style={{
+                      ...typography.label,
+                      color: a.unlocked ? colors.textPrimary : colors.textFaint,
+                    }}
+                  >
+                    {a.title}
+                  </span>
+                  <span
+                    style={{
+                      ...typography.bodySm,
+                      color: colors.textFaint,
+                      fontSize: '10px',
+                    }}
+                  >
+                    {a.description}
+                  </span>
+                </div>
+              ))}
+            </div>
           </Section>
 
           {/* ── EINHEITEN & TIMER ─────────────────────────────────────── */}
@@ -470,10 +603,43 @@ export default function SettingsPage() {
             </div>
           </Section>
 
-          {/* ── STATISTIKEN ───────────────────────────────────────────── */}
-          <Section title="Daten">
-            <InfoRow label="Trainingseinheiten" value={String(sessions.length)} />
-            <InfoRow label="Aktive Pläne" value={String(splits.length)} />
+          {/* ── TRAININGSPLAN ─────────────────────────────────────────── */}
+          <Section title="Trainingsplan">
+            {activeSplit ? (
+              <button
+                onClick={() => router.push('/splits')}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  width: '100%', padding: `${spacing[3]} 0`,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  borderBottom: `1px solid ${colors.borderLight}`,
+                }}
+              >
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>
+                    {activeSplit.name}
+                  </div>
+                  <div style={{ ...typography.bodySm, color: colors.textMuted, marginTop: 2 }}>
+                    {activeSplit.days.length} Trainingstage
+                  </div>
+                </div>
+                <ChevronRight size={16} color={colors.textMuted} />
+              </button>
+            ) : (
+              <button
+                onClick={() => router.push('/splits')}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  width: '100%', padding: `${spacing[3]} 0`,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                }}
+              >
+                <span style={{ ...typography.body, color: colors.accent }}>Trainingsplan auswählen</span>
+                <ChevronRight size={16} color={colors.accent} />
+              </button>
+            )}
+            <InfoRow label="Einheiten absolviert" value={String(sessions.length)} />
+            <InfoRow label="Pläne gespeichert" value={String(splits.length)} />
           </Section>
 
           {/* ── DANGER ZONE ───────────────────────────────────────────── */}
@@ -527,11 +693,64 @@ export default function SettingsPage() {
 
           {/* ── APP INFO ──────────────────────────────────────────────── */}
           <div style={{ textAlign: 'center', paddingBottom: spacing[8] }}>
-            <p style={{ ...typography.bodySm, color: colors.textFaint }}>
+            <div style={{ ...typography.bodySm, color: colors.textFaint, textAlign: 'center', paddingBottom: spacing[2] }}>
               MY LIFE Training · v0.1.0
-            </p>
+            </div>
           </div>
         </div>
+
+        {/* ── RESET CONFIRMATION MODAL ─────────────────────────────── */}
+        {showResetModal && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            backgroundColor: 'rgba(0,0,0,0.75)',
+            display: 'flex', alignItems: 'flex-end',
+            padding: spacing[4],
+          }}>
+            <div style={{
+              width: '100%',
+              backgroundColor: colors.bgCard,
+              borderRadius: radius['2xl'],
+              border: `1px solid ${colors.border}`,
+              padding: spacing[6],
+              display: 'flex', flexDirection: 'column', gap: spacing[4],
+            }}>
+              <div style={{ ...typography.h3, color: colors.textPrimary }}>Alle Daten löschen?</div>
+              <div style={{ ...typography.body, color: colors.textMuted }}>
+                Diese Aktion löscht dein gesamtes Training, deine Statistiken und deine Einstellungen. Sie kann nicht rückgängig gemacht werden.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[3] }}>
+                <button
+                  onClick={() => {
+                    setShowResetModal(false);
+                    resetUser();
+                    useHistoryStore.setState({ sessions: [] });
+                    usePlanStore.setState({ splits: [], activeSplitId: null });
+                    useWorkoutStore.setState({ activeWorkout: null, restTimerActive: false, restTimerSeconds: 0, restTimerTotal: 0 });
+                    router.replace('/onboarding/name');
+                  }}
+                  style={{
+                    width: '100%', padding: spacing[4], borderRadius: radius.lg,
+                    backgroundColor: colors.danger, border: 'none', cursor: 'pointer',
+                    ...typography.bodyLg, fontWeight: '700', color: colors.bgPrimary,
+                  }}
+                >
+                  Ja, alles löschen
+                </button>
+                <button
+                  onClick={() => setShowResetModal(false)}
+                  style={{
+                    width: '100%', padding: spacing[4], borderRadius: radius.lg,
+                    backgroundColor: colors.bgElevated, border: `1px solid ${colors.border}`,
+                    cursor: 'pointer', ...typography.body, color: colors.textSecondary,
+                  }}
+                >
+                  Abbrechen
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AppShell>
   );

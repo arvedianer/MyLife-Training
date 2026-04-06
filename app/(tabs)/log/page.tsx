@@ -91,7 +91,7 @@ export default function LogPage() {
           gap: '6px',
           backgroundColor: colors.bgCard,
           border: `1px solid ${colors.border}`,
-          borderRadius: '20px',
+          borderRadius: radius.xl,
           padding: `${spacing[2]} ${spacing[4]}`,
           ...typography.bodySm,
           color: colors.textSecondary,
@@ -116,7 +116,7 @@ export default function LogPage() {
             textAlign: 'center',
           }}
         >
-          <Dumbbell size={48} color={colors.textFaint} />
+          <Dumbbell size={40} color={colors.textDisabled} style={{ marginBottom: spacing[3] }} />
           <div>
             <p style={{ ...typography.bodyLg, color: colors.textMuted, fontWeight: '600' }}>
               Noch keine Einheiten
@@ -233,7 +233,7 @@ export default function LogPage() {
             right: 0,
             backgroundColor: colors.bgElevated,
             borderTop: `1px solid ${colors.border}`,
-            padding: `12px ${spacing[5]}`,
+            padding: `${spacing[3]} ${spacing[5]}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -251,7 +251,7 @@ export default function LogPage() {
               onClick={handleCreateSplit}
               style={{
                 backgroundColor: colors.accent,
-                color: '#000',
+                color: colors.bgPrimary,
                 border: 'none',
                 borderRadius: radius.lg,
                 padding: `10px ${spacing[4]}`,

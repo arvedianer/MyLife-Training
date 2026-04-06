@@ -8,6 +8,7 @@ import { ExerciseSettingsSheet } from './ExerciseSettingsSheet';
 import type { WorkoutExercise } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
 import { exercises as exerciseDb, findExerciseByName } from '@/constants/exercises';
+import { formatWorkoutDate } from '@/utils/dates';
 import { EQUIPMENT_LABELS } from '@/utils/variations';
 import { MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
 import { useHistoryStore } from '@/store/historyStore';
@@ -279,6 +280,33 @@ export function ExerciseCard({
             <div className={styles.headerCellRight}>{isCardio ? 'PACE' : 'VOL'}</div>
             <div style={{ width: '68px' }} />
           </div>
+
+          {/* Last Session Strip */}
+          {lastSets.length > 0 && lastSession && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing[2],
+              padding: `${spacing[1]} 0 ${spacing[2]}`,
+              flexWrap: 'wrap',
+            }}>
+              <span style={{ ...typography.label, color: colors.textFaint, fontSize: '10px' }}>
+                {formatWorkoutDate(lastSession.date)}:
+              </span>
+              {lastSets.filter(s => s.isCompleted).slice(0, 3).map((s, i) => (
+                <span key={i} style={{
+                  ...typography.monoSm,
+                  color: colors.textDisabled,
+                  backgroundColor: colors.bgHighest,
+                  borderRadius: radius.sm,
+                  padding: `1px ${spacing[1]}`,
+                  fontSize: '11px',
+                }}>
+                  {s.weight > 0 ? `${s.weight}kg` : 'BW'}×{s.reps}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Set Rows */}
           {sets.map((set, index) => (

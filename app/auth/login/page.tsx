@@ -58,19 +58,25 @@ export default function LoginPage() {
     if (userId) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('goal, level, training_days, equipment')
+        .select('goal, level, training_days, equipment, name, age, body_weight, height, training_weekdays, secondary_goal, weight_unit, profile_created_at')
         .eq('id', userId)
         .single();
 
       if (profile?.goal) {
-        // Onboarding was done — restore profile to local store and go to dashboard
+        // Onboarding was done — restore full profile to local store and go to dashboard
         useUserStore.getState().completeOnboarding({
           goal: profile.goal as WorkoutGoal,
           level: (profile.level ?? 'anfaenger') as TrainingLevel,
           trainingDays: (profile.training_days ?? 3) as TrainingDays,
           equipment: (profile.equipment ?? 'vollausgestattet') as EquipmentType,
-          weightUnit: 'kg',
-          createdAt: Date.now(),
+          weightUnit: ((profile.weight_unit as 'kg' | 'lbs') ?? 'kg'),
+          createdAt: (profile.profile_created_at as number | null) ?? Date.now(),
+          ...(profile.name ? { name: profile.name as string } : {}),
+          ...(profile.age != null ? { age: profile.age as number } : {}),
+          ...(profile.body_weight != null ? { bodyWeight: profile.body_weight as number } : {}),
+          ...(profile.height != null ? { height: profile.height as number } : {}),
+          ...(profile.training_weekdays != null ? { trainingWeekdays: profile.training_weekdays as number[] } : {}),
+          ...(profile.secondary_goal != null ? { secondaryGoal: profile.secondary_goal as WorkoutGoal } : {}),
         });
         router.replace('/dashboard');
         return;

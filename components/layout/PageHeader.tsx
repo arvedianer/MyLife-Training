@@ -36,6 +36,9 @@ export function PageHeader({
   return (
     <div
       style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 40,
         display: 'flex',
         alignItems: 'center',
         gap: spacing[3],
@@ -43,6 +46,9 @@ export function PageHeader({
         paddingTop: `calc(${spacing[4]} + env(safe-area-inset-top))`,
         borderBottom: `1px solid ${colors.borderLight}`,
         minHeight: 56,
+        backgroundColor: 'rgba(8, 8, 8, 0.85)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
       }}
     >
       {showBack && (

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useUserStore } from '@/store/userStore';
 import { useTourStore } from '@/store/tourStore';
 import { usePlanStore } from '@/store/planStore';
+import { supabase } from '@/lib/supabase';
 import { colors, spacing, typography, radius } from '@/constants/tokens';
 import { CheckCircle2, Dumbbell, Calendar, Target, ChevronRight } from 'lucide-react';
 
@@ -30,9 +31,31 @@ export default function DonePage() {
     experte: 'Experte',
   };
 
+  const syncProfileToSupabase = async () => {
+    if (!profile) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('profiles').upsert({
+      id: user.id,
+      goal: profile.goal,
+      level: profile.level,
+      training_days: profile.trainingDays,
+      equipment: profile.equipment,
+      weight_unit: profile.weightUnit ?? 'kg',
+      profile_created_at: profile.createdAt,
+      ...(profile.name != null ? { name: profile.name } : {}),
+      ...(profile.age != null ? { age: profile.age } : {}),
+      ...(profile.bodyWeight != null ? { body_weight: profile.bodyWeight } : {}),
+      ...(profile.height != null ? { height: profile.height } : {}),
+      ...(profile.trainingWeekdays != null ? { training_weekdays: profile.trainingWeekdays } : {}),
+      ...(profile.secondaryGoal != null ? { secondary_goal: profile.secondaryGoal } : {}),
+    }, { onConflict: 'id' });
+  };
+
   const handleStartTour = () => {
     if (!profile) return;
     completeOnboarding(profile);
+    void syncProfileToSupabase();
     startTour();
     router.replace('/');
   };
@@ -40,6 +63,7 @@ export default function DonePage() {
   const handleSkipTour = () => {
     if (!profile) return;
     completeOnboarding(profile);
+    void syncProfileToSupabase();
     router.replace('/');
   };
 
