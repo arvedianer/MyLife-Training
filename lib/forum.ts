@@ -179,6 +179,21 @@ export async function acceptFriendRequest(friendshipId: string): Promise<void> {
   await supabase.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId);
 }
 
+// ── Coach Arved ───────────────────────────────────────────
+
+export function getCoachArvProfile(): ForumProfile {
+  return {
+    id: 'coach-arved',
+    username: 'Coach Arved',
+    avatarColor: '#4DFFED',
+    athleteScore: 0,
+    streak: 0,
+    createdAt: new Date().toISOString(),
+    role: null,
+    isCoach: true,
+  };
+}
+
 // ── Mappers ───────────────────────────────────────────────
 
 function mapProfile(r: Record<string, unknown>): ForumProfile {

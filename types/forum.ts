@@ -6,6 +6,7 @@ export interface ForumProfile {
   streak: number;
   createdAt: string;
   role?: string | null; // e.g. 'cheffe', null for regular users
+  isCoach?: boolean;
 }
 
 export type ChannelType = 'general' | 'dm' | 'group';
@@ -42,6 +43,7 @@ export interface Message {
   type: MessageType;
   metadata?: WorkoutCardMetadata | null;
   createdAt: string;
+  isCoach?: boolean;
   // Client-side enriched:
   sender?: ForumProfile;
 }
