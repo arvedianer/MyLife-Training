@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useState, useMemo, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { CheckCircle2, Star, Clock, Dumbbell, TrendingUp, Share2, BarChart2, Download, Globe, MessageCircle, Users } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Button } from '@/components/ui/Button';
@@ -25,17 +26,26 @@ function MetricRow({
   value,
   maxValue,
   unit,
+  explainer,
 }: {
   label: string;
   value: number;
   maxValue: number;
   unit?: string;
+  explainer?: string;
 }) {
   const pct = Math.round((value / maxValue) * 100);
   return (
     <div style={{ marginBottom: spacing[3] }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <span style={{ ...typography.bodySm, color: colors.textMuted }}>{label}</span>
+        <div>
+          <span style={{ ...typography.bodySm, color: colors.textMuted }}>{label}</span>
+          {explainer && (
+            <span style={{ ...typography.bodySm, color: colors.textFaint, marginLeft: spacing[2] }}>
+              — {explainer}
+            </span>
+          )}
+        </div>
         <span style={{ ...typography.mono, color: colors.textPrimary }}>
           {unit === '%' ? `${value}${unit}` : `${value} / ${maxValue}`}
         </span>
@@ -202,6 +212,9 @@ function SummaryContent() {
   const scoreColor =
     score.total >= 75 ? colors.success : score.total >= 48 ? colors.accent : colors.danger;
 
+  const totalVolume = session.totalVolume;
+  const totalCompletedSets = session.totalSets;
+
   return (
     <div
       style={{
@@ -209,37 +222,98 @@ function SummaryContent() {
         flexDirection: 'column',
         minHeight: '100dvh',
         backgroundColor: colors.bgPrimary,
+        paddingBottom: '80px', // space for sticky action bar
       }}
     >
       {/* SCORE HERO */}
       <div
         style={{
-          textAlign: 'center',
-          padding: `calc(${spacing[10]} + env(safe-area-inset-top)) ${spacing[5]} ${spacing[6]}`,
+          padding: `calc(${spacing[8]} + env(safe-area-inset-top)) ${spacing[5]} ${spacing[5]}`,
           background: `linear-gradient(180deg, ${colors.accentBg} 0%, ${colors.bgPrimary} 100%)`,
           borderBottom: `1px solid ${colors.borderLight}`,
         }}
       >
-        <CheckCircle2 size={44} color={colors.success} style={{ marginBottom: spacing[3] }} />
-
-        {/* Big score number */}
-        <div style={{ fontSize: '80px', fontWeight: 800, color: scoreColor, lineHeight: 1 }}>
-          <CountUp end={score.total} duration={1400} />
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: spacing[3] }}>
+          <CheckCircle2 size={36} color={colors.success} />
         </div>
 
-        {/* Label below the number */}
-        <div
+        {/* Quick stats strip */}
+        <div style={{ display: 'flex', gap: spacing[3], marginBottom: spacing[5] }}>
+          {([
+            { label: 'Dauer', value: formatDuration(session.durationSeconds) },
+            { label: 'Volumen', value: formatVolume(totalVolume) },
+            { label: 'Sets', value: String(totalCompletedSets) },
+          ] as const).map(stat => (
+            <div key={stat.label} style={{
+              flex: 1,
+              backgroundColor: colors.bgCard,
+              borderRadius: radius.lg,
+              padding: spacing[3],
+              border: `1px solid ${colors.border}`,
+              textAlign: 'center',
+            }}>
+              <div style={{ ...typography.mono, color: colors.textPrimary, fontSize: 20 }}>
+                {stat.value}
+              </div>
+              <div style={{ ...typography.label, color: colors.textMuted }}>
+                {stat.label}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Score hero card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1, duration: 0.4, type: 'spring', stiffness: 150 }}
           style={{
-            ...typography.h3,
-            color: scoreColor,
-            marginTop: spacing[2],
-            fontWeight: 700,
+            textAlign: 'center',
+            padding: `${spacing[6]} ${spacing[4]}`,
+            backgroundColor: colors.bgCard,
+            borderRadius: radius.xl,
+            border: `1px solid ${colors.border}`,
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          {score.label}
-        </div>
+          {/* Background glow */}
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 200,
+            height: 200,
+            borderRadius: '50%',
+            backgroundColor: score.total >= 70 ? `${colors.accent}08` : 'transparent',
+            filter: 'blur(40px)',
+            pointerEvents: 'none',
+          }} />
 
-        <p style={{ ...typography.bodyLg, color: colors.textSecondary, marginTop: spacing[3] }}>
+          {/* Big score number */}
+          <div style={{ fontSize: '80px', fontWeight: 800, color: scoreColor, lineHeight: 1, marginBottom: spacing[2] }}>
+            <CountUp end={score.total} duration={1400} />
+          </div>
+
+          {/* Label below the number */}
+          <div
+            style={{
+              ...typography.h3,
+              color: colors.textPrimary,
+              marginBottom: spacing[1],
+              fontWeight: 700,
+            }}
+          >
+            {score.label}
+          </div>
+
+          <div style={{ ...typography.bodySm, color: colors.textMuted }}>
+            Workout Score
+          </div>
+        </motion.div>
+
+        <p style={{ ...typography.bodyLg, color: colors.textSecondary, marginTop: spacing[3], textAlign: 'center' }}>
           {session.splitName ?? 'Freies Training'}
         </p>
 
@@ -268,9 +342,9 @@ function SummaryContent() {
           Score Aufschlüsselung
         </h3>
 
-        <MetricRow label="Abschlussrate" value={score.completionRate} maxValue={100} unit="%" />
-        <MetricRow label="Volumen" value={score.volume} maxValue={100} unit="%" />
-        <MetricRow label="Intensität" value={score.intensity} maxValue={100} unit="%" />
+        <MetricRow label="Abschlussrate" value={score.completionRate} maxValue={100} unit="%" explainer="Abgeschlossene Sets" />
+        <MetricRow label="Volumen" value={score.volume} maxValue={100} unit="%" explainer="Tonnen bewegt vs. Durchschnitt" />
+        <MetricRow label="Intensität" value={score.intensity} maxValue={100} unit="%" explainer="Gewicht vs. letzte Sessions" />
 
         {/* RPE INPUT */}
         <div
@@ -461,50 +535,50 @@ function SummaryContent() {
         </div>
       </div>
 
-      {/* ACTIONS */}
+      {/* SECONDARY ACTIONS — share / pdf / log */}
       <div
         style={{
-          padding: spacing[5],
-          paddingBottom: `calc(${spacing[5]} + env(safe-area-inset-bottom))`,
+          padding: `${spacing[5]} ${spacing[5]} 0`,
           display: 'flex',
           flexDirection: 'column',
-          gap: spacing[3],
-          marginTop: spacing[6],
+          gap: spacing[2],
+          marginTop: spacing[4],
         }}
       >
-        <Button fullWidth size="lg" onClick={handleSave}>
-          Workout speichern
-        </Button>
-        <Button
-          variant="secondary"
-          fullWidth
-          onClick={handleShare}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: spacing[2],
-          }}
-        >
-          Workout teilen <Share2 size={18} />
-        </Button>
-        <Button
-          variant="ghost"
-          fullWidth
-          onClick={handleDownloadPDF}
-          disabled={pdfLoading}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: spacing[2],
-          }}
-        >
-          {pdfLoading ? 'Exportiere...' : <><Download size={18} /> Als PDF speichern</>}
-        </Button>
-        <Button variant="ghost" fullWidth onClick={() => router.push('/log')}>
-          Im Verlauf ansehen
-        </Button>
+        <div style={{ display: 'flex', gap: spacing[2] }}>
+          <Button
+            variant="secondary"
+            fullWidth
+            onClick={handleShare}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: spacing[2],
+              flex: 1,
+            }}
+          >
+            <Share2 size={16} /> Teilen
+          </Button>
+          <Button
+            variant="ghost"
+            fullWidth
+            onClick={handleDownloadPDF}
+            disabled={pdfLoading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: spacing[2],
+              flex: 1,
+            }}
+          >
+            {pdfLoading ? 'PDF...' : <><Download size={16} /> PDF</>}
+          </Button>
+          <Button variant="ghost" fullWidth onClick={() => router.push('/log')} style={{ flex: 1 }}>
+            Verlauf
+          </Button>
+        </div>
         <button
           onClick={() => setShareOpen(true)}
           style={{
@@ -512,11 +586,61 @@ function SummaryContent() {
             width: '100%', padding: spacing[3],
             backgroundColor: colors.accentBg, border: `1px solid ${colors.accent}40`,
             borderRadius: radius.xl, color: colors.accent, fontSize: 14, fontWeight: 600,
-            cursor: 'pointer', marginTop: spacing[2],
+            cursor: 'pointer',
           }}
         >
           <MessageCircle size={16} />
           Im Forum teilen
+        </button>
+      </div>
+
+      {/* STICKY ACTION BAR */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: colors.bgPrimary,
+          paddingTop: spacing[3],
+          paddingBottom: `calc(${spacing[4]} + env(safe-area-inset-bottom))`,
+          paddingLeft: spacing[4],
+          paddingRight: spacing[4],
+          borderTop: `1px solid ${colors.border}`,
+          display: 'flex',
+          gap: spacing[3],
+          zIndex: 50,
+        }}
+      >
+        <button
+          onClick={() => router.push('/')}
+          style={{
+            flex: 1,
+            padding: spacing[3],
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.lg,
+            color: colors.textMuted,
+            cursor: 'pointer',
+            ...typography.body,
+          }}
+        >
+          Dashboard
+        </button>
+        <button
+          onClick={handleSave}
+          style={{
+            flex: 2,
+            padding: spacing[3],
+            backgroundColor: colors.accent,
+            border: 'none',
+            borderRadius: radius.lg,
+            color: colors.bgPrimary,
+            cursor: 'pointer',
+            ...typography.h3,
+          }}
+        >
+          Speichern &amp; fertig →
         </button>
       </div>
 

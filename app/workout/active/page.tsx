@@ -94,11 +94,34 @@ export default function ActiveWorkoutPage() {
   const isFinishing = useRef(false); // prevents the "no workout" redirect from firing during completion
   const communityChRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  const [showMic, setShowMic] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
-  const recognitionRef = useRef<any>(null);
+  // SpeechRecognition is not in the default TS lib — use minimal structural types
+  interface SpeechRecognitionResultItem { transcript: string }
+  interface SpeechRecognitionResultEntry {
+    isFinal: boolean;
+    [index: number]: SpeechRecognitionResultItem;
+  }
+  interface SpeechRecognitionResultList {
+    length: number;
+    [index: number]: SpeechRecognitionResultEntry;
+  }
+  interface SpeechRecognitionEventLike { resultIndex: number; results: SpeechRecognitionResultList }
+  interface SpeechRecognitionErrorEventLike { error: string }
+  interface SpeechRecognitionLike {
+    lang: string;
+    interimResults: boolean;
+    continuous: boolean;
+    onresult: ((e: SpeechRecognitionEventLike) => void) | null;
+    onend: (() => void) | null;
+    onerror: ((e: SpeechRecognitionErrorEventLike) => void) | null;
+    start: () => void;
+    stop: () => void;
+  }
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const manualStopRef = useRef(false);
 
   // Pending confirmation: KI hat etwas verstanden, User muss bestätigen
@@ -430,7 +453,8 @@ export default function ActiveWorkoutPage() {
       return;
     }
 
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const win = window as unknown as Record<string, unknown>;
+    const SR = win['SpeechRecognition'] ?? win['webkitSpeechRecognition'];
     if (!SR) {
       setVoiceError('Spracheingabe nicht unterstützt.');
       return;
@@ -438,13 +462,13 @@ export default function ActiveWorkoutPage() {
 
     try {
       manualStopRef.current = false;
-      const recognition = new SR();
+      const recognition = new (SR as new () => SpeechRecognitionLike)();
       recognitionRef.current = recognition;
       recognition.lang = 'de-DE';
       recognition.interimResults = false;
       recognition.continuous = true;
 
-      recognition.onresult = (e: any) => {
+      recognition.onresult = (e: SpeechRecognitionEventLike) => {
         let finalTranscript = '';
         for (let i = e.resultIndex; i < e.results.length; ++i) {
           if (e.results[i].isFinal) {
@@ -469,7 +493,7 @@ export default function ActiveWorkoutPage() {
         }
       };
 
-      recognition.onerror = (e: any) => {
+      recognition.onerror = (e: SpeechRecognitionErrorEventLike) => {
         if (e.error === 'not-allowed') {
           manualStopRef.current = true;
           setVoiceError('Mikrofon-Zugriff verweigert.');
@@ -629,7 +653,7 @@ export default function ActiveWorkoutPage() {
         )}
       </div>
 
-      {/* Voice Tracking FAB */}
+      {/* Voice Tracking FAB — collapsed by default */}
       <div
         style={{
           position: 'fixed',
@@ -643,7 +667,7 @@ export default function ActiveWorkoutPage() {
         }}
       >
         {/* KI Confirmation Card — "Was hat die KI verstanden?" */}
-        {pendingConfirm && (
+        {showMic && pendingConfirm && (
           <div style={{
             backgroundColor: colors.bgCard,
             border: `1px solid ${colors.accent}50`,
@@ -694,7 +718,7 @@ export default function ActiveWorkoutPage() {
           </div>
         )}
 
-        {voiceMessage && (
+        {showMic && voiceMessage && (
           <div style={{
             ...typography.label,
             color: colors.textPrimary,
@@ -709,7 +733,7 @@ export default function ActiveWorkoutPage() {
             {voiceMessage}
           </div>
         )}
-        {voiceError && (
+        {showMic && voiceError && (
           <div style={{
             ...typography.label,
             color: colors.bgPrimary,
@@ -721,31 +745,64 @@ export default function ActiveWorkoutPage() {
             {voiceError}
           </div>
         )}
+
+        {/* Expanded mic button — only visible when showMic is true */}
+        {showMic && (
+          <button
+            onClick={toggleListening}
+            disabled={isParsing}
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: radius.full,
+              backgroundColor: isListening ? colors.danger : colors.accent,
+              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: `0 4px 16px ${isListening ? colors.danger : colors.accent}80`,
+              cursor: isParsing ? 'wait' : 'pointer',
+              opacity: isParsing ? 0.8 : 1,
+              transition: 'background-color 0.2s',
+            }}
+          >
+            {isParsing ? (
+              <Loader2 size={24} color={colors.bgPrimary} style={{ animation: 'spin 1s linear infinite' }} />
+            ) : isListening ? (
+              <MicOff size={24} color={colors.bgPrimary} />
+            ) : (
+              <Mic size={24} color={colors.bgPrimary} />
+            )}
+          </button>
+        )}
+
+        {/* Toggle button — always visible, small and unobtrusive */}
         <button
-          onClick={toggleListening}
-          disabled={isParsing}
+          onClick={() => {
+            if (showMic && isListening) {
+              // stop listening when hiding the mic panel
+              manualStopRef.current = true;
+              recognitionRef.current?.stop?.();
+              setIsListening(false);
+            }
+            setShowMic(v => !v);
+          }}
+          title={showMic ? 'Mikrofon ausblenden' : 'Spracheingabe aktivieren'}
           style={{
-            width: '56px',
-            height: '56px',
+            width: '36px',
+            height: '36px',
             borderRadius: radius.full,
-            backgroundColor: isListening ? colors.danger : colors.accent,
-            border: 'none',
+            backgroundColor: showMic ? colors.bgElevated : colors.bgCard,
+            border: `1px solid ${showMic ? colors.accent + '60' : colors.border}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: `0 4px 16px ${isListening ? colors.danger : colors.accent}80`,
-            cursor: isParsing ? 'wait' : 'pointer',
-            opacity: isParsing ? 0.8 : 1,
-            transition: 'background-color 0.2s',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            opacity: showMic ? 1 : 0.6,
           }}
         >
-          {isParsing ? (
-            <Loader2 size={24} color={colors.bgPrimary} style={{ animation: 'spin 1s linear infinite' }} />
-          ) : isListening ? (
-            <MicOff size={24} color={colors.bgPrimary} />
-          ) : (
-            <Mic size={24} color={colors.bgPrimary} />
-          )}
+          <Mic size={16} color={showMic ? colors.accent : colors.textDisabled} />
         </button>
       </div>
 
