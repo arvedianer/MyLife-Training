@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, Sparkles, Dumbbell, TrendingUp, Zap, Plus, Menu, Mic, MicOff, BookOpen, Trash2, X, Lock, LockOpen } from 'lucide-react';
+import { Send, Bot, Dumbbell, TrendingUp, Zap, Plus, Menu, Mic, MicOff, BookOpen, Trash2, X, Lock, LockOpen, BarChart2, Target, Download, Sparkles } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { useHistoryStore } from '@/store/historyStore';
 import { useUserStore } from '@/store/userStore';
@@ -19,6 +19,7 @@ import { usePathname } from 'next/navigation';
 import type { TrainingSplit, SplitDay } from '@/types/splits';
 import type { ChatMessage } from '@/store/chatStore';
 import { useProactiveCoach } from '@/hooks/useProactiveCoach';
+
 // Shape of exercises from /data/exercises.json (snake_case from DB)
 interface DbExercise {
   id: string;
@@ -79,6 +80,12 @@ function detectTrainingPlan(text: string): boolean {
   return headingCount >= 2 || (hasDayPattern && hasBulletList);
 }
 
+// Format timestamp as HH:MM
+function formatTime(ts: number): string {
+  const d = new Date(ts);
+  return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+
 const QUICK_REPLIES = [
   'Analysiere mein letztes Training',
   'Was trainiere ich heute?',
@@ -87,20 +94,20 @@ const QUICK_REPLIES = [
 ];
 
 const STARTER_PROMPTS = [
-  { icon: <TrendingUp size={14} color={colors.accent} />, text: 'Analysiere mein letztes Workout' },
-  { icon: <Dumbbell size={14} color={colors.accent} />, text: 'Was fehlt in meinem Training?' },
-  { icon: <Zap size={14} color={colors.accent} />, text: 'Wie verbessere ich mein Bankdrücken?' },
-  { icon: <Sparkles size={14} color={colors.accent} />, text: 'Was ist Hypertrophie genau?' },
+  { icon: TrendingUp, text: 'Analysiere mein letztes Workout' },
+  { icon: Dumbbell, text: 'Was fehlt in meinem Training?' },
+  { icon: Zap, text: 'Wie verbessere ich mein Bankdrücken?' },
+  { icon: Sparkles, text: 'Was ist Hypertrophie genau?' },
 ];
 
 // What Coach Arved can do — shown in empty state
 const CAPABILITIES = [
-  { emoji: '📊', text: 'Workouts analysieren & auswerten' },
-  { emoji: '🏋️', text: 'Trainingspläne erstellen (Arnold, PPL, Upper/Lower)' },
-  { emoji: '🎯', text: 'Übungstechnik & Science-based Tipps' },
-  { emoji: '📈', text: 'Progressive Overload berechnen' },
-  { emoji: '🎤', text: 'Sprachsteuerung während dem Workout' },
-  { emoji: '💾', text: 'Pläne direkt in die App speichern' },
+  { Icon: BarChart2, text: 'Workouts analysieren & auswerten' },
+  { Icon: Dumbbell, text: 'Trainingspläne erstellen (Arnold, PPL, Upper/Lower)' },
+  { Icon: Target, text: 'Übungstechnik & Science-based Tipps' },
+  { Icon: TrendingUp, text: 'Progressive Overload berechnen' },
+  { Icon: Mic, text: 'Sprachsteuerung während dem Workout' },
+  { Icon: Download, text: 'Pläne direkt in die App speichern' },
 ];
 
 export default function ChatPage() {
@@ -539,6 +546,8 @@ export default function ChatPage() {
     td: ({ children }) => <td style={{ padding: '6px 10px', borderBottom: `1px solid ${colors.borderLight}`, color: colors.textSecondary, verticalAlign: 'top' }}>{children}</td>,
   };
 
+  const streak = calculateStreak(sessions.map((s) => s.date));
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: colors.bgPrimary, position: 'relative' }}>
       {/* Plan saved toast */}
@@ -683,52 +692,56 @@ export default function ChatPage() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
+      {/* ─── Header ─────────────────────────────────────────────── */}
       <div
         data-tour="chat-header"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: `${spacing[4]} ${spacing[5]}`,
-          paddingTop: `calc(${spacing[4]} + env(safe-area-inset-top))`,
+          padding: `${spacing[3]} ${spacing[4]}`,
+          paddingTop: `calc(${spacing[3]} + env(safe-area-inset-top))`,
           borderBottom: `1px solid ${colors.border}`,
           backgroundColor: colors.bgSecondary,
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
-          {/* History toggle */}
-          <button
-            onClick={() => setHistoryOpen(true)}
-            style={{ padding: spacing[2] }}
-            title="Gesprächsverlauf"
-          >
-            <Menu size={20} color={colors.textMuted} />
-          </button>
+        {/* Left: history icon */}
+        <button
+          onClick={() => setHistoryOpen(true)}
+          title="Gesprächsverlauf"
+          style={{
+            width: '36px', height: '36px', borderRadius: radius.md,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
+          }}
+        >
+          <Menu size={20} color={colors.textMuted} />
+        </button>
 
-          {/* Avatar + title */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
-            <div
-              style={{
-                width: '36px', height: '36px', borderRadius: radius.full,
-                background: `linear-gradient(135deg, ${colors.accent} 0%, ${colors.prColor} 100%)`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                boxShadow: `0 0 12px ${colors.accent}40`,
-              }}
-            >
-              <Bot size={20} color={colors.bgPrimary} />
-            </div>
-            <div>
-              <div style={{ ...typography.h3, color: colors.textPrimary }}>Coach Arved</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: spacing[1] }}>
-                <div style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: colors.success }} />
-                <span style={{ ...typography.label, fontSize: '10px', color: colors.success }}>Online</span>
-              </div>
+        {/* Center: avatar + name + status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
+          {/* Coach avatar */}
+          <div
+            style={{
+              width: '40px', height: '40px', borderRadius: radius.full,
+              background: `linear-gradient(135deg, ${colors.accent} 0%, ${colors.prColor} 100%)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              boxShadow: `0 0 0 2px ${colors.bgSecondary}, 0 0 0 3px ${colors.accent}50, 0 0 16px ${colors.accent}30`,
+            }}
+          >
+            <span style={{ ...typography.label, fontWeight: 800, color: colors.bgPrimary, fontSize: '13px', letterSpacing: '-0.5px' }}>CA</span>
+          </div>
+          <div>
+            <div style={{ ...typography.h3, color: colors.textPrimary, lineHeight: 1 }}>Coach Arved</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: colors.success, boxShadow: `0 0 6px ${colors.success}` }} />
+              <span style={{ ...typography.label, fontSize: '10px', color: colors.success }}>Online</span>
             </div>
           </div>
         </div>
 
+        {/* Right: mode toggle + new conversation */}
         <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
           {/* Filtered/Unfiltered Mode Toggle */}
           <button
@@ -736,30 +749,36 @@ export default function ChatPage() {
             title={chatMode === 'filtered' ? 'Filtered Mode — klick für Unfiltered' : 'Unfiltered Mode — klick für Filtered'}
             style={{
               display: 'flex', alignItems: 'center', gap: spacing[1],
-              padding: `${spacing[1]} ${spacing[3]}`,
-              backgroundColor: chatMode === 'unfiltered' ? colors.danger + '20' : colors.bgHighest,
-              border: `1px solid ${chatMode === 'unfiltered' ? colors.danger + '60' : colors.border}`,
+              padding: `${spacing[1]} ${spacing[2]}`,
+              backgroundColor: chatMode === 'unfiltered' ? `${colors.danger}20` : colors.bgHighest,
+              border: `1px solid ${chatMode === 'unfiltered' ? `${colors.danger}60` : colors.border}`,
               borderRadius: radius.full,
               color: chatMode === 'unfiltered' ? colors.danger : colors.textMuted,
               ...typography.label, cursor: 'pointer',
               transition: 'all 0.2s',
             }}
           >
-            {chatMode === 'filtered' ? <Lock size={12} /> : <LockOpen size={12} />} {chatMode === 'filtered' ? 'Filtered' : 'Unfiltered'}
+            {chatMode === 'filtered' ? <Lock size={12} /> : <LockOpen size={12} />}
           </button>
 
           {/* New conversation */}
           <button
             onClick={startNewConversation}
-            style={{ padding: spacing[2] }}
             title="Neues Gespräch"
+            style={{
+              width: '32px', height: '32px', borderRadius: radius.md,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backgroundColor: colors.bgHighest,
+              border: `1px solid ${colors.border}`,
+              cursor: 'pointer',
+            }}
           >
-            <Plus size={20} color={colors.textMuted} />
+            <Plus size={16} color={colors.textMuted} />
           </button>
         </div>
       </div>
 
-      {/* Messages area */}
+      {/* ─── Messages area ─────────────────────────────────────── */}
       <div
         data-tour="chat-messages"
         style={{
@@ -768,7 +787,7 @@ export default function ChatPage() {
           display: 'flex', flexDirection: 'column', gap: spacing[3],
         }}
       >
-        {/* Empty state */}
+        {/* ── Empty state ─────────────────────────────────────── */}
         {isEmpty && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -776,21 +795,33 @@ export default function ChatPage() {
             transition={{ duration: 0.4 }}
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',
-              paddingTop: spacing[8], paddingBottom: spacing[4], gap: spacing[4],
+              paddingTop: spacing[6], paddingBottom: spacing[4], gap: spacing[5],
             }}
           >
-            <div
-              style={{
-                width: '72px', height: '72px', borderRadius: radius.full,
-                background: `linear-gradient(135deg, ${colors.accent}22 0%, ${colors.prColor}22 100%)`,
-                border: `1px solid ${colors.accent}30`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <Sparkles size={32} color={colors.accent} />
+            {/* Avatar — large glowing */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {/* Outer glow ring */}
+              <div style={{
+                position: 'absolute',
+                width: '92px', height: '92px', borderRadius: radius.full,
+                background: `radial-gradient(circle, ${colors.accent}20 0%, transparent 70%)`,
+                animation: 'pulseRing 3s ease-in-out infinite',
+              }} />
+              <div
+                style={{
+                  width: '80px', height: '80px', borderRadius: radius.full,
+                  background: `linear-gradient(135deg, ${colors.accent} 0%, ${colors.prColor} 100%)`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  boxShadow: `0 0 0 3px ${colors.bgPrimary}, 0 0 0 5px ${colors.accent}40, 0 8px 32px ${colors.accent}30`,
+                  position: 'relative',
+                }}
+              >
+                <span style={{ fontFamily: 'var(--font-barlow)', fontSize: '26px', fontWeight: 800, color: colors.bgPrimary, letterSpacing: '-1px' }}>CA</span>
+              </div>
             </div>
 
-            <div style={{ textAlign: 'center' }}>
+            {/* Title + description */}
+            <div style={{ textAlign: 'center', paddingLeft: spacing[4], paddingRight: spacing[4] }}>
               <h2 style={{ ...typography.h2, color: colors.textPrimary, marginBottom: spacing[2] }}>
                 Coach Arved
               </h2>
@@ -799,40 +830,69 @@ export default function ChatPage() {
               </p>
             </div>
 
+            {/* Stats pills — prominent with monospace numbers */}
             {sessions.length > 0 && (
               <div style={{ display: 'flex', gap: spacing[2], flexWrap: 'wrap', justifyContent: 'center' }}>
-                <StatPill icon={<Dumbbell size={12} color={colors.accent} />} label={`${sessions.length} Workouts`} />
-                <StatPill icon={<TrendingUp size={12} color={colors.prColor} />} label={`${calculateStreak(sessions.map(s => s.date))} Tage Streak`} />
+                <StatPill
+                  icon={<Dumbbell size={13} color={colors.accent} />}
+                  value={String(sessions.length)}
+                  label="Workouts"
+                />
+                <StatPill
+                  icon={<TrendingUp size={13} color={colors.prColor} />}
+                  value={String(streak)}
+                  label="Tage Streak"
+                  valueColor={colors.prColor}
+                />
               </div>
             )}
 
-            {/* Starter prompts */}
-            <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing[2], marginTop: spacing[2] }}>
-              {STARTER_PROMPTS.map((p) => (
-                <button
-                  key={p.text}
-                  onClick={() => sendMessage(p.text)}
-                  style={{
-                    padding: spacing[3],
-                    backgroundColor: colors.bgCard,
-                    border: `1px solid ${colors.border}`,
-                    borderRadius: radius.lg,
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: spacing[2],
-                    transition: 'background-color 0.15s',
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgElevated; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgCard; }}
-                >
-                  {p.icon}
-                  <span style={{ ...typography.bodySm, color: colors.textSecondary, lineHeight: '16px' }}>
-                    {p.text}
-                  </span>
-                </button>
-              ))}
+            {/* Starter prompts — horizontal scroll chips */}
+            <div style={{
+              width: '100%',
+              display: 'flex',
+              gap: spacing[2],
+              overflowX: 'auto',
+              paddingLeft: spacing[2],
+              paddingRight: spacing[2],
+              scrollbarWidth: 'none',
+              WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+            }}>
+              {STARTER_PROMPTS.map((p) => {
+                const IconComp = p.icon;
+                return (
+                  <button
+                    key={p.text}
+                    onClick={() => sendMessage(p.text)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing[2],
+                      padding: `${spacing[2]} ${spacing[3]}`,
+                      backgroundColor: colors.bgCard,
+                      border: `1px solid ${colors.accent}30`,
+                      borderRadius: radius.full,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgElevated;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = `${colors.accent}60`;
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgCard;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = `${colors.accent}30`;
+                    }}
+                  >
+                    <IconComp size={13} color={colors.accent} />
+                    <span style={{ ...typography.bodySm, color: colors.textSecondary }}>
+                      {p.text}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* "WAS ICH KANN" capabilities section */}
@@ -840,22 +900,26 @@ export default function ChatPage() {
               width: '100%',
               borderTop: `1px solid ${colors.border}`,
               paddingTop: spacing[4],
-              marginTop: spacing[2],
             }}>
-              <p style={{ ...typography.label, color: colors.textMuted, marginBottom: spacing[3], marginTop: 0 }}>
+              <p style={{ ...typography.label, color: colors.textFaint, marginBottom: spacing[3], letterSpacing: '0.08em' }}>
                 WAS ICH KANN
               </p>
-              {CAPABILITIES.map((item) => (
-                <div key={item.text} style={{ display: 'flex', gap: spacing[2], alignItems: 'center', marginBottom: spacing[2] }}>
-                  <span style={{ fontSize: 16 }}>{item.emoji}</span>
-                  <span style={{ ...typography.bodySm, color: colors.textSecondary }}>{item.text}</span>
-                </div>
-              ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
+                {CAPABILITIES.map((item) => {
+                  const IconComp = item.Icon;
+                  return (
+                    <div key={item.text} style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
+                      <IconComp size={15} color={colors.accent} style={{ flexShrink: 0 }} />
+                      <span style={{ ...typography.bodySm, color: colors.textSecondary }}>{item.text}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </motion.div>
         )}
 
-        {/* Message list */}
+        {/* ── Message list ─────────────────────────────────────── */}
         <AnimatePresence initial={false}>
           {messages.map((msg, idx) => (
             <motion.div
@@ -866,27 +930,30 @@ export default function ChatPage() {
               {...(msg.role === 'assistant' && messages.filter(m => m.role === 'assistant').indexOf(msg) === 0 ? { 'data-tour': 'coach-response' } : {})}
               style={{ display: 'flex', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row', gap: spacing[2], alignItems: 'flex-end' }}
             >
+              {/* AI avatar */}
               {msg.role === 'assistant' && (
                 <div
                   style={{
-                    width: '28px', height: '28px', borderRadius: radius.full,
+                    width: '32px', height: '32px', borderRadius: radius.full,
                     background: `linear-gradient(135deg, ${colors.accent} 0%, ${colors.prColor} 100%)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    boxShadow: `0 0 8px ${colors.accent}30`,
                   }}
                 >
-                  <Bot size={14} color={colors.bgPrimary} />
+                  <span style={{ ...typography.label, fontWeight: 800, color: colors.bgPrimary, fontSize: '10px', letterSpacing: '-0.5px' }}>CA</span>
                 </div>
               )}
 
-              <div style={{ maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
+              <div style={{ maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {/* Bubble */}
                 <div
                   style={{
                     padding: `${spacing[3]} ${spacing[4]}`,
                     borderRadius: msg.role === 'user'
-                      ? `${radius.xl} ${radius.xl} ${spacing[1]} ${radius.xl}`
-                      : `${radius.xl} ${radius.xl} ${radius.xl} ${spacing[1]}`,
+                      ? `${radius.xl} 4px ${radius.xl} ${radius.xl}`
+                      : `4px ${radius.xl} ${radius.xl} ${radius.xl}`,
                     backgroundColor: msg.role === 'user' ? colors.accent : colors.bgCard,
-                    border: msg.role === 'assistant' ? `1px solid ${colors.border}` : 'none',
+                    borderLeft: msg.role === 'assistant' ? `2px solid ${colors.accent}50` : 'none',
                   }}
                 >
                   {msg.role === 'user' ? (
@@ -904,6 +971,18 @@ export default function ChatPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Timestamp */}
+                <span style={{
+                  ...typography.label,
+                  fontSize: '10px',
+                  color: colors.textFaint,
+                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  paddingLeft: msg.role === 'assistant' ? spacing[1] : 0,
+                  paddingRight: msg.role === 'user' ? spacing[1] : 0,
+                }}>
+                  {formatTime(msg.timestamp)}
+                </span>
 
                 {/* Plan save button — for completed assistant messages with plan content */}
                 {msg.role === 'assistant' && (idx < messages.length - 1 || !isLoading) && detectTrainingPlan(msg.content) && !savedPlanIds.has(msg.id) && (
@@ -940,7 +1019,7 @@ export default function ChatPage() {
           ))}
         </AnimatePresence>
 
-        {/* Typing indicator */}
+        {/* ── Typing indicator ─────────────────────────────────── */}
         {isLoading && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -950,20 +1029,21 @@ export default function ChatPage() {
           >
             <div
               style={{
-                width: '28px', height: '28px', borderRadius: radius.full,
+                width: '32px', height: '32px', borderRadius: radius.full,
                 background: `linear-gradient(135deg, ${colors.accent} 0%, ${colors.prColor} 100%)`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                boxShadow: `0 0 8px ${colors.accent}30`,
               }}
             >
-              <Bot size={14} color={colors.bgPrimary} />
+              <span style={{ ...typography.label, fontWeight: 800, color: colors.bgPrimary, fontSize: '10px', letterSpacing: '-0.5px' }}>CA</span>
             </div>
             <div
               style={{
                 padding: `${spacing[3]} ${spacing[4]}`,
                 backgroundColor: colors.bgCard,
-                border: `1px solid ${colors.border}`,
-                borderRadius: `${radius.xl} ${radius.xl} ${radius.xl} ${spacing[1]}`,
-                display: 'flex', gap: spacing[1], alignItems: 'center',
+                borderLeft: `2px solid ${colors.accent}50`,
+                borderRadius: `4px ${radius.xl} ${radius.xl} ${radius.xl}`,
+                display: 'flex', gap: spacing[2], alignItems: 'center',
               }}
             >
               {[0, 1, 2].map((i) => (
@@ -971,8 +1051,9 @@ export default function ChatPage() {
                   key={i}
                   style={{
                     width: '6px', height: '6px', borderRadius: '50%',
-                    backgroundColor: colors.textMuted,
-                    animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+                    backgroundColor: colors.accent,
+                    opacity: 0.7,
+                    animation: `typingBounce 1.2s ease-in-out ${i * 0.2}s infinite`,
                   }}
                 />
               ))}
@@ -1000,9 +1081,19 @@ export default function ChatPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Quick-reply chips — only before first send */}
+      {/* ─── Quick-reply chips ──────────────────────────────────── */}
       {!hasStartedChat && showQuickReplies && messages.length === 0 && (
-        <div data-tour="coach-suggestions" style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[2], padding: `${spacing[2]} ${spacing[4]}`, flexShrink: 0 }}>
+        <div
+          data-tour="coach-suggestions"
+          style={{
+            display: 'flex',
+            gap: spacing[2],
+            padding: `${spacing[2]} ${spacing[4]}`,
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            flexShrink: 0,
+          }}
+        >
           {QUICK_REPLIES.map((reply) => (
             <button
               key={reply}
@@ -1011,47 +1102,83 @@ export default function ChatPage() {
                 void sendMessage(reply);
               }}
               style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing[1],
                 padding: `${spacing[2]} ${spacing[3]}`,
                 borderRadius: radius.full,
-                border: `1px solid ${colors.border}`,
+                border: `1px solid ${colors.accent}30`,
                 backgroundColor: colors.bgCard,
-                color: colors.textSecondary,
-                fontSize: '13px',
+                color: `${colors.accent}B0`,
+                fontSize: '12px',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
-                transition: 'background-color 0.15s',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s',
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgElevated; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgCard; }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgElevated;
+                (e.currentTarget as HTMLButtonElement).style.borderColor = `${colors.accent}60`;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.bgCard;
+                (e.currentTarget as HTMLButtonElement).style.borderColor = `${colors.accent}30`;
+              }}
             >
+              <Zap size={11} color={colors.accent} />
               {reply}
             </button>
           ))}
         </div>
       )}
 
-      {/* Input area */}
+      {/* ─── Input area ─────────────────────────────────────────── */}
       <div
         data-tour="chat-input"
         style={{
-          borderTop: `1px solid ${colors.border}`,
           backgroundColor: colors.bgSecondary,
+          borderTop: `1px solid ${colors.border}`,
           padding: `${spacing[3]} ${spacing[4]}`,
           paddingBottom: `calc(${spacing[3]} + env(safe-area-inset-bottom))`,
           flexShrink: 0,
         }}
       >
+        {/* Voice listening indicator */}
+        <AnimatePresence>
+          {listening && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: spacing[2],
+                marginBottom: spacing[2],
+              }}
+            >
+              <div style={{
+                width: '8px', height: '8px', borderRadius: '50%',
+                backgroundColor: colors.danger,
+                animation: 'pulseRed 1s ease-in-out infinite',
+                flexShrink: 0,
+              }} />
+              <span style={{ ...typography.label, fontSize: '11px', color: colors.danger }}>
+                Aufnahme läuft — klick auf Mikrofon zum Stoppen
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Input card */}
         <div
           style={{
-            display: 'flex',
-            alignItems: 'flex-end',
-            gap: spacing[2],
-            backgroundColor: colors.bgHighest,
+            backgroundColor: colors.bgCard,
             borderRadius: radius.xl,
             border: `1px solid ${colors.border}`,
-            padding: `${spacing[2]} ${spacing[2]} ${spacing[2]} ${spacing[4]}`,
+            overflow: 'hidden',
           }}
         >
+          {/* Textarea */}
           <textarea
             ref={inputRef}
             value={input}
@@ -1060,7 +1187,7 @@ export default function ChatPage() {
             placeholder="Frag Coach Arved..."
             rows={1}
             style={{
-              flex: 1,
+              width: '100%',
               background: 'none',
               border: 'none',
               outline: 'none',
@@ -1068,49 +1195,78 @@ export default function ChatPage() {
               ...typography.body,
               color: colors.textPrimary,
               lineHeight: '22px',
-              maxHeight: '120px',
+              maxHeight: '88px',
               overflowY: 'auto',
+              padding: `${spacing[3]} ${spacing[4]}`,
+              boxSizing: 'border-box',
             }}
             onInput={(e) => {
               const el = e.currentTarget;
               el.style.height = 'auto';
-              el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+              el.style.height = `${Math.min(el.scrollHeight, 88)}px`;
             }}
           />
 
-          {/* Mic button — click to start, click again to stop */}
-          <button
-            onClick={toggleListening}
-            title={listening ? 'Aufnahme stoppen' : 'Spracheingabe starten'}
-            style={{
-              width: '36px', height: '36px', borderRadius: radius.full,
-              backgroundColor: listening ? `${colors.danger}20` : 'transparent',
-              border: listening ? `1px solid ${colors.danger}40` : 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
-            }}
-          >
-            {listening
-              ? <MicOff size={18} color={colors.danger} />
-              : <Mic size={18} color={colors.textMuted} />
-            }
-          </button>
+          {/* Bottom row */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: `${spacing[2]} ${spacing[3]}`,
+            borderTop: `1px solid ${colors.border}`,
+            gap: spacing[2],
+          }}>
+            {/* Mic button */}
+            <button
+              onClick={toggleListening}
+              title={listening ? 'Aufnahme stoppen' : 'Spracheingabe starten'}
+              style={{
+                width: '32px', height: '32px', borderRadius: radius.full,
+                backgroundColor: listening ? `${colors.danger}20` : 'transparent',
+                border: listening ? `1px solid ${colors.danger}40` : '1px solid transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
+              }}
+            >
+              {listening
+                ? <MicOff size={16} color={colors.danger} />
+                : <Mic size={16} color={colors.textMuted} />
+              }
+            </button>
 
-          {/* Send button */}
-          <button
-            onClick={() => sendMessage(input)}
-            disabled={!input.trim() || isLoading}
-            style={{
-              width: '36px', height: '36px', borderRadius: radius.full,
-              backgroundColor: input.trim() && !isLoading ? colors.accent : colors.bgElevated,
-              border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: input.trim() && !isLoading ? 'pointer' : 'default',
-              flexShrink: 0, transition: 'background-color 0.15s',
-            }}
-          >
-            <Send size={16} color={input.trim() && !isLoading ? colors.bgPrimary : colors.textDisabled} />
-          </button>
+            {/* Spacer + character counter */}
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {input.length > 100 && (
+                <span style={{ ...typography.label, fontSize: '10px', color: colors.textFaint }}>
+                  {input.length}
+                </span>
+              )}
+            </div>
+
+            {/* Send button */}
+            <button
+              onClick={() => sendMessage(input)}
+              disabled={!input.trim() || isLoading}
+              style={{
+                height: '32px',
+                borderRadius: radius.full,
+                backgroundColor: input.trim() && !isLoading ? colors.accent : colors.bgHighest,
+                border: 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing[1],
+                cursor: input.trim() && !isLoading ? 'pointer' : 'default',
+                flexShrink: 0, transition: 'all 0.2s',
+                padding: input.trim() ? `0 ${spacing[3]}` : '0 10px',
+              }}
+            >
+              <Send size={14} color={input.trim() && !isLoading ? colors.bgPrimary : colors.textDisabled} />
+              {input.trim() && !isLoading && (
+                <span style={{ ...typography.label, fontSize: '11px', color: colors.bgPrimary, fontWeight: 700 }}>
+                  Senden
+                </span>
+              )}
+            </button>
+          </div>
         </div>
+
         <p
           style={{
             ...typography.label, fontSize: '9px', color: colors.textFaint,
@@ -1121,30 +1277,51 @@ export default function ChatPage() {
         </p>
       </div>
 
-      {/* Animations */}
+      {/* ─── Animations ─────────────────────────────────────────── */}
       <style>{`
-        @keyframes bounce {
-          0%, 60%, 100% { transform: translateY(0); }
-          30% { transform: translateY(-6px); }
+        @keyframes typingBounce {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.7; }
+          30% { transform: translateY(-5px); opacity: 1; }
         }
+        @keyframes pulseRing {
+          0%, 100% { transform: scale(1); opacity: 0.6; }
+          50% { transform: scale(1.15); opacity: 0.2; }
+        }
+        @keyframes pulseRed {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.85); }
+        }
+        [data-tour="chat-input"] textarea::placeholder {
+          color: ${colors.textFaint};
+        }
+        div[style*="scrollbarWidth"]::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
   );
 }
 
-function StatPill({ icon, label }: { icon: React.ReactNode; label: string }) {
+function StatPill({ icon, value, label, valueColor }: { icon: React.ReactNode; value: string; label: string; valueColor?: string }) {
   return (
     <div
       style={{
-        display: 'flex', alignItems: 'center', gap: spacing[1],
-        padding: `${spacing[1]} ${spacing[3]}`,
+        display: 'flex', alignItems: 'center', gap: spacing[2],
+        padding: `${spacing[2]} ${spacing[3]}`,
         backgroundColor: colors.bgCard,
         border: `1px solid ${colors.border}`,
         borderRadius: radius.full,
       }}
     >
       {icon}
-      <span style={{ ...typography.label, fontSize: '10px', color: colors.textMuted }}>{label}</span>
+      <span style={{
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        fontWeight: 700,
+        color: valueColor ?? colors.accent,
+        lineHeight: 1,
+      }}>
+        {value}
+      </span>
+      <span style={{ ...typography.label, fontSize: '11px', color: colors.textMuted }}>{label}</span>
     </div>
   );
 }
