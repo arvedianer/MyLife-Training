@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { useMemo, useState, useEffect } from 'react';
-import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target, MessageCircle, AlertTriangle, X } from 'lucide-react';
+import { Play, TrendingUp, Flame, Calendar, ChevronRight, Settings, Target, MessageCircle, AlertTriangle, X, Award } from 'lucide-react';
 import { colors, typography, spacing, radius } from '@/constants/tokens';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { useUserStore } from '@/store/userStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { usePlanStore } from '@/store/planStore';
+import { computeAthleteScore, athleteScoreLabel } from '@/utils/athleteScore';
 import { formatWorkoutDate, formatDuration, formatVolume, calculateStreak } from '@/utils/dates';
 import { parseISO, startOfWeek } from 'date-fns';
 import { getMissingMuscles, getRemainingWeekDays, MUSCLE_LABELS_DE } from '@/utils/muscleCoverage';
@@ -42,6 +43,14 @@ export default function DashboardPage() {
   const missingMuscles = getMissingMuscles(sessions, Object.keys(MUSCLE_LABELS_DE));
   const showMuscleWarning = daysLeft > 0 && missingMuscles.length > 0;
 
+
+  // Athlete Score (compact summary for dashboard)
+  const lifetimeAthleteScore = useUserStore((s) => s.lifetimeAthleteScore);
+  const athleteResult = useMemo(
+    () => computeAthleteScore(sessions, profile?.bodyWeight ?? 0),
+    [sessions, profile?.bodyWeight],
+  );
+  const displayScore = Math.max(lifetimeAthleteScore, athleteResult.total);
 
   // Smart suggestions
   const suggestions = useMemo(() => generateSuggestions(sessions), [sessions]);
@@ -277,6 +286,51 @@ export default function DashboardPage() {
         />
       </div>
 
+
+      {/* Athlete Score — compact dashboard card */}
+      <Link href="/stats" style={{ display: 'block' }}>
+        <div
+          data-tour="athlete-score"
+          style={{
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.xl,
+            padding: spacing[4],
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+            transition: 'border-color 0.2s',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = `${colors.accent}40`; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = colors.border; }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
+            <div style={{
+              width: '42px', height: '42px', borderRadius: radius.lg,
+              backgroundColor: colors.accentBg, border: `1px solid ${colors.accent}30`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Award size={20} color={colors.accent} />
+            </div>
+            <div>
+              <p style={{ ...typography.label, color: colors.textMuted }}>ATHLETEN-SCORE</p>
+              <p style={{ ...typography.monoLg, color: colors.accent, lineHeight: '1.2' }}>
+                {displayScore}
+                <span style={{ ...typography.bodySm, color: colors.textMuted, marginLeft: spacing[2] }}>
+                  / 1000
+                </span>
+              </p>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ ...typography.bodySm, color: colors.textSecondary, fontWeight: '600' }}>
+              {athleteScoreLabel(displayScore)}
+            </p>
+            <ChevronRight size={18} color={colors.textDisabled} style={{ marginTop: '2px' }} />
+          </div>
+        </div>
+      </Link>
 
       {/* Muscle Coverage Warning */}
       {showMuscleWarning && (

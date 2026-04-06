@@ -83,6 +83,21 @@ export function TourOverlay() {
         if (findAndSet()) observerRef.current?.disconnect();
       });
       observerRef.current.observe(document.body, { childList: true, subtree: true });
+
+      // Fallback: if tap-step target still missing after 3s, auto-advance
+      if (step.action === 'tap') {
+        const timer = setTimeout(() => {
+          const el = document.querySelector(step.selector);
+          if (!el) nextStep();
+        }, 3000);
+        return () => {
+          clearTimeout(timer);
+          observerRef.current?.disconnect();
+          document.querySelectorAll('[data-tour-active]').forEach((e) =>
+            e.removeAttribute('data-tour-active'),
+          );
+        };
+      }
     }
 
     return () => {
@@ -91,7 +106,7 @@ export function TourOverlay() {
         el.removeAttribute('data-tour-active'),
       );
     };
-  }, [tourActive, tourStep, step]);
+  }, [tourActive, tourStep, step, nextStep]);
 
   // Handle 'tap' action: listen for click on highlighted element
   useEffect(() => {
@@ -123,7 +138,8 @@ export function TourOverlay() {
     <AnimatePresence>
       {tourActive && (
         <>
-          {/* Full-screen backdrop — blocks clicks outside spotlight */}
+          {/* Full-screen backdrop — blocks clicks outside spotlight for 'next' steps,
+               passes through for 'tap' steps so the user can click the element */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -132,7 +148,7 @@ export function TourOverlay() {
               position: 'fixed',
               inset: 0,
               zIndex: 9997,
-              pointerEvents: 'auto',
+              pointerEvents: step?.action === 'tap' ? 'none' : 'auto',
             }}
             onClick={() => {}}
           />
