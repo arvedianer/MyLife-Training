@@ -1,8 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Download } from 'lucide-react';
 import { colors, typography, spacing } from '@/constants/tokens';
+import { downloadMigrationExport } from '@/utils/dataExport';
 
 interface PageHeaderProps {
   title: string;
@@ -32,6 +33,43 @@ export function PageHeader({
       router.back();
     }
   };
+
+  const handleSettingsExport = () => {
+    try {
+      const migrationExport = downloadMigrationExport();
+      window.alert(
+        `Export erfolgreich: ${migrationExport.summary.sessionCount} Trainingseinheiten wurden gesichert.`,
+      );
+    } catch (error) {
+      console.error('Failed to export MyLife data:', error);
+      window.alert('Export fehlgeschlagen. Bitte versuche es erneut.');
+    }
+  };
+
+  const settingsExportButton = title === 'Einstellungen' ? (
+    <button
+      onClick={handleSettingsExport}
+      aria-label="Daten als JSON exportieren"
+      title="Daten als JSON exportieren"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: spacing[2],
+        minHeight: '36px',
+        padding: `0 ${spacing[3]}`,
+        borderRadius: '999px',
+        backgroundColor: colors.accentBg,
+        border: `1px solid ${colors.accent}50`,
+        cursor: 'pointer',
+        flexShrink: 0,
+      }}
+    >
+      <Download size={17} color={colors.accent} />
+      <span style={{ ...typography.label, color: colors.accent }}>Export</span>
+    </button>
+  ) : null;
+
+  const resolvedRightElement = rightElement ?? settingsExportButton;
 
   return (
     <div
@@ -105,8 +143,8 @@ export function PageHeader({
         )}
       </div>
 
-      {rightElement && (
-        <div style={{ flexShrink: 0 }}>{rightElement}</div>
+      {resolvedRightElement && (
+        <div style={{ flexShrink: 0 }}>{resolvedRightElement}</div>
       )}
     </div>
   );
